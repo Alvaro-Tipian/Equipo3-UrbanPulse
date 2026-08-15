@@ -1,0 +1,59 @@
+{
+  "name": "Hola Mundo",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "hola-mundo-Patrick",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "1e7fece8-99d5-43b1-8f1f-d134a053aeae",
+      "name": "Webhook",
+      "webhookId": "16e21195-fb3c-4746-8e5f-1f1fd2e8cf3a"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    mensaje: \"Hola Mundo, soy Patrick\",\n    rol: \"Scrum Master\",\n    estado: \"Entorno local 100% operativo\"\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "4662f23d-ffc4-4fac-bc3b-a53fe831e334",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "54e684de-a7b0-45b6-8663-a9ec1ef1add2",
+  "meta": {
+    "instanceId": "f0b2b7098f7c4d597e3df161034b481d2893ccfa4b412929fe8b400c269f7630"
+  },
+  "nodeGroups": [],
+  "id": "uf9gre06oRIhmx7X",
+  "tags": []
+}
