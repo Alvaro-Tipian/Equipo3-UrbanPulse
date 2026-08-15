@@ -1,0 +1,99 @@
+{
+  "name": "UrbanPulse - Reporte Ciudadano",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "urbanpulse/report",
+        "responseMode": "lastNode",
+        "options": {
+          "allowedOrigins": " http://localhost:8080"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "8a9d2df2-7649-447a-ae93-8e5ae6e03e94",
+      "name": "Webhook",
+      "webhookId": "b1a1a111-1111-4111-8111-111111111101"
+    },
+    {
+      "parameters": {
+        "jsCode": "// MOCK de clasificacion: esta PoC no tiene configurada una clave de API de\n// Gemini ni de Groq (ver README.md / .env.example para las variables de\n// entorno esperadas), por lo que se simula la clasificacion con reglas\n// simples basadas en palabras clave del texto. Para produccion, sustituir\n// este nodo por un nodo HTTP Request que llame al LLM elegido.\n\nconst body = $json.body || $json;\nconst description = body.description || '';\nconst latitude = body.latitude != null ? body.latitude : null;\nconst longitude = body.longitude != null ? body.longitude : null;\n\nconst text = description.toLowerCase();\n\nconst rules = [\n  { keywords: ['fuga', 'agua', 'tuberia', 'tubería', 'inundacion', 'inundación'], incident_type: 'agua_saneamiento', severity: 'alta', priority: 5 },\n  { keywords: ['incendio', 'fuego', 'humo'], incident_type: 'incendio', severity: 'alta', priority: 5 },\n  { keywords: ['bache', 'hueco', 'pavimento', 'via', 'vía'], incident_type: 'infraestructura_vial', severity: 'media', priority: 3 },\n  { keywords: ['basura', 'residuo', 'desecho'], incident_type: 'residuos', severity: 'baja', priority: 2 },\n  { keywords: ['alumbrado', 'luz', 'poste', 'foco'], incident_type: 'alumbrado_publico', severity: 'media', priority: 3 },\n  { keywords: ['arbol', 'árbol', 'rama'], incident_type: 'arbolado_urbano', severity: 'media', priority: 2 }\n];\n\nlet match = rules.find(r => r.keywords.some(k => text.includes(k)));\nif (!match) {\n  match = { incident_type: 'otro', severity: 'baja', priority: 1 };\n}\n\nreturn [{\n  json: {\n    description,\n    image_url: null,\n    incident_type: match.incident_type,\n    severity: match.severity,\n    priority: match.priority,\n    latitude,\n    longitude\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "dedd8c38-0a8b-4bfa-b796-5c6ba77a7ba4",
+      "name": "Clasificar (mock)"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO reports (description, image_url, incident_type, severity, latitude, longitude, priority)\nVALUES ($1, $2, $3, $4, $5, $6, $7)\nRETURNING id, description, image_url, incident_type, severity, latitude, longitude, priority, status, created_at;",
+        "options": {
+          "queryReplacement": "={{ [$json.description, $json.image_url, $json.incident_type, $json.severity, $json.latitude, $json.longitude, $json.priority] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        448,
+        0
+      ],
+      "id": "222ed729-5b07-451d-acaa-7e46d4e50116",
+      "name": "Guardar en Postgres",
+      "credentials": {
+        "postgres": {
+          "id": "JNoRTIIfujq7W316",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Clasificar (mock)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clasificar (mock)": {
+      "main": [
+        [
+          {
+            "node": "Guardar en Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "e33246fd-cbee-44de-a51c-d15562907bcc",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "87da3f8e78fcb882965e113f367ca23671053e7a16e0c29ac7502fc383acf47c"
+  },
+  "nodeGroups": [],
+  "id": "WVUWIQjf2MQ5V6FX",
+  "tags": []
+}
