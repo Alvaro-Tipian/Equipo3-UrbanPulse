@@ -1,0 +1,37 @@
+﻿
+
+services:
+  postgres:
+    image: ankane/pgvector:latest
+    container_name: urbanpulse-db
+    restart: always
+    environment:
+      POSTGRES_USER: urban_admin
+      POSTGRES_PASSWORD: urban_password_local
+      POSTGRES_DB: urbanpulse_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n
+    container_name: urbanpulse-n8n
+    restart: always
+    environment:
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_DATABASE=urbanpulse_db
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_USER=urban_admin
+      - DB_POSTGRESDB_PASSWORD=urban_password_local
+    ports:
+      - "5678:5678"
+    depends_on:
+      - postgres
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+volumes:
+  pg_data:
+  n8n_data:

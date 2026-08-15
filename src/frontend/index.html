@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UrbanPulse - Reportar incidente</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="container">
+    <h1>UrbanPulse</h1>
+    <p class="subtitle">Reporta un incidente urbano en tu zona.</p>
+
+    <form id="report-form">
+      <label for="description">Descripción del incidente</label>
+      <textarea
+        id="description"
+        name="description"
+        rows="4"
+        placeholder="Ej: Hay un bache grande en la avenida principal..."
+        required
+      ></textarea>
+
+      <label for="image">Foto (opcional)</label>
+      <input id="image" name="image" type="file" accept="image/*" />
+
+      <fieldset class="coords">
+        <legend>Ubicación (opcional)</legend>
+        <div class="coords-row">
+          <div>
+            <label for="latitude">Latitud</label>
+            <input id="latitude" name="latitude" type="number" step="any" placeholder="-12.0464" />
+          </div>
+          <div>
+            <label for="longitude">Longitud</label>
+            <input id="longitude" name="longitude" type="number" step="any" placeholder="-77.0428" />
+          </div>
+        </div>
+        <button type="button" id="use-location">Usar mi ubicación actual</button>
+      </fieldset>
+
+      <button type="submit" id="submit-btn">Enviar reporte</button>
+    </form>
+
+    <section id="status" class="status" hidden></section>
+    <section id="result" class="result" hidden></section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
