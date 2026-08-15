@@ -1,0 +1,59 @@
+{
+  "name": "Hola Mundo - Kiara",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "hola-mundo-Kiara",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "6af0d57e-db8f-46bf-9e37-0e0d800be79b",
+      "name": "Webhook",
+      "webhookId": "af6b98ee-f327-470d-b710-ecfe99d370a3"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    mensaje: \"Hola Mundo, soy Kiara\",\n    rol: \"[Tu Rol:Frontend]\",\n    estado: \"Entorno local 100% operativo\"\n  }\n}];\n;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        256,
+        0
+      ],
+      "id": "7abedc6d-f008-4f67-87f6-dcfddb893ac9",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "a20aceeb-b0dd-4c4e-b953-65991e05c88e",
+  "meta": {
+    "instanceId": "7ff7cdcd103287bc61a2b8f6df125d2c164e18cea8e43c79b20b634f42a439aa"
+  },
+  "nodeGroups": [],
+  "id": "hVCD3FNdOJb4AZp2",
+  "tags": []
+}
