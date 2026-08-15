@@ -1,0 +1,41 @@
+﻿name: n8n Validate CI
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  governance:
+    name: Gobernanza PR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Chequear el PR title con Conventional Commits
+        uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  n8n_security:
+    name: Seguridad en workflows n8n
+    runs-on: ubuntu-latest
+    needs: governance
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Escanear workflows n8n en busca de credenciales quemadas
+        shell: bash
+        run: |
+          set -e
+          files=$(find src/n8n-workflows -type f -name '*.json' || true)
+          if [ -z "$files" ]; then
+            echo 'No se encontraron archivos JSON en src/n8n-workflows.'
+            exit 0
+          fi
+          secrets=$(grep -RInE '(API_KEY|Bearer|sk-)' $files || true)
+          if [ -n "$secrets" ]; then
+            echo '🚨 Se detectaron posibles credenciales hardcodeadas en los workflows n8n:'
+            echo "$secrets"
+            exit 1
+          fi
+          echo '✅ Escaneo de seguridad n8n completado sin hallazgos.'
