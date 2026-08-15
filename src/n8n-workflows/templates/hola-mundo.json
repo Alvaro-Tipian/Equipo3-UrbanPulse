@@ -1,0 +1,60 @@
+{
+  "name": "Hola Mundo",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "hola-mundo",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "af9c27a3-6fd5-44ce-ad18-c52cbd945f1a",
+      "name": "Webhook",
+      "webhookId": "0d833981-06fb-4d13-b777-f159ddad5e31"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    mensaje: \"Hola Mundo desde la célula de UrbanPulse\",\n    estado: \"Conectado y listo\",\n    prioridad: \"Alta\"\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "10c5a51f-999a-4b07-931f-073aa067d21f",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "bc022c7a-324c-4047-8b1b-eca7c154feba",
+  "meta": {
+    "instanceId": "56915961b0b38bcf0aef4f0416735a14b947dd3f6b0558dc20d6530b0cc3013a"
+  },
+  "nodeGroups": [],
+  "id": "pqAbq2M4s9FY1BJ8",
+  "tags": []
+}
