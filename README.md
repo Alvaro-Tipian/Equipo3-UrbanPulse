@@ -34,6 +34,48 @@ docker-compose up -d
 4. Accede a n8n en `http://localhost:5678`.
 5. Administra el servicio PostgreSQL en `localhost:5433`.
 
+## Cómo correr la PoC end-to-end
+
+Flujo: **Frontend → n8n → PostgreSQL+pgvector → LLM (mock)**.
+
+1. Levanta la infraestructura local (PostgreSQL+pgvector y n8n):
+
+   ```bash
+   cd infrastructure
+   docker-compose up -d
+   ```
+
+2. Corre la migración de base de datos (activa `pgvector` y crea la tabla `reports`):
+
+   ```bash
+   docker exec -i urbanpulse-db psql -U urban_admin -d urbanpulse_db \
+     < database/migrations/20260814000001_create_reports_table.sql
+   ```
+
+3. Importa el workflow en n8n:
+   - Abre `http://localhost:5678` y crea tu cuenta local de n8n (solo la primera vez).
+   - Ve a **Credentials → New → Postgres** y crea una credencial llamada exactamente `Postgres UrbanPulse` con los datos de `.env.example` (host `postgres`, database `urbanpulse_db`, user `urban_admin`, password `urban_password_local`, port `5432`). Las credenciales nunca se exportan en el JSON del workflow, así que este paso es obligatorio.
+   - Ve a **Workflows → Import from File** y selecciona `src/n8n-workflows/production/urbanpulse-report.json`.
+   - Abre el workflow importado y actívalo (toggle **Active**).
+
+4. Abre el frontend mínimo:
+
+   ```bash
+   cd src/frontend
+   python -m http.server 8080
+   ```
+
+   Entra a `http://localhost:8080`, completa el formulario (descripción, imagen opcional, ubicación opcional) y presiona **Enviar reporte**. El tipo de incidente, gravedad y prioridad se muestran en pantalla.
+
+5. (Opcional) Verifica los reportes guardados directamente en la base de datos:
+
+   ```bash
+   docker exec -it urbanpulse-db psql -U urban_admin -d urbanpulse_db \
+     -c "SELECT id, incident_type, severity, priority, status, created_at FROM reports ORDER BY created_at DESC LIMIT 5;"
+   ```
+
+> Esta PoC no tiene configurada una clave de API de Gemini ni de Groq (ver `.env.example`), así que la clasificación del incidente la simula un nodo de código dentro del workflow (reglas por palabras clave), no un LLM real. El nodo está comentado explícitamente como mock.
+
 ## Gobernanza y seguridad
 
 - El pipeline CI verifica que los títulos de PR sigan Conventional Commits.
