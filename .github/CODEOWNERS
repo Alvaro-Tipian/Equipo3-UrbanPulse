@@ -1,0 +1,7 @@
+# CODEOWNERS - UrbanPulse
+# El Arquitecto de Software debe aprobar cambios en rutas críticas de gobernanza,
+# infraestructura y workflows de producción antes de mergear a main.
+
+/infrastructure/ @SergioAscurraPerez
+/.github/ @SergioAscurraPerez
+/src/n8n-workflows/production/ @SergioAscurraPerez
