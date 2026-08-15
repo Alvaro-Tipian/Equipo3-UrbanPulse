@@ -6,12 +6,17 @@
         "httpMethod": "POST",
         "path": "urbanpulse/report",
         "responseMode": "lastNode",
-        "options": {}
+        "options": {
+          "allowedOrigins": " http://localhost:8080"
+        }
       },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
-      "position": [0, 0],
-      "id": "b1a1a111-1111-4111-8111-111111111101",
+      "position": [
+        0,
+        0
+      ],
+      "id": "8a9d2df2-7649-447a-ae93-8e5ae6e03e94",
       "name": "Webhook",
       "webhookId": "b1a1a111-1111-4111-8111-111111111101"
     },
@@ -21,8 +26,11 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [224, 0],
-      "id": "b1a1a111-1111-4111-8111-111111111102",
+      "position": [
+        224,
+        0
+      ],
+      "id": "dedd8c38-0a8b-4bfa-b796-5c6ba77a7ba4",
       "name": "Clasificar (mock)"
     },
     {
@@ -35,13 +43,16 @@
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [448, 0],
-      "id": "b1a1a111-1111-4111-8111-111111111103",
+      "position": [
+        448,
+        0
+      ],
+      "id": "222ed729-5b07-451d-acaa-7e46d4e50116",
       "name": "Guardar en Postgres",
       "credentials": {
         "postgres": {
-          "id": "poc-postgres-urbanpulse-cred-01",
-          "name": "Postgres UrbanPulse"
+          "id": "JNoRTIIfujq7W316",
+          "name": "Postgres account"
         }
       }
     }
@@ -49,23 +60,40 @@
   "pinData": {},
   "connections": {
     "Webhook": {
-      "main": [[{ "node": "Clasificar (mock)", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Clasificar (mock)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Clasificar (mock)": {
-      "main": [[{ "node": "Guardar en Postgres", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Guardar en Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "6f2a2e0e-9b3a-4f2f-8a6b-2b6a0e2f2c11",
+  "versionId": "e33246fd-cbee-44de-a51c-d15562907bcc",
   "meta": {
-    "instanceId": "urbanpulse-poc-flujo-principal"
+    "templateCredsSetupCompleted": true,
+    "instanceId": "87da3f8e78fcb882965e113f367ca23671053e7a16e0c29ac7502fc383acf47c"
   },
   "nodeGroups": [],
-  "id": "urbanpulseReport01",
+  "id": "WVUWIQjf2MQ5V6FX",
   "tags": []
 }

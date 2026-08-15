@@ -56,7 +56,8 @@ Flujo: **Frontend → n8n → PostgreSQL+pgvector → LLM (mock)**.
    - Abre `http://localhost:5678` y crea tu cuenta local de n8n (solo la primera vez).
    - Ve a **Credentials → New → Postgres** y crea una credencial llamada exactamente `Postgres UrbanPulse` con los datos de `.env.example` (host `postgres`, database `urbanpulse_db`, user `urban_admin`, password `urban_password_local`, port `5432`). Las credenciales nunca se exportan en el JSON del workflow, así que este paso es obligatorio.
    - Ve a **Workflows → Import from File** y selecciona `src/n8n-workflows/production/urbanpulse-report.json`.
-   - Abre el workflow importado y actívalo (toggle **Active**).
+   - Abre el nodo **Webhook** y confirma que en **Options → Allowed Origins (CORS)** esté configurado `http://localhost:8080` (el puerto en el que sirves el frontend en el paso 4). Ya viene incluido en el JSON exportado; si lo configuras a mano, este valor es el que evita que el navegador bloquee la petición del frontend por CORS.
+   - En el editor del workflow, haz clic en **Publish** para activarlo (esta versión de n8n ya no usa el toggle **Active**).
 
 4. Abre el frontend mínimo:
 
@@ -75,6 +76,10 @@ Flujo: **Frontend → n8n → PostgreSQL+pgvector → LLM (mock)**.
    ```
 
 > Esta PoC no tiene configurada una clave de API de Gemini ni de Groq (ver `.env.example`), así que la clasificación del incidente la simula un nodo de código dentro del workflow (reglas por palabras clave), no un LLM real. El nodo está comentado explícitamente como mock.
+
+### Troubleshooting
+
+- **El navegador da error de CORS** o **n8n devuelve "webhook not registered"**: haz clic en **Publish** en el editor del workflow. Esta versión de n8n ya no usa el toggle **Active** para (re)activar un workflow y registrar su webhook; sin publicar, el webhook no queda escuchando y las peticiones del frontend fallan.
 
 ## Gobernanza y seguridad
 
