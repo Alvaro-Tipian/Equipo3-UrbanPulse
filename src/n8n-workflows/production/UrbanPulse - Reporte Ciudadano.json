@@ -1,0 +1,265 @@
+{
+  "name": "UrbanPulse - Reporte Ciudadano",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "urbanpulse/report",
+        "responseMode": "lastNode",
+        "options": {
+          "allowedOrigins": " http://localhost:8080"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -352,
+        16
+      ],
+      "id": "6e61ec06-e37c-41d3-a5b9-9836f5a3f5a4",
+      "name": "Webhook",
+      "webhookId": "b1a1a111-1111-4111-8111-111111111101"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO reports (description, image_url, incident_type, severity, latitude, longitude, priority, mensaje_ciudadano)\nVALUES ($1, $2, $3, $4, $5, $6, $7, $8)\nRETURNING id, description, image_url, incident_type, severity, latitude, longitude, priority, status, mensaje_ciudadano, created_at;",
+        "options": {
+          "queryReplacement": "={{ [$json.description, $json.image_url, $json.incident_type, $json.severity, $json.latitude, $json.longitude, $json.priority, $json.mensaje_ciudadano] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        800,
+        0
+      ],
+      "id": "d0d39461-d678-4646-bb86-d6d07f457750",
+      "name": "Guardar en Postgres",
+      "credentials": {
+        "postgres": {
+          "id": "Il4alMQXMjgKNxRO",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        416,
+        0
+      ],
+      "id": "38a972cc-7b28-470c-b105-81ca9c95139d",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "NxfwRSreI9kkTtpm",
+          "name": "Gemini"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $('Webhook').item.json.body || $('Webhook').item.json;\n\n\nconst traficoItems = $('Traer congestión cercana').all();\nconst trafico = traficoItems.length > 0 ? traficoItems[0].json : null;\n\n// ↓↓↓ ESTA es la línea que reemplazas ↓↓↓\nconst contextoTrafico = (trafico && trafico.nombre)\n  ? `Dato de tráfico cercano: ${trafico.nombre}, ${trafico.porcentaje_congestion}% de congestión (${trafico.estado}).`\n  : \"No hay datos de tráfico cercano disponibles.\";\n// ↑↑↑ ESTA es la línea que reemplazas ↑↑↑\n\nconst parts = [\n  { text: `Eres un asistente de UrbanPulse que clasifica reportes ciudadanos de incidentes urbanos en Lima, Perú.\nAnaliza la descripción del ciudadano (y la imagen adjunta si existe) y clasifica el incidente. La prioridad debe ser un número del 1 al 5, donde 5 es la máxima urgencia y 1 la mínima.\nResponde también con un mensaje breve y amable dirigido al ciudadano confirmando su reporte.\nDescripción: \"${body.description}\"\n${contextoTrafico}\nSi la descripción menciona tráfico o congestión y tienes el dato de arriba, menciona el porcentaje exacto en tu mensaje al ciudadano.` }\n];\n\nif (body.image_base64) {\n  parts.push({\n    inline_data: {\n      mime_type: \"image/jpeg\",\n      data: body.image_base64\n    }\n  });\n}\n\nreturn {\n  json: {\n    contents: [{ parts }],\n    generationConfig: {\n      responseMimeType: \"application/json\",\n      responseSchema: {\n        type: \"OBJECT\",\n        properties: {\n          incident_type: { type: \"STRING\", enum: [\"infraestructura_vial\",\"alumbrado_publico\",\"agua_saneamiento\",\"residuos\",\"arbolado_urbano\",\"incendio\",\"otro\"] },\n          severity: { type: \"STRING\", enum: [\"baja\",\"media\",\"alta\"] },\n          priority: { type: \"INTEGER\" },\n          mensaje_ciudadano: { type: \"STRING\" }\n        },\n        required: [\"incident_type\",\"severity\",\"priority\",\"mensaje_ciudadano\"]\n      }\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "10ea74a5-6140-4d71-aeb7-e31fca61c4e2",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "jsCode": "const respuestaTexto = $json.candidates[0].content.parts[0].text;\nconst clasificacion = JSON.parse(respuestaTexto);\n\nconst body = $('Webhook').item.json.body || $('Webhook').item.json;\n\nreturn {\n  json: {\n    description: body.description,\n    image_url: null,\n    incident_type: clasificacion.incident_type,\n    severity: clasificacion.severity,\n    priority: clasificacion.priority,\n    mensaje_ciudadano: clasificacion.mensaje_ciudadano,\n    latitude: body.latitude != null ? body.latitude : null,\n    longitude: body.longitude != null ? body.longitude : null\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        608,
+        0
+      ],
+      "id": "9eedb39e-18c5-4705-b115-d94194a8748e",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "04ef9061-d9ef-4e5e-a4cf-3d6053c5fdd5",
+              "leftValue": "={{ $json.body.description }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -160,
+        16
+      ],
+      "id": "2c5c96f7-7dc9-4b9a-8a2c-01a8122b6683",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "jsCode": "return { json: { error: \"La descripción del incidente es obligatoria.\" } };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        256
+      ],
+      "id": "f71422fd-1792-4261-af9b-8bf873cb49c4",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT pm.nombre, tr.porcentaje_congestion, tr.estado, tr.captured_at\nFROM puntos_monitoreo pm\nJOIN LATERAL (\n  SELECT * FROM traffic_readings t\n  WHERE t.punto_nombre = pm.nombre\n  ORDER BY captured_at DESC LIMIT 1\n) tr ON true\nWHERE $1::double precision IS NOT NULL\nORDER BY (pm.latitude - $1)^2 + (pm.longitude - $2)^2 ASC\nLIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [$json.body.latitude, $json.body.longitude] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        48,
+        0
+      ],
+      "id": "0ffb089b-69fe-4b52-91f3-248d4379d978",
+      "name": "Traer congestión cercana",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "Il4alMQXMjgKNxRO",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Guardar en Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Traer congestión cercana",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar en Postgres": {
+      "main": [
+        []
+      ]
+    },
+    "Traer congestión cercana": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "64259958-7456-40bf-9c23-55fc93980e9f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "87fb69796176a971aac5891ddee53273b6d94e06350b078fcd71a5f192810c8f"
+  },
+  "nodeGroups": [],
+  "id": "YkbxWS6tRYCsVtA3",
+  "tags": []
+}
