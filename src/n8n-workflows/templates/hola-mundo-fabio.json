@@ -1,0 +1,60 @@
+{
+  "name": "hola-mundo-fabio",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "hola-mundo-fabio",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "258d0638-c03b-4c3c-8cfd-d7cb0474fe4d",
+      "name": "Webhook",
+      "webhookId": "2195762b-46e3-4507-aae5-d4790ba235bc"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { mensaje: \"Hola Mundo, soy Fabio\", rol: \"QA / Prompt Eng\", estado: \"Entorno local 100% operativo\" } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "057a8168-3a00-4a04-b403-490477d23821",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "e2c2da24-c626-4309-a495-6b86478b15e9",
+  "meta": {
+    "instanceId": "75cea9e7ceaa8dbccbdbc0a7b512a20eadee9c236c601ee706ef319175ea2ee1"
+  },
+  "nodeGroups": [],
+  "id": "P2RKqwARXgvYidBI",
+  "tags": []
+}
