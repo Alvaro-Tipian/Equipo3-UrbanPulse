@@ -46,6 +46,7 @@ function showResult(report) {
       <dt>Gravedad</dt><dd>${report.severity ?? "-"}</dd>
       <dt>Prioridad</dt><dd>${report.priority ?? "-"}</dd>
       <dt>Estado</dt><dd>${report.status ?? "-"}</dd>
+      <dt>Mensaje</dt><dd>${report.mensaje_ciudadano ?? "-"}</dd>
     </dl>
   `;
   resultEl.hidden = false;
@@ -99,6 +100,10 @@ form.addEventListener("submit", async (event) => {
 
     const report = await response.json();
     hideStatus();
+    if (report.error) {
+      showStatus(report.error, "error");
+      return;
+    }
     showResult(report);
     form.reset();
   } catch (error) {

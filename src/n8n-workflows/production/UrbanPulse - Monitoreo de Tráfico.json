@@ -1,0 +1,175 @@
+{
+  "name": "UrbanPulse - Monitoreo de Tráfico",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 10
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -496,
+        32
+      ],
+      "id": "ee432b57-9dd2-4dc7-b0bc-60ea935de835",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT nombre, latitude, longitude FROM puntos_monitoreo ORDER BY nombre;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        -272,
+        32
+      ],
+      "id": "d8248bda-d1fc-4c67-aeaf-927c904971c6",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "Il4alMQXMjgKNxRO",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "point",
+              "value": "={{ $json.latitude }},{{ $json.longitude }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -48,
+        32
+      ],
+      "id": "7b6af61a-3c00-481a-9aa9-2cea49c96996",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "QQ2x7xOdpHhsNkaz",
+          "name": "TomtTom API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const tomtom = $json.flowSegmentData;\nconst punto = $('Execute a SQL query').item.json;\n\nconst velocidadActual = tomtom.currentSpeed;\nconst velocidadNormal = tomtom.freeFlowSpeed;\nconst congestion = ((velocidadNormal - velocidadActual) / velocidadNormal) * 100;\n\nreturn {\n  json: {\n    punto_nombre: punto.nombre,\n    velocidad_actual: velocidadActual,\n    velocidad_normal: velocidadNormal,\n    porcentaje_congestion: Number(congestion.toFixed(1)),\n    estado: congestion > 30 ? 'Congestionado' : 'Fluido'\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        176,
+        32
+      ],
+      "id": "3442bea6-d57a-43f7-a09f-b2d9f4b74557",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO traffic_readings (punto_nombre, velocidad_actual, velocidad_normal, porcentaje_congestion, estado)\nVALUES ($1, $2, $3, $4, $5);",
+        "options": {
+          "queryReplacement": "={{ [$json.punto_nombre, $json.velocidad_actual, $json.velocidad_normal, $json.porcentaje_congestion, $json.estado] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        400,
+        32
+      ],
+      "id": "b770660e-a151-4eef-9797-73ff01e1e2e4",
+      "name": "Execute a SQL query1",
+      "credentials": {
+        "postgres": {
+          "id": "Il4alMQXMjgKNxRO",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "cd781d96-149e-41e6-81d5-b33f7dea4c0c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "87fb69796176a971aac5891ddee53273b6d94e06350b078fcd71a5f192810c8f"
+  },
+  "nodeGroups": [],
+  "id": "y3GGmfD1YvAt6Af2",
+  "tags": []
+}
