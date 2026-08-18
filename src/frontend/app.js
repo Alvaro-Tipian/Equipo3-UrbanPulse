@@ -1,8 +1,7 @@
-// URL del webhook de n8n. Coincide con el puerto expuesto por
-// infrastructure/docker-compose.yml (n8n en localhost:5678) y con el path
+// URL del webhook de n8n en producción. Coincide con el path
 // "urbanpulse/report" configurado en el nodo Webhook de
 // src/n8n-workflows/production/urbanpulse-report.json.
-const WEBHOOK_URL = "http://localhost:5678/webhook/urbanpulse/report";
+const N8N_WEBHOOK_URL = "https://urbanpulse-n8n.onrender.com/webhook/urbanpulse/report";
 
 const form = document.getElementById("report-form");
 const submitBtn = document.getElementById("submit-btn");
@@ -88,7 +87,7 @@ form.addEventListener("submit", async (event) => {
   showStatus("Enviando reporte...", "loading");
 
   try {
-    const response = await fetch(WEBHOOK_URL, {
+    const response = await fetch(N8N_WEBHOOK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
