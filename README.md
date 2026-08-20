@@ -81,6 +81,30 @@ Flujo: **Frontend → n8n → PostgreSQL+pgvector → LLM (mock)**.
 
 - **El navegador da error de CORS** o **n8n devuelve "webhook not registered"**: haz clic en **Publish** en el editor del workflow. Esta versión de n8n ya no usa el toggle **Active** para (re)activar un workflow y registrar su webhook; sin publicar, el webhook no queda escuchando y las peticiones del frontend fallan.
 
+## Verificación end-to-end de la PoC desplegada
+
+`scripts/verify-poc-deployment.js` recorre en orden los tres componentes ya
+desplegados (Frontend en Vercel → Webhook n8n en Render → PostgreSQL en Neon),
+envía un reporte de prueba real y confirma que quedó persistido correctamente.
+
+No requiere instalar ningún paquete npm: usa `fetch` nativo de Node.js para
+los pasos 1 y 2, y para el paso 3 invoca directamente el cliente `psql` de
+PostgreSQL.
+
+1. Asegúrate de tener `psql` (cliente de PostgreSQL) instalado y disponible
+   en el PATH del sistema.
+
+2. Define las variables de entorno documentadas en `.env.example`
+   (`FRONTEND_URL`, `N8N_WEBHOOK_URL`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`,
+   `DB_USER`, `DB_PASSWORD`) con los valores reales del despliegue, y corre:
+
+   ```bash
+   node scripts/verify-poc-deployment.js
+   ```
+
+   El script imprime ✅/❌ por cada paso y un resumen final; termina con
+   código de salida `1` si alguna verificación falló, o `0` si todas pasaron.
+
 ## Gobernanza y seguridad
 
 - El pipeline CI verifica que los títulos de PR sigan Conventional Commits.
@@ -91,6 +115,7 @@ Flujo: **Frontend → n8n → PostgreSQL+pgvector → LLM (mock)**.
 
 - `scripts/setup-structure.ps1` - Crea la estructura de carpetas en PowerShell.
 - `scripts/setup-structure.sh` - Crea la estructura de carpetas en Bash.
+- `scripts/verify-poc-deployment.js` - Verifica end-to-end la PoC desplegada (Frontend → n8n → PostgreSQL). Ver [sección dedicada](#verificación-end-to-end-de-la-poc-desplegada).
 
 ## Notas de Sprint 0
 
