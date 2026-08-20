@@ -72,7 +72,7 @@ button {
   padding: 0.6rem 1rem;
 }
 
-#submit-btn {
+.submit-btn, #submit-btn {
   margin-top: 1rem;
   background: #2563eb;
   color: #fff;
