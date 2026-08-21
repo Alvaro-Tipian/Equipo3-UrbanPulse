@@ -1,7 +1,9 @@
 import React, { useState, Suspense } from 'react';
 import './App.css';
 import '@tomtom-international/web-sdk-maps/dist/maps.css';
+
 const MapaUrbano = React.lazy(() => import('mf_mapa_urbano/MapaUrbano'));
+const Dashboard = React.lazy(() => import('mf_dashboard/Dashboard')); 
 const WEBHOOK_URL = "http://localhost:5678/webhook/urbanpulse/report";
 
 function App() {
@@ -29,7 +31,7 @@ function App() {
     );
   };
 
-  // Convertir archivo a Base64
+  // Convertir archivo a Base64 para enviarlo a Gemini
   const fileToBase64 = (file) => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -42,69 +44,80 @@ function App() {
     });
   };
 
-  // Manejar el envío del formulario
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setStatus({ text: '', type: '', hidden: true });
-    setResult(null);
-
-    const description = event.target.description.value.trim();
-    if (!description) {
-      setStatus({ text: "La descripción es obligatoria.", type: "error", hidden: false });
-      return;
-    }
-
-    const imageFile = event.target.image.files[0];
-    const latitude = coords.lat ? Number(coords.lat) : null;
-    const longitude = coords.lon ? Number(coords.lon) : null;
-
-    const payload = { description, latitude, longitude };
-    if (imageFile) {
-      payload.image_base64 = await fileToBase64(imageFile);
-    }
-
+  // Manejar el envío del formulario (¡AHORA CON FETCH REAL!)
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     setLoading(true);
-    setStatus({ text: "Enviando reporte...", type: "loading", hidden: false });
+    setStatus({ hidden: true, text: "", type: "" });
+    setResult(null); 
 
     try {
+      const formElements = e.target.elements;
+
+      // 1. Procesamos la imagen si el usuario subió una
+      let imageBase64 = null;
+      const imageFile = formElements.image.files[0];
+      if (imageFile) {
+        imageBase64 = await fileToBase64(imageFile);
+      }
+
+      // 2. Empaquetamos los datos exactos que espera el Backend
+      const payload = {
+        description: formElements.description.value,
+        latitude: coords.lat ? parseFloat(coords.lat) : null,
+        longitude: coords.lon ? parseFloat(coords.lon) : null,
+        image_base64: imageBase64 // Se envía a Gemini para visión artificial
+      };
+
+      console.log("📡 [Data Interaction] Payload listo para enviar:", payload);
+
+      // 3. El FETCH REAL (Conexión al Webhook de n8n)
       const response = await fetch(WEBHOOK_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(payload),
       });
 
+      // Verificamos si el servidor respondió con error (ej. CORS o servidor apagado)
       if (!response.ok) {
-        throw new Error(`El servidor respondió con estado ${response.status}`);
+        throw new Error(`Error en el servidor: ${response.status}`);
       }
 
-      const report = await response.json();
-      setStatus({ text: '', type: '', hidden: true });
+      // 4. Atrapamos la respuesta clasificada por Gemini desde n8n
+      const data = await response.json();
 
-      if (report.error) {
-        setStatus({ text: report.error, type: "error", hidden: false });
-        return;
-      }
-
-      setResult(report);
-      event.target.reset();
-      setCoords({ lat: '', lon: '' });
+      setResult(data); 
+      setStatus({ hidden: false, text: "¡Reporte enviado y procesado con éxito!", type: "success" });
+      
     } catch (error) {
-      setStatus({ text: `No se pudo enviar el reporte: ${error.message}`, type: "error", hidden: false });
+      console.error("❌ Error en la conexión:", error);
+      setStatus({ 
+        hidden: false, 
+        text: "Hubo un error al conectar con el servidor. Verifica que n8n esté corriendo y que CORS esté permitido.", 
+        type: "error" 
+      });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    // Ampliamos el contenedor principal para que tenga espacio suficiente
     <main style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
       <h1>UrbanPulse</h1>
       <p className="subtitle">Reporta un incidente urbano en tu zona.</p>
 
-      {/* Contenedor Flex: flexDirection 'row' fuerza izquierda/derecha */}
+      {/* Dashboard de métricas */}
+      <div style={{ marginBottom: '2rem' }}>
+        <Suspense fallback={<div style={{padding: '1rem', textAlign: 'center', background: '#f8f9fa', borderRadius: '8px'}}>Cargando métricas en tiempo real...</div>}>
+          <Dashboard />
+        </Suspense>
+      </div>
+
       <div style={{ display: 'flex', flexDirection: 'row', gap: '2rem', alignItems: 'flex-start' }}>
         
-        {/* LADO IZQUIERDO: Formulario (Ancho fijo de 400px) */}
+        {/* LADO IZQUIERDO: Formulario */}
         <div style={{ flex: '0 0 400px' }}>
           <form id="report-form" onSubmit={handleSubmit}>
             <label htmlFor="description">Descripción del incidente</label>
@@ -158,10 +171,9 @@ function App() {
           </form>
         </div>
 
-        {/* LADO DERECHO: Mapa (Toma todo el espacio restante con flex: 1) */}
+        {/* LADO DERECHO: Mapa */}
         <div style={{ flex: '1', minWidth: '500px', height: '600px', backgroundColor: '#e9e9e9', borderRadius: '8px', overflow: 'hidden' }}>
           <Suspense fallback={<div style={{padding: '2rem', textAlign:'center'}}>Cargando mapa de TomTom...</div>}>
-            {/* Le enviamos la latitud y longitud como props */}
             <MapaUrbano lat={coords.lat} lon={coords.lon} />
           </Suspense>
         </div>
@@ -174,12 +186,12 @@ function App() {
 
       {result && (
         <section id="result" className="result">
-          <p>Reporte enviado correctamente.</p>
+          <p>Reporte procesado por Inteligencia Artificial.</p>
           <dl>
             <dt>Tipo de incidente</dt><dd>{result.incident_type ?? "-"}</dd>
             <dt>Gravedad</dt><dd>{result.severity ?? "-"}</dd>
             <dt>Prioridad</dt><dd>{result.priority ?? "-"}</dd>
-            <dt>Estado</dt><dd>{result.status ?? "-"}</dd>
+            <dt>Estado</dt><dd>{result.status ?? "Registrado"}</dd>
             <dt>Mensaje</dt><dd>{result.mensaje_ciudadano ?? "-"}</dd>
           </dl>
         </section>

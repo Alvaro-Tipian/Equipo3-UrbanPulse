@@ -9,15 +9,21 @@ const MapaUrbano = ({ lat, lon }) => {
 
   // Efecto 1: Inicializar el mapa la primera vez
   useEffect(() => {
-    if (map.current) return;
-
-    map.current = tt.map({
-      // 👇 Aquí leemos la variable de entorno de Vite
+    // Creamos la instancia del mapa
+    const mapInstance = tt.map({
       key: import.meta.env.VITE_TOMTOM_API_KEY, 
       container: mapContainer.current,
       center: [-77.0428, -12.0464],
       zoom: 12,
     });
+
+    map.current = mapInstance;
+
+    // 👇 LA SOLUCIÓN: Esta función se ejecuta cuando React desmonta el componente
+    return () => {
+      mapInstance.remove(); // Apagamos el motor 3D del mapa
+      map.current = null;   // Vaciamos la referencia
+    };
   }, []);
 
   // Efecto 2: Mover el mapa y poner el marcador

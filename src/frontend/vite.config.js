@@ -13,7 +13,12 @@ export default defineConfig({
           type: 'module',
           name: 'mf_mapa_urbano',
           entry: 'http://localhost:5174/remoteEntry.js',
-        }
+        },
+        mf_dashboard: {
+        type: 'module',
+        name: 'mf_dashboard',
+        entry: 'http://localhost:5175/remoteEntry.js',
+        },
       },
       shared: ['react', 'react-dom'],
       dts: false,
