@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import './App.css';
-
+import '@tomtom-international/web-sdk-maps/dist/maps.css';
+const MapaUrbano = React.lazy(() => import('mf_mapa_urbano/MapaUrbano'));
 const WEBHOOK_URL = "http://localhost:5678/webhook/urbanpulse/report";
 
 function App() {
@@ -95,60 +96,77 @@ function App() {
   };
 
   return (
-    <main className="container">
+    // Ampliamos el contenedor principal para que tenga espacio suficiente
+    <main style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
       <h1>UrbanPulse</h1>
       <p className="subtitle">Reporta un incidente urbano en tu zona.</p>
 
-      <form id="report-form" onSubmit={handleSubmit}>
-        <label htmlFor="description">Descripción del incidente</label>
-        <textarea
-          id="description"
-          name="description"
-          rows="4"
-          placeholder="Ej: Hay un bache grande en la avenida principal..."
-          required
-        ></textarea>
+      {/* Contenedor Flex: flexDirection 'row' fuerza izquierda/derecha */}
+      <div style={{ display: 'flex', flexDirection: 'row', gap: '2rem', alignItems: 'flex-start' }}>
+        
+        {/* LADO IZQUIERDO: Formulario (Ancho fijo de 400px) */}
+        <div style={{ flex: '0 0 400px' }}>
+          <form id="report-form" onSubmit={handleSubmit}>
+            <label htmlFor="description">Descripción del incidente</label>
+            <textarea
+              id="description"
+              name="description"
+              rows="4"
+              placeholder="Ej: Hay un bache grande en la avenida principal..."
+              required
+            ></textarea>
 
-        <label htmlFor="image">Foto (opcional)</label>
-        <input id="image" name="image" type="file" accept="image/*" />
+            <label htmlFor="image">Foto (opcional)</label>
+            <input id="image" name="image" type="file" accept="image/*" />
 
-        <fieldset className="coords">
-          <legend>Ubicación (opcional)</legend>
-          <div className="coords-row">
-            <div>
-              <label htmlFor="latitude">Latitud</label>
-              <input
-                id="latitude"
-                name="latitude"
-                type="number"
-                step="any"
-                placeholder="-12.0464"
-                value={coords.lat}
-                onChange={(e) => setCoords({ ...coords, lat: e.target.value })}
-              />
-            </div>
-            <div>
-              <label htmlFor="longitude">Longitud</label>
-              <input
-                id="longitude"
-                name="longitude"
-                type="number"
-                step="any"
-                placeholder="-77.0428"
-                value={coords.lon}
-                onChange={(e) => setCoords({ ...coords, lon: e.target.value })}
-              />
-            </div>
-          </div>
-          <button type="button" id="use-location" onClick={handleGetLocation}>
-            Usar mi ubicación actual
-          </button>
-        </fieldset>
+            <fieldset className="coords">
+              <legend>Ubicación (opcional)</legend>
+              <div className="coords-row">
+                <div>
+                  <label htmlFor="latitude">Latitud</label>
+                  <input
+                    id="latitude"
+                    name="latitude"
+                    type="number"
+                    step="any"
+                    placeholder="-12.0464"
+                    value={coords.lat}
+                    onChange={(e) => setCoords({ ...coords, lat: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="longitude">Longitud</label>
+                  <input
+                    id="longitude"
+                    name="longitude"
+                    type="number"
+                    step="any"
+                    placeholder="-77.0428"
+                    value={coords.lon}
+                    onChange={(e) => setCoords({ ...coords, lon: e.target.value })}
+                  />
+                </div>
+              </div>
+              <button type="button" id="use-location" onClick={handleGetLocation}>
+                Usar mi ubicación actual
+              </button>
+            </fieldset>
 
-        <button type="submit" id="submit-btn" disabled={loading}>
-          {loading ? "Enviando..." : "Enviar reporte"}
-        </button>
-      </form>
+            <button type="submit" id="submit-btn" disabled={loading}>
+              {loading ? "Enviando..." : "Enviar reporte"}
+            </button>
+          </form>
+        </div>
+
+        {/* LADO DERECHO: Mapa (Toma todo el espacio restante con flex: 1) */}
+        <div style={{ flex: '1', minWidth: '500px', height: '600px', backgroundColor: '#e9e9e9', borderRadius: '8px', overflow: 'hidden' }}>
+          <Suspense fallback={<div style={{padding: '2rem', textAlign:'center'}}>Cargando mapa de TomTom...</div>}>
+            {/* Le enviamos la latitud y longitud como props */}
+            <MapaUrbano lat={coords.lat} lon={coords.lon} />
+          </Suspense>
+        </div>
+
+      </div>
 
       <section id="status" className={`status ${status.type}`} hidden={status.hidden}>
         {status.text}

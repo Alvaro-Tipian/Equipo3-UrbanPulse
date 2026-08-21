@@ -1,6 +1,6 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import { federation } from '@module-federation/vite'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { federation } from '@module-federation/vite';
 
 export default defineConfig({
   plugins: [
@@ -9,21 +9,18 @@ export default defineConfig({
       name: 'mf_mapa_urbano',
       filename: 'remoteEntry.js',
       exposes: {
-        './MapaUrbano': './src/MapaUrbano.jsx', 
+        './MapaUrbano': './src/MapaUrbano.jsx',
       },
       shared: ['react', 'react-dom'],
-      dts: false,
+      dts: false, // Forzamos a que no busque TypeScript
     }),
   ],
   server: {
     port: 5174,
     cors: true,
   },
-  preview: {
-    port: 5174,
-    cors: true,
-  },
   build: {
-    target: 'esnext',
-  },
-})
+    target: 'chrome89',
+    minify: false,
+  }
+});
