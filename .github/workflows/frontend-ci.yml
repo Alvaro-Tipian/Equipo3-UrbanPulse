@@ -17,58 +17,57 @@ jobs:
       security-events: write
       actions: read
       contents: read
-
     steps:
     - name: Checkout del repositorio
       uses: actions/checkout@v4
-
     - name: Inicializar CodeQL
       uses: github/codeql-action/init@v3
       with:
-        languages: javascript-typescript # Cubre JS, JSX y TS
-
+        languages: javascript-typescript
     - name: Ejecutar Análisis CodeQL
       uses: github/codeql-action/analyze@v3
 
-  calidad-eslint:
-    name: Auditoría de Código (ESLint)
+  sast-secrets-vite:
+    name: Escáner de Secretos Vite
     runs-on: ubuntu-latest
     steps:
     - name: Checkout del repositorio
       uses: actions/checkout@v4
-      
+    - name: Buscar secretos VITE_ hardcodeados
+      run: |
+        if grep -rnw -E 'VITE_API_KEY=|VITE_DB_PASSWORD=' ./src/frontend ./mf-dashboard ./mf-mapa-urbano; then
+          echo "🚨 ALERTA: Se detectaron credenciales VITE_ quemadas en el código fuente."
+          exit 1
+        fi
+
+  calidad-eslint-sca:
+    name: Auditoría de Código y Dependencias
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout del repositorio
+      uses: actions/checkout@v4
     - name: Configurar Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20'
 
-    # Validar el Shell (Host)
     - name: Validar Shell Frontend
       run: |
         cd src/frontend
         npm ci
-        npm audit --audit-level=high
         npm run lint --if-present
+        npm audit --audit-level=critical
 
-    # Validar Microfrontend Dashboard
     - name: Validar MF Dashboard
       run: |
         cd mf-dashboard
         npm ci
-        npm audit --audit-level=high
         npm run lint --if-present
+        npm audit --audit-level=critical
 
-    # Validar Microfrontend Mapa
     - name: Validar MF Mapa
       run: |
         cd mf-mapa-urbano
         npm ci
-        npm audit --audit-level=high
         npm run lint --if-present
-        
-    - name: Buscar secretos de Vite en texto plano
-      run: |
-        if grep -rnw -E 'VITE_API_KEY=|VITE_DB_PASSWORD=' ./src/frontend ./mf-dashboard ./mf-mapa-urbano; then
-        echo "🚨 ALERTA: Se detectaron credenciales VITE_ quemadas en el frontend."
-        exit 1
-        fi
+        npm audit --audit-level=critical
