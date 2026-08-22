@@ -7,6 +7,7 @@ const Dashboard = React.lazy(() => import('mf_dashboard/Dashboard'));
 const WEBHOOK_URL = "http://localhost:5678/webhook/urbanpulse/report";
 
 function App() {
+  const [activeTab, setActiveTab] = useState('reporte');
   const [status, setStatus] = useState({ text: '', type: '', hidden: true });
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -108,6 +109,33 @@ function App() {
       <h1>UrbanPulse</h1>
       <p className="subtitle">Reporta un incidente urbano en tu zona.</p>
 
+      {/* Navegación simple entre vistas del shell */}
+      <nav className="tabs">
+        <button
+          type="button"
+          className={activeTab === 'reporte' ? 'tab active' : 'tab'}
+          onClick={() => setActiveTab('reporte')}
+        >
+          Reportar incidente
+        </button>
+        <button
+          type="button"
+          className={activeTab === 'dashboard' ? 'tab active' : 'tab'}
+          onClick={() => setActiveTab('dashboard')}
+        >
+          Dashboard
+        </button>
+        <button
+          type="button"
+          className={activeTab === 'mapa' ? 'tab active' : 'tab'}
+          onClick={() => setActiveTab('mapa')}
+        >
+          Mapa
+        </button>
+      </nav>
+
+      {activeTab === 'reporte' && (
+      <>
       {/* Dashboard de métricas */}
       <div style={{ marginBottom: '2rem' }}>
         <Suspense fallback={<div style={{padding: '1rem', textAlign: 'center', background: '#f8f9fa', borderRadius: '8px'}}>Cargando métricas en tiempo real...</div>}>
@@ -116,7 +144,7 @@ function App() {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'row', gap: '2rem', alignItems: 'flex-start' }}>
-        
+
         {/* LADO IZQUIERDO: Formulario */}
         <div style={{ flex: '0 0 400px' }}>
           <form id="report-form" onSubmit={handleSubmit}>
@@ -195,6 +223,22 @@ function App() {
             <dt>Mensaje</dt><dd>{result.mensaje_ciudadano ?? "-"}</dd>
           </dl>
         </section>
+      )}
+      </>
+      )}
+
+      {activeTab === 'dashboard' && (
+        <Suspense fallback={<div style={{padding: '1rem', textAlign: 'center', background: '#f8f9fa', borderRadius: '8px'}}>Cargando métricas en tiempo real...</div>}>
+          <Dashboard />
+        </Suspense>
+      )}
+
+      {activeTab === 'mapa' && (
+        <div style={{ height: '600px', borderRadius: '8px', overflow: 'hidden' }}>
+          <Suspense fallback={<div style={{padding: '2rem', textAlign:'center'}}>Cargando mapa de TomTom...</div>}>
+            <MapaUrbano lat={coords.lat} lon={coords.lon} />
+          </Suspense>
+        </div>
       )}
     </main>
   );

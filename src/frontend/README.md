@@ -1,70 +1,35 @@
-# Getting Started with Create React App
+# UrbanPulse — Shell (Host)
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Este proyecto es el **shell** (host) de Module Federation de UrbanPulse. Corre con **Vite** y consume dos microfrontends remotos vía Module Federation:
 
-## Available Scripts
+- `mf_dashboard` (repo `mf-dashboard/`), expone `./Dashboard`
+- `mf_mapa_urbano` (repo `mf-mapa-urbano/`), expone `./MapaUrbano`
 
-In the project directory, you can run:
+También incluye el formulario de reporte ciudadano (descripción, foto, geolocalización) que envía los datos al webhook de n8n (`WEBHOOK_URL` en `src/App.jsx`).
 
-### `npm start`
+## Cómo correr el shell en local
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+```bash
+npm install
+npm run dev
+```
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+Esto levanta el shell en `http://localhost:3000`.
 
-### `npm test`
+**Importante:** en modo desarrollo, `vite.config.js` apunta los remotos a `http://localhost:5174/remoteEntry.js` (mf-mapa-urbano) y `http://localhost:5175/remoteEntry.js` (mf-dashboard). Para que el Dashboard y el Mapa carguen correctamente en local, ambos microfrontends deben estar corriendo (`npm run dev` en cada uno) **antes** de levantar el shell.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Producción / Vercel
 
-### `npm run build`
+Para producción, `vite.config.js` usa dos constantes con placeholders (`PROD_REMOTE_MF_DASHBOARD_URL` y `PROD_REMOTE_MF_MAPA_URBANO_URL`) que **deben reemplazarse con las URLs reales de `remoteEntry.js`** una vez que `mf-dashboard` y `mf-mapa-urbano` estén desplegados en Vercel. Si esas URLs no se configuran, el build de producción del shell no podrá cargar el Dashboard ni el Mapa (verás el fallback de carga indefinidamente o un error de red).
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+Otros scripts disponibles:
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+```bash
+npm run build    # build de producción (Vite)
+npm run preview  # sirve el build de producción localmente
+```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## Estructura
 
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+- `src/App.jsx` — shell con pestañas simples (Reportar incidente / Dashboard / Mapa), formulario de reporte ciudadano y carga perezosa (`React.lazy` + `Suspense`) de los dos remotos.
+- `vite.config.js` — configuración de Vite + Module Federation (host).
