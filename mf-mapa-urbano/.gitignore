@@ -14,6 +14,10 @@ dist-ssr
 .env.local
 *.local
 
+# este proyecto usa npm (package-lock.json); ignorar artefactos de pnpm
+pnpm-lock.yaml
+pnpm-workspace.yaml
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

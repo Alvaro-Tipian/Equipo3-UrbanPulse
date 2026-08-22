@@ -21,3 +21,8 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+
+# este proyecto usa npm (package-lock.json); ignorar artefactos de pnpm
+pnpm-lock.yaml
+pnpm-workspace.yaml
