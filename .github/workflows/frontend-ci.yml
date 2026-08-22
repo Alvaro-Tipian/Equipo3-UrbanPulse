@@ -1,0 +1,74 @@
+name: Frontend DevSecOps CI
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src/frontend/**'
+      - 'mf-dashboard/**'
+      - 'mf-mapa-urbano/**'
+
+jobs:
+  sast-codeql:
+    name: Análisis de Seguridad React (CodeQL)
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
+    steps:
+    - name: Checkout del repositorio
+      uses: actions/checkout@v4
+
+    - name: Inicializar CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: javascript-typescript # Cubre JS, JSX y TS
+
+    - name: Ejecutar Análisis CodeQL
+      uses: github/codeql-action/analyze@v3
+
+  calidad-eslint:
+    name: Auditoría de Código (ESLint)
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout del repositorio
+      uses: actions/checkout@v4
+      
+    - name: Configurar Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    # Validar el Shell (Host)
+    - name: Validar Shell Frontend
+      run: |
+        cd src/frontend
+        npm ci
+        npm audit --audit-level=high
+        npm run lint --if-present
+
+    # Validar Microfrontend Dashboard
+    - name: Validar MF Dashboard
+      run: |
+        cd mf-dashboard
+        npm ci
+        npm audit --audit-level=high
+        npm run lint --if-present
+
+    # Validar Microfrontend Mapa
+    - name: Validar MF Mapa
+      run: |
+        cd mf-mapa-urbano
+        npm ci
+        npm audit --audit-level=high
+        npm run lint --if-present
+        
+    - name: Buscar secretos de Vite en texto plano
+      run: |
+        if grep -rnw -E 'VITE_API_KEY=|VITE_DB_PASSWORD=' ./src/frontend ./mf-dashboard ./mf-mapa-urbano; then
+        echo "🚨 ALERTA: Se detectaron credenciales VITE_ quemadas en el frontend."
+        exit 1
+        fi

@@ -10,6 +10,7 @@
 - [ ] Probé los cambios localmente y funcionan.
 - [ ] No subí credenciales ni API keys en el código o archivos JSON.
 - [ ] El título del PR sigue Conventional Commits.
+- [ ] Confirmo que no hay claves sensibles hardcodeadas con el prefijo VITE_ en el código fuente.
 
 ## Notas adicionales
 

@@ -1,0 +1,14 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/src/frontend"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "npm"
+    directory: "/mf-dashboard"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "npm"
+    directory: "/mf-mapa-urbano"
+    schedule:
+      interval: "weekly"
