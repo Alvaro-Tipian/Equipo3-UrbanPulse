@@ -4,7 +4,9 @@ import '@tomtom-international/web-sdk-maps/dist/maps.css';
 
 const MapaUrbano = React.lazy(() => import('mf_mapa_urbano/MapaUrbano'));
 const Dashboard = React.lazy(() => import('mf_dashboard/Dashboard')); 
-const WEBHOOK_URL = "http://localhost:5678/webhook/urbanpulse/report";
+const WEBHOOK_URL = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+  ? "http://localhost:5678/webhook/urbanpulse/report"
+  : "https://urbanpulse-n8n.onrender.com/webhook/urbanpulse/report";
 
 function App() {
   const [activeTab, setActiveTab] = useState('reporte');
