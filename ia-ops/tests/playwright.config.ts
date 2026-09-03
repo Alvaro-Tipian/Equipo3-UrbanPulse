@@ -36,7 +36,20 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        // Permite apuntar a un binario de Chromium ya instalado (p. ej. en
+        // sandboxes/CI donde `npx playwright install` no está disponible)
+        // sin afectar a quienes corren `npx playwright install` normalmente.
+        ...(process.env.PLAYWRIGHT_CHROMIUM_PATH
+          ? {
+              launchOptions: {
+                executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH,
+                args: ['--disable-background-networking', '--disable-component-update'],
+              },
+            }
+          : {}),
+      },
     },
 
     {
