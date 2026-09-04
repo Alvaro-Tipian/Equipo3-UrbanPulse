@@ -94,6 +94,28 @@ jobs:
             --containers file://infrastructure/lightsail-containers.json \
             --public-endpoint '{"containerName":"n8n","containerPort":5678,"healthCheck":{}}'
 
+      - name: Validar endpoint público de n8n después del deployment
+        run: |
+          set -euo pipefail
+          for intento in $(seq 1 40); do
+            url=$(aws lightsail get-container-services \
+              --service-name urbanpulse-n8n \
+              --query 'containerServices[0].url' \
+              --output text)
+            estado=$(aws lightsail get-container-services \
+              --service-name urbanpulse-n8n \
+              --query 'containerServices[0].state' \
+              --output text)
+            echo "Intento ${intento}/40: estado=${estado}, url=${url}"
+            if [ "${url}" != "None" ] && curl --fail --silent --show-error --max-time 10 "${url}/healthz" > /dev/null; then
+              echo "Health check público de n8n exitoso."
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::El endpoint público de n8n no respondió al health check."
+          exit 1
+
       - name: Limpiar archivo con secretos
         if: always()
         run: rm -f infrastructure/lightsail-containers.json
