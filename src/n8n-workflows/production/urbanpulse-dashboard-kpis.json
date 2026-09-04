@@ -190,7 +190,64 @@
     },
     {
       "parameters": {
-        "jsCode": "const totalReportes = $('Total reportes').item.json.total;\nconst reportes24h = $('Reportes 24h').item.json.total;\nconst reportesPorTipo = $('Reportes por tipo').all().map(i => ({ name: i.json.name, value: i.json.value }));\nconst reportesPorSeveridad = $('Reportes por severidad').all().map(i => ({ name: i.json.name, value: i.json.value }));\nconst tendencia = $('Tendencia 30 dias').all().map(i => ({ name: i.json.name, value: i.json.value }));\nconst congestion = $('Congestion snapshot').item.json;\nconst siniestrosPorDistrito = $('Siniestros por distrito').all().map(i => ({ name: i.json.name, value: i.json.value }));\nconst siniestrosPorClase = $('Siniestros por clase').all().map(i => ({ name: i.json.name, value: i.json.value, fallecidos: i.json.fallecidos }));\nconst siniestrosTotales = $('Siniestros totales').item.json;\n\nreturn [{\n  json: {\n    kpis: {\n      total_reportes: totalReportes,\n      reportes_ultimas_24h: reportes24h,\n      congestion_promedio: congestion.congestion_promedio != null ? Number(congestion.congestion_promedio) : null,\n      puntos_congestionados: congestion.puntos_congestionados,\n      total_puntos_monitoreo: congestion.total_puntos,\n      total_siniestros_fatales: siniestrosTotales.total,\n      total_fallecidos_historico: siniestrosTotales.fallecidos_total\n    },\n    charts: {\n      reportes_por_tipo: reportesPorTipo,\n      reportes_por_severidad: reportesPorSeveridad,\n      tendencia_reportes_30d: tendencia,\n      siniestros_por_distrito: siniestrosPorDistrito,\n      siniestros_por_clase: siniestrosPorClase\n    },\n    generated_at: new Date().toISOString()\n  }\n}];"
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*)::int AS total, COALESCE(SUM(fallecidos), 0)::int AS fallecidos_total, COALESCE(SUM(heridos), 0)::int AS heridos_total\nFROM siniestros_sutran;",
+        "options": {}
+      },
+      "executeOnce": true,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [2016, 224],
+      "id": "b3f1a001-1a2b-4c3d-9e4f-000000000020",
+      "name": "Siniestros SUTRAN totales",
+      "credentials": {
+        "postgres": {
+          "id": "Il4alMQXMjgKNxRO",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT departamento AS name, COUNT(*)::int AS value\nFROM siniestros_sutran\nWHERE departamento IS NOT NULL\nGROUP BY departamento\nORDER BY value DESC\nLIMIT 10;",
+        "options": {}
+      },
+      "executeOnce": true,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [2240, 224],
+      "id": "b3f1a001-1a2b-4c3d-9e4f-000000000021",
+      "name": "Siniestros SUTRAN por departamento",
+      "credentials": {
+        "postgres": {
+          "id": "Il4alMQXMjgKNxRO",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT modalidad AS name, COUNT(*)::int AS value, COALESCE(SUM(fallecidos), 0)::int AS fallecidos\nFROM siniestros_sutran\nWHERE modalidad IS NOT NULL\nGROUP BY modalidad\nORDER BY value DESC;",
+        "options": {}
+      },
+      "executeOnce": true,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [2464, 224],
+      "id": "b3f1a001-1a2b-4c3d-9e4f-000000000022",
+      "name": "Siniestros SUTRAN por modalidad",
+      "credentials": {
+        "postgres": {
+          "id": "Il4alMQXMjgKNxRO",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const totalReportes = $('Total reportes').item.json.total;\nconst reportes24h = $('Reportes 24h').item.json.total;\nconst reportesPorTipo = $('Reportes por tipo').all().map(i => ({ name: i.json.name, value: i.json.value }));\nconst reportesPorSeveridad = $('Reportes por severidad').all().map(i => ({ name: i.json.name, value: i.json.value }));\nconst tendencia = $('Tendencia 30 dias').all().map(i => ({ name: i.json.name, value: i.json.value }));\nconst congestion = $('Congestion snapshot').item.json;\nconst siniestrosPorDistrito = $('Siniestros por distrito').all().map(i => ({ name: i.json.name, value: i.json.value }));\nconst siniestrosPorClase = $('Siniestros por clase').all().map(i => ({ name: i.json.name, value: i.json.value, fallecidos: i.json.fallecidos }));\nconst siniestrosTotales = $('Siniestros totales').item.json;\nconst siniestrosSutranTotales = $('Siniestros SUTRAN totales').item.json;\nconst siniestrosSutranPorDepartamento = $('Siniestros SUTRAN por departamento').all().map(i => ({ name: i.json.name, value: i.json.value }));\nconst siniestrosSutranPorModalidad = $('Siniestros SUTRAN por modalidad').all().map(i => ({ name: i.json.name, value: i.json.value, fallecidos: i.json.fallecidos }));\n\nreturn [{\n  json: {\n    kpis: {\n      total_reportes: totalReportes,\n      reportes_ultimas_24h: reportes24h,\n      congestion_promedio: congestion.congestion_promedio != null ? Number(congestion.congestion_promedio) : null,\n      puntos_congestionados: congestion.puntos_congestionados,\n      total_puntos_monitoreo: congestion.total_puntos,\n      total_siniestros_fatales: siniestrosTotales.total,\n      total_fallecidos_historico: siniestrosTotales.fallecidos_total,\n      total_siniestros_sutran: siniestrosSutranTotales.total,\n      total_fallecidos_sutran: siniestrosSutranTotales.fallecidos_total,\n      total_heridos_sutran: siniestrosSutranTotales.heridos_total\n    },\n    charts: {\n      reportes_por_tipo: reportesPorTipo,\n      reportes_por_severidad: reportesPorSeveridad,\n      tendencia_reportes_30d: tendencia,\n      siniestros_por_distrito: siniestrosPorDistrito,\n      siniestros_por_clase: siniestrosPorClase,\n      siniestros_sutran_por_departamento: siniestrosSutranPorDepartamento,\n      siniestros_sutran_por_modalidad: siniestrosSutranPorModalidad\n    },\n    generated_at: new Date().toISOString()\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -378,6 +435,15 @@
       "main": [[{ "node": "Siniestros totales", "type": "main", "index": 0 }]]
     },
     "Siniestros totales": {
+      "main": [[{ "node": "Siniestros SUTRAN totales", "type": "main", "index": 0 }]]
+    },
+    "Siniestros SUTRAN totales": {
+      "main": [[{ "node": "Siniestros SUTRAN por departamento", "type": "main", "index": 0 }]]
+    },
+    "Siniestros SUTRAN por departamento": {
+      "main": [[{ "node": "Siniestros SUTRAN por modalidad", "type": "main", "index": 0 }]]
+    },
+    "Siniestros SUTRAN por modalidad": {
       "main": [[{ "node": "Armar respuesta KPIs", "type": "main", "index": 0 }]]
     },
     "Webhook Reportes": {

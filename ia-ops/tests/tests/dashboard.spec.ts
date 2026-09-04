@@ -20,6 +20,9 @@ const SAMPLE_KPIS_RESPONSE = {
     total_puntos_monitoreo: 10,
     total_siniestros_fatales: 15,
     total_fallecidos_historico: 18,
+    total_siniestros_sutran: 9,
+    total_fallecidos_sutran: 4,
+    total_heridos_sutran: 12,
   },
   charts: {
     reportes_por_tipo: [
@@ -41,6 +44,14 @@ const SAMPLE_KPIS_RESPONSE = {
     siniestros_por_clase: [
       { name: 'Atropello', value: 5, fallecidos: 2 },
       { name: 'Choque', value: 10, fallecidos: 3 },
+    ],
+    siniestros_sutran_por_departamento: [
+      { name: 'Lima', value: 3 },
+      { name: 'Arequipa', value: 6 },
+    ],
+    siniestros_sutran_por_modalidad: [
+      { name: 'Volcadura', value: 4, fallecidos: 1 },
+      { name: 'Choque', value: 5, fallecidos: 3 },
     ],
   },
   generated_at: new Date().toISOString(),
@@ -111,14 +122,18 @@ test('muestra las tarjetas de KPIs y los gráficos con los datos recibidos', asy
   await expect(page.getByText('42%')).toBeVisible();
   await expect(page.getByText('Puntos Congestionados')).toBeVisible();
   await expect(page.getByText('3/10')).toBeVisible();
-  await expect(page.getByText('Siniestros Fatales (histórico)')).toBeVisible();
-  await expect(page.getByText('Fallecidos (histórico)')).toBeVisible();
+  await expect(page.getByText('Siniestros Fatales ONSV (histórico)')).toBeVisible();
+  await expect(page.getByText('Fallecidos ONSV (histórico)')).toBeVisible();
+  await expect(page.getByText('Siniestros SUTRAN (carreteras)')).toBeVisible();
+  await expect(page.getByText('Fallecidos y Heridos SUTRAN')).toBeVisible();
 
   await expect(page.getByText('Reportes por tipo de incidente')).toBeVisible();
   await expect(page.getByText('Reportes por severidad')).toBeVisible();
   await expect(page.getByText('Tendencia de reportes (30 días)')).toBeVisible();
-  await expect(page.getByText('Siniestros fatales por distrito')).toBeVisible();
-  await expect(page.getByText('Siniestros fatales por clase')).toBeVisible();
+  await expect(page.getByText('Siniestros fatales ONSV por distrito')).toBeVisible();
+  await expect(page.getByText('Siniestros fatales ONSV por clase')).toBeVisible();
+  await expect(page.getByText('Siniestros SUTRAN por departamento')).toBeVisible();
+  await expect(page.getByText('Siniestros SUTRAN por modalidad')).toBeVisible();
 });
 
 test('el botón Actualizar vuelve a pedir los KPIs al servidor', async ({ page }) => {

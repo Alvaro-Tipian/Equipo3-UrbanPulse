@@ -157,8 +157,10 @@ export default function Dashboard() {
             <KpiCard icon={Clock} iconColorClass="text-[var(--color-accent-light)]" label="Reportes Últimas 24h" value={kpis.reportes_ultimas_24h} />
             <KpiCard icon={Gauge} iconColorClass="text-amber-400" label="Congestión Promedio" value={kpis.congestion_promedio != null ? `${kpis.congestion_promedio}%` : '—'} />
             <KpiCard icon={AlertTriangle} iconColorClass="text-red-400" label="Puntos Congestionados" value={`${kpis.puntos_congestionados ?? 0}/${kpis.total_puntos_monitoreo ?? 0}`} />
-            <KpiCard icon={ShieldAlert} iconColorClass="text-emerald-400" label="Siniestros Fatales (histórico)" value={kpis.total_siniestros_fatales} />
-            <KpiCard icon={Users} iconColorClass="text-[var(--color-accent)]" label="Fallecidos (histórico)" value={kpis.total_fallecidos_historico} />
+            <KpiCard icon={ShieldAlert} iconColorClass="text-emerald-400" label="Siniestros Fatales ONSV (histórico)" value={kpis.total_siniestros_fatales} />
+            <KpiCard icon={Users} iconColorClass="text-[var(--color-accent)]" label="Fallecidos ONSV (histórico)" value={kpis.total_fallecidos_historico} />
+            <KpiCard icon={ShieldAlert} iconColorClass="text-orange-400" label="Siniestros SUTRAN (carreteras)" value={kpis.total_siniestros_sutran} />
+            <KpiCard icon={Users} iconColorClass="text-orange-400" label="Fallecidos y Heridos SUTRAN" value={`${kpis.total_fallecidos_sutran ?? 0} / ${kpis.total_heridos_sutran ?? 0}`} />
           </div>
 
           {/* GRÁFICOS */}
@@ -194,7 +196,7 @@ export default function Dashboard() {
               </LineChart>
             </ChartPanel>
 
-            <ChartPanel title="Siniestros fatales por distrito">
+            <ChartPanel title="Siniestros fatales ONSV por distrito">
               <BarChart data={charts.siniestros_por_distrito} layout="vertical" margin={{ left: 24 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
                 <XAxis type="number" stroke="var(--color-text-secondary)" tick={{ fill: 'var(--color-text-secondary)' }} axisLine={false} tickLine={false} />
@@ -204,7 +206,7 @@ export default function Dashboard() {
               </BarChart>
             </ChartPanel>
 
-            <ChartPanel title="Siniestros fatales por clase">
+            <ChartPanel title="Siniestros fatales ONSV por clase">
               <BarChart data={charts.siniestros_por_clase}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
                 <XAxis dataKey="name" stroke="var(--color-text-secondary)" tick={{ fill: 'var(--color-text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false} />
@@ -212,6 +214,28 @@ export default function Dashboard() {
                 <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--color-border)', opacity: 0.4 }} />
                 <Legend wrapperStyle={{ fontSize: 12, color: 'var(--color-text-secondary)' }} />
                 <Bar dataKey="value" name="siniestros" fill="var(--color-accent)" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="fallecidos" name="fallecidos" fill="#EF4444" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ChartPanel>
+
+            <ChartPanel title="Siniestros SUTRAN por departamento">
+              <BarChart data={charts.siniestros_sutran_por_departamento} layout="vertical" margin={{ left: 24 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
+                <XAxis type="number" stroke="var(--color-text-secondary)" tick={{ fill: 'var(--color-text-secondary)' }} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="name" stroke="var(--color-text-secondary)" tick={{ fill: 'var(--color-text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false} width={100} />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--color-border)', opacity: 0.4 }} />
+                <Bar dataKey="value" name="siniestros" fill="#fb923c" radius={[0, 6, 6, 0]} />
+              </BarChart>
+            </ChartPanel>
+
+            <ChartPanel title="Siniestros SUTRAN por modalidad">
+              <BarChart data={charts.siniestros_sutran_por_modalidad}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                <XAxis dataKey="name" stroke="var(--color-text-secondary)" tick={{ fill: 'var(--color-text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis stroke="var(--color-text-secondary)" tick={{ fill: 'var(--color-text-secondary)' }} axisLine={false} tickLine={false} />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--color-border)', opacity: 0.4 }} />
+                <Legend wrapperStyle={{ fontSize: 12, color: 'var(--color-text-secondary)' }} />
+                <Bar dataKey="value" name="siniestros" fill="#fb923c" radius={[6, 6, 0, 0]} />
                 <Bar dataKey="fallecidos" name="fallecidos" fill="#EF4444" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ChartPanel>
