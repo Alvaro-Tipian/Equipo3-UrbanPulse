@@ -261,7 +261,8 @@
         "path": "urbanpulse/reports-list",
         "responseMode": "lastNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "*",
+          "responseData": "allEntries"
         }
       },
       "type": "n8n-nodes-base.webhook",
@@ -296,7 +297,8 @@
         "path": "urbanpulse/reports-history",
         "responseMode": "lastNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "*",
+          "responseData": "allEntries"
         }
       },
       "type": "n8n-nodes-base.webhook",
