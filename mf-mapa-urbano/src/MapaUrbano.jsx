@@ -109,6 +109,21 @@ function crearContenidoPopup(reporte) {
   return cont;
 }
 
+// tt.Marker no expone una opción de tamaño/escala para su pin por defecto, así
+// que para tener íconos más grandes y visibles hay que pasarle un elemento propio
+// (ver "element" en la doc del SDK: EV Charging Stations Custom Display).
+function crearElementoMarcador(color) {
+  const el = document.createElement('div');
+  el.style.width = '26px';
+  el.style.height = '26px';
+  el.style.borderRadius = '50%';
+  el.style.backgroundColor = color;
+  el.style.border = '3px solid #fff';
+  el.style.boxShadow = '0 2px 6px rgba(0,0,0,0.45)';
+  el.style.cursor = 'pointer';
+  return el;
+}
+
 const MapaUrbano = ({ lat, lon }) => {
   const mapContainer = useRef(null);
   const map = useRef(null);
@@ -237,7 +252,7 @@ const MapaUrbano = ({ lat, lon }) => {
       const color = INCIDENT_COLORS[reporte.incident_type] || INCIDENT_COLORS.otro;
       const popup = new tt.Popup({ offset: 30 }).setDOMContent(crearContenidoPopup(reporte));
 
-      const nuevoMarcador = new tt.Marker({ color })
+      const nuevoMarcador = new tt.Marker({ element: crearElementoMarcador(color), anchor: 'center' })
         .setLngLat([parseFloat(reporte.longitude), parseFloat(reporte.latitude)])
         .setPopup(popup)
         .addTo(map.current);
