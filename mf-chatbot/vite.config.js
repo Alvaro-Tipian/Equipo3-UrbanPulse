@@ -11,12 +11,20 @@ export default defineConfig({
       exposes: {
         './Chatbot': './src/NLQCommandCenter.jsx',
       },
-      shared: ['react', 'react-dom'],
-      dts: false, 
+      shared: {
+        react: { singleton: true },
+        'react-dom': { singleton: true },
+        'react/jsx-runtime': { singleton: true },
+        'react/jsx-dev-runtime': { singleton: true },
+      },
+      dts: false,
     })
   ],
   envPrefix: ['VITE_', 'TE_'],
   server: {
     port: 3003,
-  }
+  },
+  resolve: {
+    dedupe: ['react', 'react-dom'],
+  },
 });

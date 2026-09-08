@@ -34,7 +34,9 @@ export default defineConfig(({ mode }) => {
         },
         shared: {
           'react': { singleton: true },
-          'react-dom': { singleton: true }
+          'react-dom': { singleton: true },
+          'react/jsx-runtime': { singleton: true },
+          'react/jsx-dev-runtime': { singleton: true },
         },
         dts: false,
       }),
@@ -45,6 +47,9 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 3000,
+    },
+    resolve: {
+      dedupe: ['react', 'react-dom'],
     },
     build: {
       target: 'esnext',

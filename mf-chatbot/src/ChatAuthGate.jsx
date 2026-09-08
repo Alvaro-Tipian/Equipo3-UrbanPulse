@@ -32,11 +32,11 @@ async function pedir(url, cuerpo) {
   });
 
   const texto = await respuesta.text();
-  let datos = null;
+  let datos;
   try {
     datos = texto ? JSON.parse(texto) : null;
   } catch {
-    datos = null;
+    throw new Error(`El servidor de autenticación respondió con JSON inválido (HTTP ${respuesta.status}).`);
   }
 
   if (!datos) {

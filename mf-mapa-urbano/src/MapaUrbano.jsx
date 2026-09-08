@@ -123,8 +123,11 @@ const MapaUrbano = ({ lat, lon }) => {
 
   // Efecto 1: Inicializar el mapa la primera vez
   useEffect(() => {
+    const tomtomKey = import.meta.env.VITE_TOMTOM_API_KEY;
+    if (!tomtomKey || !mapContainer.current) return undefined;
+
     const mapInstance = tt.map({
-      key: import.meta.env.VITE_TOMTOM_API_KEY,
+      key: tomtomKey,
       container: mapContainer.current,
       center: [-77.0428, -12.0464],
       zoom: 12,

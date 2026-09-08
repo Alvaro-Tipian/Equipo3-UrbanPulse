@@ -70,9 +70,26 @@ export default defineConfig({
     // },
   ],
 
-  webServer: {
-    command: 'npm --prefix ../../src/frontend run dev -- --host 0.0.0.0',
-    url: 'http://localhost:3000',
-    reuseExistingServer: !process.env.CI,
-  },
+  webServer: [
+    {
+      command: 'npm --prefix ../../src/frontend run dev -- --host 0.0.0.0',
+      url: 'http://localhost:3000',
+      reuseExistingServer: !process.env.CI,
+    },
+    {
+      command: 'npm --prefix ../../mf-mapa-urbano run dev -- --host 0.0.0.0',
+      url: 'http://localhost:5174/remoteEntry.js',
+      reuseExistingServer: !process.env.CI,
+    },
+    {
+      command: 'npm --prefix ../../mf-dashboard run dev -- --host 0.0.0.0',
+      url: 'http://localhost:5175/remoteEntry.js',
+      reuseExistingServer: !process.env.CI,
+    },
+    {
+      command: 'npm --prefix ../../mf-chatbot run dev -- --host 0.0.0.0',
+      url: 'http://localhost:3003/remoteEntry.js',
+      reuseExistingServer: !process.env.CI,
+    },
+  ],
 });
