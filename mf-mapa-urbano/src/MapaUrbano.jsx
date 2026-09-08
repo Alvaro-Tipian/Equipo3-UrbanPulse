@@ -248,7 +248,7 @@ const MapaUrbano = ({ lat, lon }) => {
 
   return (
     <div className="relative w-full h-full">
-      <div ref={mapContainer} style={{ width: '100%', height: '100%' }}></div>
+      <div id="tomtom-map-container" ref={mapContainer} style={{ width: '100%', height: '100%' }}></div>
 
       {/* BUSCADOR */}
       <div className="absolute top-4 left-4 z-10 w-64 max-w-[calc(100%-2rem)]">
