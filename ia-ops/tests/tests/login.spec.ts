@@ -63,7 +63,7 @@ test('el botón muestra estado de carga mientras se valida el login', async ({ p
     });
   });
 
-  await page.getByPlaceholder('Usuario').fill('operador1');
+    await page.getByPlaceholder('Correo electrónico').fill('operador1@example.com');
   await page.getByPlaceholder('Contraseña').fill('claveValida123');
   // Se ubica por selector estructural, no por texto: el botón pierde el
   // texto "Iniciar sesión" y muestra solo un ícono de carga mientras espera.
@@ -82,20 +82,20 @@ test('credenciales válidas entran a la app y muestran usuario y rol en el sideb
       contentType: 'application/json',
       body: JSON.stringify({
         success: true,
-        username: 'operador1',
+          email: 'operador1@example.com',
         role: 'Supervisor',
         expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
       }),
     });
   });
 
-  await page.getByPlaceholder('Usuario').fill('operador1');
+    await page.getByPlaceholder('Correo electrónico').fill('operador1@example.com');
   await page.getByPlaceholder('Contraseña').fill('claveValida123');
   await page.getByRole('button', { name: 'Iniciar sesión' }).click();
 
-  await expect(page.getByPlaceholder('Usuario')).toHaveCount(0);
+    await expect(page.getByPlaceholder('Correo electrónico')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'CHAT', exact: true })).toBeVisible();
-  await expect(page.getByText('operador1')).toBeVisible();
+    await expect(page.getByText('operador1@example.com')).toBeVisible();
   await expect(page.getByText('Supervisor')).toBeVisible();
 });
 
@@ -123,14 +123,14 @@ test('cerrar sesión vuelve a mostrar el login', async ({ page }) => {
       contentType: 'application/json',
       body: JSON.stringify({
         success: true,
-        username: 'operador1',
+          email: 'operador1@example.com',
         role: 'Operador',
         expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
       }),
     });
   });
 
-  await page.getByPlaceholder('Usuario').fill('operador1');
+    await page.getByPlaceholder('Correo electrónico').fill('operador1@example.com');
   await page.getByPlaceholder('Contraseña').fill('claveValida123');
   await page.getByRole('button', { name: 'Iniciar sesión' }).click();
   await expect(page.getByRole('button', { name: 'CHAT', exact: true })).toBeVisible();
