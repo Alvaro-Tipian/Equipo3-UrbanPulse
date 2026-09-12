@@ -36,9 +36,9 @@ jobs:
         working-directory: src/frontend
       - name: Instalar dependencias de los microfrontends
         run: |
-          npm ci --prefix mf-dashboard
-          npm ci --prefix mf-mapa-urbano
-          npm ci --prefix mf-chatbot
+          npm install --prefix mf-dashboard
+          npm install --prefix mf-mapa-urbano
+          npm install --prefix mf-chatbot
       - name: Instalar navegadores de Playwright
         run: npx playwright install --with-deps
       - name: Ejecutar pruebas Playwright
