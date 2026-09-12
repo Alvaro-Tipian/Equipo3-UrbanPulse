@@ -25,14 +25,15 @@ test.beforeEach(async ({ page }) => {
     (route) => route.abort()
   );
 
-  // Precarga una sesión de operador válida para saltar la pantalla de
-  // login (session.js espera esta forma exacta bajo la clave
-  // "urbanpulse_session").
+  // Precarga una sesión válida para saltar la pantalla de login (session.js
+  // espera esta forma exacta bajo la clave "urbanpulse_citizen_session").
   await page.addInitScript(() => {
     window.localStorage.setItem(
-      'urbanpulse_session',
+      'urbanpulse_citizen_session',
       JSON.stringify({
         success: true,
+        id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+        email: 'qa-tester@example.com',
         username: 'qa-tester',
         role: 'Operador QA',
         expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
@@ -46,7 +47,7 @@ test.beforeEach(async ({ page }) => {
 
 test('el operador entra directo a la app sin ver el login (sesión válida)', async ({ page }) => {
   await expect(page.getByPlaceholder('Reporta un incidente....')).toBeVisible();
-  await expect(page.getByPlaceholder('Usuario')).toHaveCount(0);
+  await expect(page.getByPlaceholder('Correo electrónico')).toHaveCount(0);
 });
 
 test('el ciudadano reporta un incidente por chat y ve el ticket confirmado', async ({ page }) => {

@@ -45,9 +45,11 @@ test.beforeEach(async ({ page }) => {
 
   await page.addInitScript(() => {
     window.localStorage.setItem(
-      'urbanpulse_session',
+      'urbanpulse_citizen_session',
       JSON.stringify({
         success: true,
+        id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+        email: 'qa-tester@example.com',
         username: 'qa-tester',
         role: 'Operador QA',
         expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
