@@ -7,7 +7,7 @@ on:
 
 jobs:
   governance:
-    name: Gobernanza PR (Conventional Commits)
+    name: Gobernanza PR
     runs-on: ubuntu-latest
     steps:
       - name: Chequear el PR title con Conventional Commits
