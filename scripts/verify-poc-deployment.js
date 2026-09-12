@@ -4,7 +4,7 @@
  *
  * Recorre, en orden, cada componente de la arquitectura desplegada:
  *   1. Frontend (Vercel)      -> responde y sirve el HTML esperado.
- *   2. Webhook n8n (Render)   -> procesa un reporte de prueba y devuelve
+ *   2. Webhook n8n (AWS Lightsail) -> procesa un reporte de prueba y devuelve
  *                                los campos clasificados.
  *   3. PostgreSQL (Neon)      -> el reporte quedó persistido con los
  *                                mismos valores que devolvió el webhook.
@@ -85,7 +85,7 @@ async function verifyFrontend() {
 }
 
 async function verifyWebhook() {
-  logStep("2. Webhook n8n (Render)");
+  logStep("2. Webhook n8n (AWS Lightsail)");
   try {
     requireEnv(["N8N_WEBHOOK_URL"]);
     const url = process.env.N8N_WEBHOOK_URL;
@@ -236,7 +236,7 @@ async function verifyDatabase(webhookReport) {
 
 async function main() {
   console.log("Verificación end-to-end de la PoC desplegada de UrbanPulse");
-  console.log("Flujo: Frontend (Vercel) -> Webhook n8n (Render) -> PostgreSQL (Neon)");
+  console.log("Flujo: Frontend (Vercel) -> Webhook n8n (AWS Lightsail) -> PostgreSQL (Neon)");
 
   await verifyFrontend();
   const webhookReport = await verifyWebhook();
