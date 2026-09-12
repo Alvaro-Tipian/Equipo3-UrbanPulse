@@ -23,14 +23,9 @@ jobs:
 
   n8n_security:
     name: Seguridad en workflows n8n
-    # Desacoplado de 'governance': el escáner de secretos debe correr
-    # independientemente del título del PR y solo cuando cambian archivos n8n.
+    # Desacoplado de 'governance': el escáner de secretos corre
+    # independientemente de si el título del PR es convencional o no.
     runs-on: ubuntu-latest
-    # Solo corre si hay cambios en los workflows de n8n para no gastar
-    # minutos de CI en PRs que no tocan n8n.
-    if: |
-      contains(github.event.pull_request.files_url, 'src/n8n-workflows') ||
-      github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
