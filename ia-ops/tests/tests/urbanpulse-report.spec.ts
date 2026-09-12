@@ -14,7 +14,7 @@ import { test, expect } from '@playwright/test';
 // intercepta con page.route() para no depender de que n8n/Gemini estén
 // disponibles.
 
-const CHAT_WEBHOOK_PATH = '**/webhook/urbanpulse/report';
+const CHAT_WEBHOOK_PATH = '**/webhook/urbanpulse/{chat,report}*';
 
 test.beforeEach(async ({ page }) => {
   // Este entorno de pruebas no tiene salida a redes externas reales (p. ej.

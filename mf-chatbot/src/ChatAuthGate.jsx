@@ -190,7 +190,7 @@ export default function ChatAuthGate({ onAuth }) {
           </div>
         )}
 
-        <form onSubmit={enviar} className="space-y-4 bg-[var(--color-card)] border border-[var(--color-border)] rounded-2xl p-6">
+        <form onSubmit={enviar} noValidate className="space-y-4 bg-[var(--color-card)] border border-[var(--color-border)] rounded-2xl p-6">
           {modo !== 'reset' && (
             <Campo
               icono={Mail}

@@ -23,8 +23,8 @@ test.beforeEach(async ({ page }) => {
 test('valida formato de correo y longitud de contraseña antes de enviar', async ({ page }) => {
   const submitButton = page.locator('form button[type="submit"]');
 
-  // Correo inválido
-  await page.getByPlaceholder('Correo electrónico').fill('correoInvalido');
+  // Correo inválido (rechazado por validar(): sin dominio válido)
+  await page.getByPlaceholder('Correo electrónico').fill('operador@invalido');
   await page.getByPlaceholder('Contraseña').fill('12345678');
   await submitButton.click();
   await expect(page.getByText('Ingresa un correo electrónico válido.')).toBeVisible();
@@ -138,7 +138,7 @@ test('cerrar sesión vuelve a mostrar el login', async ({ page }) => {
   await page.locator('form button[type="submit"]').click();
   await expect(page.getByPlaceholder('Reporta un incidente....')).toBeVisible();
 
-  await page.getByTitle('Cerrar sesión').click();
+  await page.locator('aside').getByTitle('Cerrar sesión').click();
 
   await expect(page.getByPlaceholder('Correo electrónico')).toBeVisible();
   await expect(page.getByPlaceholder('Contraseña')).toBeVisible();
