@@ -111,7 +111,7 @@ async function pedirHistorialChat(sessionId, usuarioId) {
   // Conversación nueva o ajena: el webhook responde vacío o sin fila.
   const texto = await respuesta.text();
   if (!texto) return [];
-  let datos = null;
+  let datos;
   try {
     datos = JSON.parse(texto);
   } catch {

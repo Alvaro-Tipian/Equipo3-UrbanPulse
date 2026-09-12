@@ -17,12 +17,12 @@ export default defineConfig({
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
-  /* Retry on CI only */
-  retries: process.env.CI ? 2 : 0,
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
+  /* Retry on CI only (máximo 1 reintento para evitar esperas excesivas) */
+  retries: process.env.CI ? 1 : 0,
+  /* Paralelismo en CI */
+  workers: process.env.CI ? 2 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: 'html',
+  reporter: [['list'], ['html']],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('')`. */
@@ -32,21 +32,11 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
 
-  /* Configure projects for major browsers */
+  /* Configure projects for major browsers (Chromium estándar para CI rápido) */
   projects: [
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-    },
-
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
     },
 
     /* Test against mobile viewports. */
@@ -70,9 +60,26 @@ export default defineConfig({
     // },
   ],
 
-  webServer: {
-    command: 'npm --prefix ../../src/frontend run dev -- --host 0.0.0.0',
-    url: 'http://localhost:3000',
-    reuseExistingServer: !process.env.CI,
-  },
+  webServer: [
+    {
+      command: 'npm --prefix ../../src/frontend run dev -- --host 0.0.0.0',
+      url: 'http://localhost:3000',
+      reuseExistingServer: !process.env.CI,
+    },
+    {
+      command: 'npm --prefix ../../mf-mapa-urbano run dev -- --host 0.0.0.0',
+      url: 'http://localhost:5174/remoteEntry.js',
+      reuseExistingServer: !process.env.CI,
+    },
+    {
+      command: 'npm --prefix ../../mf-dashboard run dev -- --host 0.0.0.0',
+      url: 'http://localhost:5175/remoteEntry.js',
+      reuseExistingServer: !process.env.CI,
+    },
+    {
+      command: 'npm --prefix ../../mf-chatbot run dev -- --host 0.0.0.0',
+      url: 'http://localhost:3003/remoteEntry.js',
+      reuseExistingServer: !process.env.CI,
+    },
+  ],
 });

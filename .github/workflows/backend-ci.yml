@@ -77,7 +77,7 @@ jobs:
         # Dispara los casos de prueba apuntando exactamente a los archivos JSON subidos al repositorio
         run: |
           echo "Disparando pruebas contra http://localhost:5678/webhook/urbanpulse/report..."
-          newman run "postman/collections/UrbanPulse - Pruebas QA.postman_collection.json" -e "postman/environments/urbanpulse-local.postman_environment.json"
+          newman run "postman/collections/UrbanPulse - Pruebas QA/.resources/UrbanPulse  Pruebas QA.postman_collection.json"
 
       - name: Limpiar infraestructura local
         if: always()

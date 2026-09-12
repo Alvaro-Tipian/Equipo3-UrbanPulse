@@ -11,7 +11,12 @@ export default defineConfig({
       exposes: {
         './Dashboard': './src/Dashboard.jsx', // Este será el archivo que exportaremos
       },
-      shared: ['react', 'react-dom'],
+      shared: {
+        react: { singleton: true },
+        'react-dom': { singleton: true },
+        'react/jsx-runtime': { singleton: true },
+        'react/jsx-dev-runtime': { singleton: true },
+      },
       dts: false,
     }),
   ],
@@ -19,6 +24,9 @@ export default defineConfig({
   server: {
     port: 5175,
     cors: true,
+  },
+  resolve: {
+    dedupe: ['react', 'react-dom'],
   },
   build: {
     target: 'esnext',

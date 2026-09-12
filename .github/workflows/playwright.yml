@@ -18,7 +18,7 @@ defaults:
 
 jobs:
   test:
-    timeout-minutes: 60
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
       - name: Checkout del repositorio
@@ -34,8 +34,14 @@ jobs:
       - name: Instalar dependencias del frontend
         run: npm ci
         working-directory: src/frontend
-      - name: Instalar navegadores de Playwright
-        run: npx playwright install --with-deps
+      - name: Instalar dependencias de los microfrontends
+        working-directory: .
+        run: |
+          npm ci --prefix mf-dashboard
+          npm ci --prefix mf-mapa-urbano
+          npm ci --prefix mf-chatbot
+      - name: Instalar navegador Chromium de Playwright
+        run: npx playwright install --with-deps chromium
       - name: Ejecutar pruebas Playwright
         run: npx playwright test
       - name: Publicar reporte Playwright
