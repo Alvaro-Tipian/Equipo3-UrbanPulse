@@ -100,8 +100,8 @@ test('credenciales válidas entran a la app y muestran usuario y rol en el sideb
 
   await expect(page.getByPlaceholder('Correo electrónico')).toHaveCount(0);
   await expect(page.getByPlaceholder('Reporta un incidente....')).toBeVisible();
-  await expect(page.getByText('operador1@example.com')).toBeVisible();
-  await expect(page.getByText('Supervisor')).toBeVisible();
+  await expect(page.locator('aside').getByText('operador1@example.com')).toBeVisible();
+  await expect(page.locator('aside').getByText('Supervisor')).toBeVisible();
 });
 
 test('un error de conexión al iniciar sesión muestra un mensaje de error (no se cuelga en loading)', async ({ page }) => {
