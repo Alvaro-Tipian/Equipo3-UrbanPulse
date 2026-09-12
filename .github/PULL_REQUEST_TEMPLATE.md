@@ -1,4 +1,4 @@
-﻿## 🔗 Vinculación con Gestión (GitHub Projects)
+## 🔗 Vinculación con Gestión (GitHub Projects)
 - **Issue vinculado:** Closes #
 
 ## 📝 Descripción del Cambio
@@ -6,7 +6,7 @@
 
 ## 🏗️ Instrucciones de Despliegue (TALLER DE PROYECTOS)
 *Según los lineamientos del TALLER DE PROYECTOS, si este PR incluye cambios en la infraestructura, debes documentar los pasos de despliegue.*
-[Escribe aquí los pasos exactos si tu PR modifica Vercel, Render, PostgreSQL o Docker. Si no aplica, borra esta sección o escribe "N/A"]
+[Escribe aquí los pasos exactos si tu PR modifica Vercel, AWS Lightsail, PostgreSQL o Docker. Si no aplica, borra esta sección o escribe "N/A"]
 
 ## 🏷️ Tipo de Cambio
 *Marca la opción correspondiente con una `[x]`*:

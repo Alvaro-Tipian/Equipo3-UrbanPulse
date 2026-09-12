@@ -28,14 +28,21 @@ jobs:
         with:
           node-version: '20'
           cache: npm
-          cache-dependency-path: ia-ops/tests/package-lock.json
-      - name: Instalar dependencias
+          cache-dependency-path: |
+            ia-ops/tests/package-lock.json
+            src/frontend/package-lock.json
+            mf-dashboard/package-lock.json
+            mf-mapa-urbano/package-lock.json
+            mf-chatbot/package-lock.json
+      - name: Instalar dependencias (ia-ops/tests)
         run: npm ci
-      - name: Instalar dependencias del frontend
+      - name: Instalar dependencias del frontend (src/frontend)
         run: npm ci
         working-directory: src/frontend
       - name: Instalar dependencias de los microfrontends
-        working-directory: .
+        # Usar github.workspace para resolver rutas desde la raíz del repo,
+        # ya que el default working-directory es ia-ops/tests.
+        working-directory: ${{ github.workspace }}
         run: |
           npm ci --prefix mf-dashboard
           npm ci --prefix mf-mapa-urbano

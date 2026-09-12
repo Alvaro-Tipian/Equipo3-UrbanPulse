@@ -84,7 +84,7 @@ Flujo: **Frontend → n8n → PostgreSQL+pgvector → LLM (mock)**.
 ## Verificación end-to-end de la PoC desplegada
 
 `scripts/verify-poc-deployment.js` recorre en orden los tres componentes ya
-desplegados (Frontend en Vercel → Webhook n8n en Render → PostgreSQL en Neon),
+desplegados (Frontend en Vercel → Webhook n8n en AWS Lightsail → PostgreSQL en Neon),
 envía un reporte de prueba real y confirma que quedó persistido correctamente.
 
 No requiere instalar ningún paquete npm: usa `fetch` nativo de Node.js para
