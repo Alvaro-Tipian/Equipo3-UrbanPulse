@@ -35,7 +35,9 @@ jobs:
         run: npm ci
         working-directory: src/frontend
       - name: Instalar dependencias de los microfrontends
+        working-directory: .
         run: |
+        
           npm install --prefix mf-dashboard
           npm install --prefix mf-mapa-urbano
           npm install --prefix mf-chatbot
