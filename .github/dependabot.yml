@@ -13,6 +13,9 @@ updates:
       # Congelar en v3 hasta que el equipo migre la sintaxis de estilos.
       - dependency-name: "tailwindcss"
         update-types: ["version-update:semver-major"]
+      # eslint-plugin-react no soporta ESLint 10 (peerDependency max v9.x). Congelar en v9.
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
     groups:
       frontend-minor-patch:
         update-types: ["minor", "patch"]
