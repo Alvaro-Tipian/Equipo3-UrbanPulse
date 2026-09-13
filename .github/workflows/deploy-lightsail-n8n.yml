@@ -37,7 +37,7 @@ jobs:
 
     steps:
       - name: Checkout del repositorio
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Configurar credenciales de AWS
         uses: aws-actions/configure-aws-credentials@v4

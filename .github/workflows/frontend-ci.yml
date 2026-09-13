@@ -20,7 +20,7 @@ jobs:
       contents: read
     steps:
     - name: Checkout del repositorio
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
     - name: Inicializar CodeQL
       uses: github/codeql-action/init@v3
       with:
@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout del repositorio
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
     - name: Buscar secretos VITE_ hardcodeados
       run: |
         matches=$(grep -RInE \
@@ -52,7 +52,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout del repositorio
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
     - name: Configurar Node.js
       uses: actions/setup-node@v7
       with:

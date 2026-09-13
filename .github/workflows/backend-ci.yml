@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout del repositorio
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Auditar llaves hardcodeadas en JSON
         run: |
@@ -50,7 +50,7 @@ jobs:
     
     steps:
       - name: Checkout del repositorio
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Levantar Infraestructura Local (Docker Compose)
         # Emula el entorno de la Guía de Instalación Local
