@@ -20,19 +20,6 @@
           "value": "strict-origin-when-cross-origin"
         },
         {
-          "key": "Permissions-Policy",
-          "value": "camera=(), microphone=(), geolocation=(self), payment=()"
-        },
-        {
-          "key": "Content-Security-Policy",
-          "value": "default-src 'self' https://*.vercel.app; script-src 'self' 'unsafe-inline' https://*.vercel.app; style-src 'self' 'unsafe-inline' https://*.tomtom.com; img-src 'self' data: blob: https://*.tomtom.com https://*.cs.amazonlightsail.com; font-src 'self' data:; connect-src 'self' https://*.vercel.app https://urbanpulse-n8n.xq33kajky1yy6.us-east-1.cs.amazonlightsail.com https://*.tomtom.com https://generativelanguage.googleapis.com; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self';"
-        }
-      ]
-    },
-    {
-      "source": "/(.*)\\.(js|css|json)",
-      "headers": [
-        {
           "key": "Access-Control-Allow-Origin",
           "value": "*"
         },
