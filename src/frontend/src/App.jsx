@@ -1,10 +1,11 @@
 import React, { useState, useEffect, Suspense } from 'react';
-import { Home, MessageSquare, Map as MapIcon, LayoutDashboard, Settings, Activity, Sun, Moon, History, User, LogOut } from 'lucide-react';
+import { Home, MessageSquare, Map as MapIcon, LayoutDashboard, Settings, Activity, Sun, Moon, History, User, LogOut, ClipboardList } from 'lucide-react';
 import '@tomtom-international/web-sdk-maps/dist/maps.css';
 import { getInitialTheme, applyTheme } from './theme';
 import { getSession, clearSession, subscribeSession } from './session';
 import HistorialView from './HistorialView';
 import AjustesView from './AjustesView';
+import OperatorTicketGrid from './OperatorTicketGrid';
 
 // Importaciones de los micro-fronteds
 const MapaUrbano = React.lazy(() => import('mf_mapa_urbano/MapaUrbano'));
@@ -26,7 +27,11 @@ function App() {
 
   // El historial es privado: si la sesión caduca o se cierra estando en esa
   // vista, no puede quedarse mostrando los reportes de quien acaba de salir.
-  const vistaActiva = (!session && activeTab === 'historial') ? 'inicio' : activeTab;
+  // Lo mismo para tickets, que además es exclusivo del rol operador.
+  const vistaActiva =
+    (!session && activeTab === 'historial') ? 'inicio' :
+    (session?.role !== 'operador' && activeTab === 'tickets') ? 'inicio' :
+    activeTab;
 
   const toggleTheme = () => {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
@@ -40,6 +45,7 @@ function App() {
     { id: 'mapa', label: 'MAPA', icon: MapIcon },
     { id: 'dashboard', label: 'DASHBOARD', icon: LayoutDashboard },
     ...(session ? [{ id: 'historial', label: 'HISTORIAL', icon: History }] : []),
+    ...(session?.role === 'operador' ? [{ id: 'tickets', label: 'TICKETS', icon: ClipboardList }] : []),
     { id: 'ajustes', label: 'AJUSTES', icon: Settings },
   ];
 
@@ -220,6 +226,13 @@ function App() {
         {vistaActiva === 'historial' && (
           <div className="h-full animate-fade-in">
             <HistorialView session={session} />
+          </div>
+        )}
+
+        {/* VISTA: TICKETS (operador) */}
+        {vistaActiva === 'tickets' && (
+          <div className="h-full animate-fade-in">
+            <OperatorTicketGrid session={session} />
           </div>
         )}
 

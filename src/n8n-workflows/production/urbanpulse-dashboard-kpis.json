@@ -387,7 +387,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Cada quien resuelve sus propios reportes; el operador, cualquiera.\n-- Si el reporte no es suyo no se actualiza ninguna fila y la respuesta vuelve\n-- vacia, que es como el frontend detecta que el cambio no se aplico.\nUPDATE reports AS r\nSET status = CASE WHEN $2 = 'resuelto' THEN 'resuelto' ELSE 'pending' END,\n    resolved_at = CASE WHEN $2 = 'resuelto' THEN now() ELSE NULL END\nWHERE r.id = $1::uuid\n  AND (r.usuario_id = $3::uuid\n       OR EXISTS (SELECT 1 FROM usuarios AS o\n                  WHERE o.id = $3::uuid AND o.role = 'operador'))\nRETURNING r.id, r.status, r.resolved_at;",
+        "query": "-- Cada quien resuelve sus propios reportes; el operador, cualquiera.\n-- Si el reporte no es suyo no se actualiza ninguna fila y la respuesta vuelve\n-- vacia, que es como el frontend detecta que el cambio no se aplico.\nUPDATE reports AS r\nSET status = CASE WHEN $2 IN ('pending', 'en_proceso', 'resuelto') THEN $2 ELSE 'pending' END,\n    resolved_at = CASE WHEN $2 = 'resuelto' THEN now() ELSE NULL END\nWHERE r.id = $1::uuid\n  AND (r.usuario_id = $3::uuid\n       OR EXISTS (SELECT 1 FROM usuarios AS o\n                  WHERE o.id = $3::uuid AND o.role = 'operador'))\nRETURNING r.id, r.status, r.resolved_at;",
         "options": {
           "queryReplacement": "={{ [ /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test($json.body.id || '') ? $json.body.id : null, $json.body.status || 'pending', /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test($json.body.usuario_id || '') ? $json.body.usuario_id : null ] }}"
         }
