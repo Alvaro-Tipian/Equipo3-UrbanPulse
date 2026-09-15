@@ -8,7 +8,7 @@ import { test, expect } from '@playwright/test';
 // App.jsx). Ahora la app abre directamente y la autenticación vive dentro del
 // microfrontend del chat (mf-chatbot/src/ChatAuthGate.jsx), que además cambió
 // de "Usuario" a "Correo electrónico" y sumó registro y recuperación de
-// contraseña. Este spec se reescribió contra esa nueva estructura.
+// contraseña.
 //
 // Los cuatro endpoints de autenticación se interceptan con page.route() para
 // no depender de cuentas reales ni golpear producción desde CI.
@@ -101,6 +101,22 @@ test('credenciales inválidas muestran el mensaje de error del servidor', async 
   await expect(page.getByPlaceholder('Correo electrónico')).toBeVisible();
 });
 
+test('el botón muestra estado de carga mientras se valida el login', async ({ page }) => {
+  await page.route(AUTH_LOGIN_PATH, async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(SESION_VALIDA) });
+  });
+
+  await page.getByPlaceholder('Correo electrónico').fill('ciudadano@ejemplo.com');
+  await page.getByPlaceholder('Contraseña', { exact: true }).fill('claveValida123');
+  const submitButton = page.locator('form button[type="submit"]');
+  await submitButton.click();
+
+  await expect(submitButton).toBeDisabled();
+  await expect(page.getByPlaceholder('Correo electrónico')).toBeDisabled();
+  await expect(page.getByPlaceholder('Contraseña', { exact: true })).toBeDisabled();
+});
+
 test('credenciales válidas dan acceso al chat', async ({ page }) => {
   await page.route(AUTH_LOGIN_PATH, (route) => {
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(SESION_VALIDA) });
@@ -113,6 +129,27 @@ test('credenciales válidas dan acceso al chat', async ({ page }) => {
   // El formulario desaparece y queda disponible el chat de reportes.
   await expect(page.getByPlaceholder('Reporta un incidente....')).toBeVisible();
   await expect(page.getByPlaceholder('Correo electrónico')).toHaveCount(0);
+});
+
+test('tras iniciar sesión, el panel lateral muestra el correo y el rol de la cuenta', async ({ page }) => {
+  const sesionOperador = {
+    success: true,
+    id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    email: 'operador1@example.com',
+    role: 'Supervisor',
+    expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+  };
+  await page.route(AUTH_LOGIN_PATH, (route) => {
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(sesionOperador) });
+  });
+
+  await page.getByPlaceholder('Correo electrónico').fill('operador1@example.com');
+  await page.getByPlaceholder('Contraseña', { exact: true }).fill('claveValida123');
+  await page.locator('form button[type="submit"]').click();
+
+  await expect(page.getByPlaceholder('Reporta un incidente....')).toBeVisible();
+  await expect(page.locator('aside').getByText('operador1@example.com')).toBeVisible();
+  await expect(page.locator('aside').getByText('Supervisor')).toBeVisible();
 });
 
 test('el registro exitoso también da acceso al chat', async ({ page }) => {
@@ -157,6 +194,24 @@ test('un error de conexión al iniciar sesión no deja el formulario colgado', a
   await botonEnviar.click();
 
   // Se muestra un error y el botón vuelve a quedar disponible para reintentar.
-  await expect(page.getByText(/Failed to fetch|servidor de autenticación/)).toBeVisible();
+  await expect(
+    page.getByText(/Failed to fetch|servidor de autenticación/)
+  ).toBeVisible();
   await expect(botonEnviar).toBeEnabled();
+});
+
+test('cerrar sesión vuelve a mostrar el login', async ({ page }) => {
+  await page.route(AUTH_LOGIN_PATH, (route) => {
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(SESION_VALIDA) });
+  });
+
+  await page.getByPlaceholder('Correo electrónico').fill('ciudadano@ejemplo.com');
+  await page.getByPlaceholder('Contraseña', { exact: true }).fill('claveValida123');
+  await page.locator('form button[type="submit"]').click();
+  await expect(page.getByPlaceholder('Reporta un incidente....')).toBeVisible();
+
+  await page.locator('aside').getByTitle('Cerrar sesión').click();
+
+  await expect(page.getByPlaceholder('Correo electrónico')).toBeVisible();
+  await expect(page.getByPlaceholder('Contraseña', { exact: true })).toBeVisible();
 });

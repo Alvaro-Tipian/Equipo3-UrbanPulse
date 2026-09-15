@@ -1,4 +1,4 @@
-﻿name: n8n Validate CI
+name: n8n Validate CI
 
 on:
   pull_request:
@@ -11,17 +11,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Chequear el PR title con Conventional Commits
-        uses: amannn/action-semantic-pull-request@v5
+        uses: amannn/action-semantic-pull-request@v6
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Permite que PRs de Dependabot (etiquetados con 'dependencies') no sean
+          # bloqueados aunque su título no siga Conventional Commits.
+          ignoreLabels: |
+            dependencies
+            automated pr
 
   n8n_security:
     name: Seguridad en workflows n8n
+    # Desacoplado de 'governance': el escáner de secretos corre
+    # independientemente de si el título del PR es convencional o no.
     runs-on: ubuntu-latest
-    needs: governance
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Escanear workflows n8n en busca de credenciales quemadas
         shell: bash

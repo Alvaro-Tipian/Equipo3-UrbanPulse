@@ -138,8 +138,11 @@ const MapaUrbano = ({ lat, lon }) => {
 
   // Efecto 1: Inicializar el mapa la primera vez
   useEffect(() => {
+    const tomtomKey = import.meta.env.VITE_TOMTOM_API_KEY;
+    if (!tomtomKey || !mapContainer.current) return undefined;
+
     const mapInstance = tt.map({
-      key: import.meta.env.VITE_TOMTOM_API_KEY,
+      key: tomtomKey,
       container: mapContainer.current,
       center: [-77.0428, -12.0464],
       zoom: 12,
@@ -264,6 +267,20 @@ const MapaUrbano = ({ lat, lon }) => {
   return (
     <div className="relative w-full h-full">
       <div id="tomtom-map-container" ref={mapContainer} style={{ width: '100%', height: '100%' }}></div>
+
+      {/* Aviso de degradación segura cuando no se provee la API Key de TomTom */}
+      {!import.meta.env.VITE_TOMTOM_API_KEY && (
+        <div className="absolute inset-0 flex items-center justify-center p-4 pointer-events-none z-10">
+          <div className="bg-[var(--color-card)]/95 border border-[var(--color-border)] rounded-2xl p-5 max-w-sm text-center shadow-xl backdrop-blur-md pointer-events-auto">
+            <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-1">
+              🗺️ Modo Sin Conexión a TomTom
+            </h3>
+            <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">
+              La variable <code className="text-amber-400 font-mono">VITE_TOMTOM_API_KEY</code> no está configurada. Configure la credencial cifrada en la consola de Vercel (ver <span className="font-mono text-xs">docs/VERCEL_PRODUCTION_KEYS_HARDENING.md</span>).
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* BUSCADOR */}
       <div className="absolute top-4 left-4 z-10 w-64 max-w-[calc(100%-2rem)]">

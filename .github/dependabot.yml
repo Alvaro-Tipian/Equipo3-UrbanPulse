@@ -1,14 +1,93 @@
 version: 2
 updates:
+  # ── Shell Frontend (src/frontend) ────────────────────────────────────────────
   - package-ecosystem: "npm"
     directory: "/src/frontend"
     schedule:
       interval: "weekly"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    ignore:
+      # Tailwind v4 elimina @tailwind directives y tailwind.config.js — breaking change.
+      # Congelar en v3 hasta que el equipo migre la sintaxis de estilos.
+      - dependency-name: "tailwindcss"
+        update-types: ["version-update:semver-major"]
+      # eslint-plugin-react no soporta ESLint 10 (peerDependency max v9.x). Congelar en v9.
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+    groups:
+      frontend-minor-patch:
+        update-types: ["minor", "patch"]
+
+  # ── Microfrontend Dashboard (mf-dashboard) ───────────────────────────────────
   - package-ecosystem: "npm"
     directory: "/mf-dashboard"
     schedule:
       interval: "weekly"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    ignore:
+      - dependency-name: "tailwindcss"
+        update-types: ["version-update:semver-major"]
+    groups:
+      mf-dashboard-minor-patch:
+        update-types: ["minor", "patch"]
+
+  # ── Microfrontend Mapa Urbano (mf-mapa-urbano) ───────────────────────────────
   - package-ecosystem: "npm"
     directory: "/mf-mapa-urbano"
     schedule:
       interval: "weekly"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    ignore:
+      - dependency-name: "tailwindcss"
+        update-types: ["version-update:semver-major"]
+    groups:
+      mf-mapa-urbano-minor-patch:
+        update-types: ["minor", "patch"]
+
+  # ── Microfrontend Chatbot (mf-chatbot) ───────────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/mf-chatbot"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    ignore:
+      - dependency-name: "tailwindcss"
+        update-types: ["version-update:semver-major"]
+    groups:
+      mf-chatbot-minor-patch:
+        update-types: ["minor", "patch"]
+
+  # ── Tests E2E (ia-ops/tests) ─────────────────────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/ia-ops/tests"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+
+  # ── Tests unitarios (ia-ops/tests/unit) ──────────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/ia-ops/tests/unit"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+
+  # ── GitHub Actions ───────────────────────────────────────────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    commit-message:
+      prefix: "chore"
+      include: "scope"

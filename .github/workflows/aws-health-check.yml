@@ -1,14 +1,19 @@
 # ==============================================================================
 # Workflow: Health Check AWS (E2E)
-# Propósito: Ejecutar una verificación end-to-end (Frontend -> Webhook n8n -> PostgreSQL)
+# Propósito: Verificación manual end-to-end (Frontend → Webhook n8n → PostgreSQL)
 # para detectar caídas del servicio en la infraestructura de AWS Lightsail.
+#
+# NOTA: El trigger programado (cron) fue eliminado porque AWS Lightsail Container
+# Service corre de forma dedicada 24/7 y nunca se suspende (a diferencia de Render
+# free-tier). El cron generaba fallos constantes cuando los secrets de producción
+# no estaban configurados en el repositorio.
+#
+# Para ejecutarlo, usar el botón "Run workflow" en la UI de GitHub Actions.
 # ==============================================================================
 
 name: Health Check AWS (E2E)
 
 on:
-  schedule:
-    - cron: '0 12,0 * * *' # Ejecuta dos veces al día (12:00 y 00:00)
   workflow_dispatch:
 
 jobs:
@@ -18,10 +23,10 @@ jobs:
 
     steps:
       - name: Checkout del repositorio
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Configurar Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '20'
 
@@ -29,6 +34,27 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y postgresql-client
+
+      - name: Verificar que los secrets requeridos están configurados
+        env:
+          FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
+          N8N_WEBHOOK_URL: ${{ secrets.N8N_WEBHOOK_URL }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_DATABASE: ${{ secrets.DB_DATABASE }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          missing=""
+          for var in FRONTEND_URL N8N_WEBHOOK_URL DB_HOST DB_PORT DB_DATABASE DB_USER DB_PASSWORD; do
+            if [ -z "${!var}" ]; then missing="$missing $var"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Faltan secrets requeridos:$missing"
+            echo "Configúralos en Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          echo "✅ Todos los secrets requeridos están configurados."
 
       - name: Ejecutar verificación end-to-end de la PoC
         env:

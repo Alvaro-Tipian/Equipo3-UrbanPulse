@@ -12,7 +12,9 @@ import { test, expect } from '@playwright/test';
 // intercepta con page.route() para no depender de que n8n/Gemini estén
 // disponibles.
 
-const CHAT_WEBHOOK_PATH = '**/webhook/urbanpulse/report';
+const CHAT_WEBHOOK_PATH = (url: URL) =>
+  url.pathname === '/webhook/urbanpulse/chat' ||
+  url.pathname === '/webhook/urbanpulse/report';
 
 // El chat pide la ubicación real del dispositivo antes de enviar el mensaje
 // (obtenerUbicacionActual en NLQCommandCenter.jsx). Sin permiso concedido, esa
@@ -55,7 +57,7 @@ test.beforeEach(async ({ page }) => {
 
 test('con sesión válida se entra directo al chat, sin formulario de login', async ({ page }) => {
   await expect(page.getByPlaceholder('Reporta un incidente....')).toBeVisible();
-  await expect(page.getByPlaceholder('Usuario')).toHaveCount(0);
+  await expect(page.getByPlaceholder('Correo electrónico')).toHaveCount(0);
 });
 
 test('el ciudadano reporta un incidente por chat y ve el ticket confirmado', async ({ page }) => {

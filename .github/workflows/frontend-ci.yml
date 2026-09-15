@@ -9,6 +9,18 @@ on:
       - 'mf-dashboard/**'
       - 'mf-mapa-urbano/**'
       - 'mf-chatbot/**'
+      - 'scripts/sast-frontend-scanner.js'
+      - '.github/workflows/frontend-ci.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/frontend/**'
+      - 'mf-dashboard/**'
+      - 'mf-mapa-urbano/**'
+      - 'mf-chatbot/**'
+      - 'scripts/sast-frontend-scanner.js'
+      - '.github/workflows/frontend-ci.yml'
 
 jobs:
   sast-codeql:
@@ -28,33 +40,27 @@ jobs:
     - name: Ejecutar Análisis CodeQL
       uses: github/codeql-action/analyze@v3
 
-  sast-secrets-vite:
-    name: Escáner de Secretos Vite
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout del repositorio
-      uses: actions/checkout@v4
-    - name: Buscar secretos VITE_ hardcodeados
-      run: |
-        matches=$(grep -RInE \
-          --exclude-dir=node_modules \
-          --exclude='*.lock' \
-          '(VITE_(API_KEY|DB_PASSWORD|TOMTOM_API_KEY|WEBHOOK_URL(_DEV|_PROD)?)\s*[:=]\s*[^$]|gsk_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{20,})' \
-          ./src/frontend ./mf-dashboard ./mf-mapa-urbano ./mf-chatbot || true)
-        if [ -n "$matches" ]; then
-          echo "🚨 ALERTA: Se detectaron credenciales VITE_ quemadas en el código fuente."
-          echo "$matches"
-          exit 1
-        fi
-
-  calidad-eslint-sca:
-    name: Auditoría de Código y Dependencias
+  sast-secrets-and-network-audit:
+    name: Análisis Estático SAST (Secretos y Variables de Red)
     runs-on: ubuntu-latest
     steps:
     - name: Checkout del repositorio
       uses: actions/checkout@v4
     - name: Configurar Node.js
       uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    - name: Ejecutar Escáner SAST de Secretos y Variables de Red
+      run: node scripts/sast-frontend-scanner.js
+
+  calidad-eslint-sca:
+    name: Auditoría de Código y Dependencias
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout del repositorio
+      uses: actions/checkout@v7
+    - name: Configurar Node.js
+      uses: actions/setup-node@v7
       with:
         node-version: '20'
 
@@ -73,7 +79,7 @@ jobs:
 
     - name: Subir reporte de cobertura
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: frontend-coverage-report
         path: src/frontend/coverage/
