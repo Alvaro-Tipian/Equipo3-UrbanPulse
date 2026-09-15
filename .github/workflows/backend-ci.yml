@@ -77,13 +77,22 @@ jobs:
       - name: Aplicar migraciones de base de datos
         # Las mismas migraciones que corren contra Neon en producción, en el
         # mismo orden (el prefijo de timestamp del nombre de archivo ya
-        # ordena correctamente con un sort lexicográfico).
+        # ordena correctamente con un sort lexicográfico). Se captura
+        # stdout+stderr de cada archivo para poder ver el mensaje real de
+        # psql en el log del job en vez de solo el exit code del step.
         run: |
-          set -euo pipefail
+          set -uo pipefail
           for archivo in $(ls database/migrations/*.sql | sort); do
-            echo "Aplicando $(basename "$archivo")..."
-            docker compose -f infrastructure/docker-compose.yml exec -T postgres \
-              psql -U urban_admin -d urbanpulse_db -v ON_ERROR_STOP=1 -f - < "$archivo"
+            echo "::group::Aplicando $(basename "$archivo")"
+            salida=$(docker compose -f infrastructure/docker-compose.yml exec -T postgres \
+              psql -U urban_admin -d urbanpulse_db -v ON_ERROR_STOP=1 -f - < "$archivo" 2>&1)
+            codigo=$?
+            echo "$salida"
+            echo "::endgroup::"
+            if [ $codigo -ne 0 ]; then
+              echo "::error::Fallo aplicando $(basename "$archivo") (exit $codigo)"
+              exit 1
+            fi
           done
 
       - name: Preparar credenciales y workflow para importar a n8n
@@ -140,19 +149,31 @@ jobs:
       - name: Importar credenciales y workflow en n8n
         # "docker compose run" crea un contenedor de un solo uso (no el
         # servicio de larga duracion) que escribe la importacion directo en
-        # Postgres. Se hace ANTES de arrancar el n8n real: si se importara
-        # con n8n ya corriendo, el proceso no se entera de que hay un
-        # workflow nuevo activo hasta que reinicia. Arrancarlo despues evita
-        # el problema, porque n8n escanea los workflows activos al iniciar y
-        # registra el webhook solo.
+        # Postgres, ANTES de arrancar el n8n real. El ENTRYPOINT de la
+        # imagen ya ejecuta "n8n" por si solo, asi que el comando pasado
+        # aqui NO repite "n8n" (a diferencia de "docker compose exec",
+        # donde si hace falta).
+        #
+        # "import:workflow" deja el workflow inactivo aunque el JSON tenga
+        # "active": true (verificado localmente: imprime "Deactivating
+        # workflow..."). Se activa aparte con "update:workflow --active"
+        # (el id es el que trae UrbanPulse-Flujo-vr3.json). El comando esta
+        # marcado deprecated a favor de "publish:workflow --id", pero su
+        # propio aviso de deprecacion confirma que hacen lo mismo
+        # ("Please use: publish:workflow --id=..."); se deja este por ser
+        # mas explicito sobre que controla el estado activo del trigger.
+        # Solo toma efecto la proxima vez que n8n arranca -- por eso todo
+        # esto pasa antes de "Levantar n8n" mas abajo.
         run: |
           set -euo pipefail
           docker compose -f infrastructure/docker-compose.yml run --rm \
             -v /tmp/n8n-ci-import:/import:ro \
-            n8n n8n import:credentials --input=/import/credentials.json
+            n8n import:credentials --input=/import/credentials.json
           docker compose -f infrastructure/docker-compose.yml run --rm \
             -v /tmp/n8n-ci-import:/import:ro \
-            n8n n8n import:workflow --input=/import/workflow.json
+            n8n import:workflow --input=/import/workflow.json
+          docker compose -f infrastructure/docker-compose.yml run --rm \
+            n8n update:workflow --id=HHqFhjEJ08cUlSEt --active=true
 
       - name: Eliminar el archivo de credenciales en texto plano
         if: always()
