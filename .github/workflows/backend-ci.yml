@@ -102,6 +102,13 @@ jobs:
         # re-encripta estos valores al importarlos con su propia clave de
         # cifrado (generada en este contenedor descartable), asi que el
         # texto plano solo existe brevemente en el runner de CI.
+        #
+        # Se usa "jq --arg" para volcar los secrets al JSON en vez de
+        # interpolarlos crudo en un heredoc: --arg escapa automaticamente
+        # comillas, backslashes, etc. Interpolar "${GEMINI_API_KEY}" directo
+        # dentro de un string entre comillas rompe el JSON si la clave real
+        # contiene alguno de esos caracteres (causa mas probable de que
+        # "import:credentials" fallara sin mensaje claro).
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TOMTOM_API_KEY: ${{ secrets.TOMTOM_API_KEY }}
@@ -109,41 +116,43 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/n8n-ci-import
-          cat > /tmp/n8n-ci-import/credentials.json <<EOF
-          [
-            {
-              "id": "OG4PhmWgT8L86uMa",
-              "name": "Postgres account",
-              "type": "postgres",
-              "data": {
-                "host": "postgres",
-                "port": 5432,
-                "database": "urbanpulse_db",
-                "user": "urban_admin",
-                "password": "urban_password_local",
-                "ssl": "disable"
+          jq -n \
+            --arg gemini "$GEMINI_API_KEY" \
+            --arg groq "$GROQ_API_KEY" \
+            --arg tomtom "$TOMTOM_API_KEY" \
+            '[
+              {
+                "id": "OG4PhmWgT8L86uMa",
+                "name": "Postgres account",
+                "type": "postgres",
+                "data": {
+                  "host": "postgres",
+                  "port": 5432,
+                  "database": "urbanpulse_db",
+                  "user": "urban_admin",
+                  "password": "urban_password_local",
+                  "ssl": "disable"
+                }
+              },
+              {
+                "id": "0FFynDlCDoVzDDcf",
+                "name": "Gemini API",
+                "type": "httpQueryAuth",
+                "data": { "name": "key", "value": $gemini }
+              },
+              {
+                "id": "5jvR61DQvh8AdLXi",
+                "name": "Groq API",
+                "type": "httpBearerAuth",
+                "data": { "token": $groq }
+              },
+              {
+                "id": "NJwR1YGyw5vsKdfv",
+                "name": "Tomtom API tráfico",
+                "type": "httpQueryAuth",
+                "data": { "name": "key", "value": $tomtom }
               }
-            },
-            {
-              "id": "0FFynDlCDoVzDDcf",
-              "name": "Gemini API",
-              "type": "httpQueryAuth",
-              "data": { "name": "key", "value": "${GEMINI_API_KEY}" }
-            },
-            {
-              "id": "5jvR61DQvh8AdLXi",
-              "name": "Groq API",
-              "type": "httpBearerAuth",
-              "data": { "token": "${GROQ_API_KEY}" }
-            },
-            {
-              "id": "NJwR1YGyw5vsKdfv",
-              "name": "Tomtom API tráfico",
-              "type": "httpQueryAuth",
-              "data": { "name": "key", "value": "${TOMTOM_API_KEY}" }
-            }
-          ]
-          EOF
+            ]' > /tmp/n8n-ci-import/credentials.json
           chmod 600 /tmp/n8n-ci-import/credentials.json
           cp "src/n8n-workflows/production/UrbanPulse-Flujo-vr3.json" /tmp/n8n-ci-import/workflow.json
 
