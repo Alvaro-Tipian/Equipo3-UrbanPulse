@@ -43,21 +43,120 @@ jobs:
     name: Pruebas de Integración de API
     needs: security-sast # Este job solo corre si el escáner SAST pasa con éxito
     runs-on: ubuntu-latest
-    # El contenedor n8n se levanta en blanco (sin workflows importados), por lo
-    # que Newman retornará 404 en los webhooks. Este job es informativo hasta
-    # que se implemente la importación automática de workflows de producción.
+    # El workflow real necesita 3 servicios externos (Gemini, Groq, TomTom):
+    # si alguno da rate-limit o esta caido, este job no deberia bloquear PRs
+    # que no tienen nada que ver con eso.
     continue-on-error: true
-    
+
     steps:
       - name: Checkout del repositorio
         uses: actions/checkout@v7
 
-      - name: Levantar Infraestructura Local (Docker Compose)
-        # Emula el entorno de la Guía de Instalación Local
+      - name: Levantar Postgres (Docker Compose)
+        run: docker compose -f infrastructure/docker-compose.yml up -d postgres
+
+      - name: Esperar a que Postgres acepte conexiones
         run: |
-          cd infrastructure
-          docker compose up -d
-          
+          set -euo pipefail
+          for intento in $(seq 1 30); do
+            if docker compose -f infrastructure/docker-compose.yml exec -T postgres \
+              pg_isready -U urban_admin -d urbanpulse_db > /dev/null 2>&1; then
+              echo "Postgres disponible tras ${intento} intento(s)."
+              exit 0
+            fi
+            echo "Intento ${intento}/30: Postgres todavía no está disponible."
+            sleep 2
+          done
+          echo "Postgres no respondió dentro de 1 minuto."
+          exit 1
+
+      - name: Aplicar migraciones de base de datos
+        # Las mismas migraciones que corren contra Neon en producción, en el
+        # mismo orden (el prefijo de timestamp del nombre de archivo ya
+        # ordena correctamente con un sort lexicográfico).
+        run: |
+          set -euo pipefail
+          for archivo in $(ls database/migrations/*.sql | sort); do
+            echo "Aplicando $(basename "$archivo")..."
+            docker compose -f infrastructure/docker-compose.yml exec -T postgres \
+              psql -U urban_admin -d urbanpulse_db -v ON_ERROR_STOP=1 -f - < "$archivo"
+          done
+
+      - name: Preparar credenciales y workflow para importar a n8n
+        # El archivo se escribe fuera del repositorio, nunca se commitea y se
+        # elimina mas abajo (mismo patron que deploy-lightsail-n8n.yml). n8n
+        # re-encripta estos valores al importarlos con su propia clave de
+        # cifrado (generada en este contenedor descartable), asi que el
+        # texto plano solo existe brevemente en el runner de CI.
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TOMTOM_API_KEY: ${{ secrets.TOMTOM_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/n8n-ci-import
+          cat > /tmp/n8n-ci-import/credentials.json <<EOF
+          [
+            {
+              "id": "OG4PhmWgT8L86uMa",
+              "name": "Postgres account",
+              "type": "postgres",
+              "data": {
+                "host": "postgres",
+                "port": 5432,
+                "database": "urbanpulse_db",
+                "user": "urban_admin",
+                "password": "urban_password_local",
+                "ssl": "disable"
+              }
+            },
+            {
+              "id": "0FFynDlCDoVzDDcf",
+              "name": "Gemini API",
+              "type": "httpQueryAuth",
+              "data": { "name": "key", "value": "${GEMINI_API_KEY}" }
+            },
+            {
+              "id": "5jvR61DQvh8AdLXi",
+              "name": "Groq API",
+              "type": "httpBearerAuth",
+              "data": { "token": "${GROQ_API_KEY}" }
+            },
+            {
+              "id": "NJwR1YGyw5vsKdfv",
+              "name": "Tomtom API tráfico",
+              "type": "httpQueryAuth",
+              "data": { "name": "key", "value": "${TOMTOM_API_KEY}" }
+            }
+          ]
+          EOF
+          chmod 600 /tmp/n8n-ci-import/credentials.json
+          cp "src/n8n-workflows/production/UrbanPulse-Flujo-vr3.json" /tmp/n8n-ci-import/workflow.json
+
+      - name: Importar credenciales y workflow en n8n
+        # "docker compose run" crea un contenedor de un solo uso (no el
+        # servicio de larga duracion) que escribe la importacion directo en
+        # Postgres. Se hace ANTES de arrancar el n8n real: si se importara
+        # con n8n ya corriendo, el proceso no se entera de que hay un
+        # workflow nuevo activo hasta que reinicia. Arrancarlo despues evita
+        # el problema, porque n8n escanea los workflows activos al iniciar y
+        # registra el webhook solo.
+        run: |
+          set -euo pipefail
+          docker compose -f infrastructure/docker-compose.yml run --rm \
+            -v /tmp/n8n-ci-import:/import:ro \
+            n8n n8n import:credentials --input=/import/credentials.json
+          docker compose -f infrastructure/docker-compose.yml run --rm \
+            -v /tmp/n8n-ci-import:/import:ro \
+            n8n n8n import:workflow --input=/import/workflow.json
+
+      - name: Eliminar el archivo de credenciales en texto plano
+        if: always()
+        run: rm -rf /tmp/n8n-ci-import
+
+      - name: Levantar n8n (Docker Compose)
+        run: docker compose -f infrastructure/docker-compose.yml up -d n8n
+
       - name: Esperar health check de n8n
         run: |
           set -euo pipefail
@@ -78,9 +177,6 @@ jobs:
         run: npm install -g newman
 
       - name: Ejecutar Colección de Pruebas QA
-        # La coleccion referencia {{n8n_webhook_url}}; sin --env-var, Newman
-        # deja el placeholder sin resolver y falla con "getaddrinfo ENOTFOUND
-        # {{n8n_webhook_url}}" antes de intentar conectar siquiera.
         run: |
           echo "Disparando pruebas contra http://localhost:5678/webhook/urbanpulse/chat..."
           newman run "postman/collections/UrbanPulse - Pruebas QA/.resources/UrbanPulse  Pruebas QA.postman_collection.json" \
