@@ -60,17 +60,36 @@ jobs:
         run: docker compose -f infrastructure/docker-compose.yml up -d postgres
 
       - name: Esperar a que Postgres acepte conexiones
+        # pg_isready solo confirma que el servidor acepta conexiones, no que
+        # el script de inicializacion de la imagen (docker-entrypoint-initdb.d,
+        # que activa postgis automaticamente en la DB por defecto) ya
+        # termino. Sin esta segunda comprobacion, "CREATE EXTENSION postgis"
+        # en una migracion posterior puede fallar de forma intermitente por
+        # una carrera contra ese script (reproducido en CI: la migracion de
+        # siniestros_fatales, que necesita postgis, fallaba solo a veces).
         run: |
           set -euo pipefail
           for intento in $(seq 1 30); do
             if docker compose -f infrastructure/docker-compose.yml exec -T postgres \
               pg_isready -U urban_admin -d urbanpulse_db > /dev/null 2>&1; then
-              echo "Postgres disponible tras ${intento} intento(s)."
-              exit 0
+              echo "Postgres acepta conexiones tras ${intento} intento(s)."
+              break
             fi
             echo "Intento ${intento}/30: Postgres todavía no está disponible."
             sleep 2
           done
+
+          for intento in $(seq 1 30); do
+            if docker compose -f infrastructure/docker-compose.yml exec -T postgres \
+              psql -U urban_admin -d urbanpulse_db -tAc "SELECT postgis_version();" > /dev/null 2>&1; then
+              echo "PostGIS listo tras ${intento} intento(s)."
+              exit 0
+            fi
+            echo "Intento ${intento}/30: PostGIS todavía no está listo."
+            sleep 2
+          done
+          echo "PostGIS no quedó listo dentro del tiempo de espera."
+          exit 1
           echo "Postgres no respondió dentro de 1 minuto."
           exit 1
 
