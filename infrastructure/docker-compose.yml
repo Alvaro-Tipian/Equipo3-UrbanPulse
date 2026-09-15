@@ -2,7 +2,9 @@
 
 services:
   postgres:
-    image: ankane/pgvector:latest
+    build:
+      context: .
+      dockerfile: postgres.Dockerfile
     container_name: urbanpulse-db
     restart: always
     environment:

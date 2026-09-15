@@ -53,6 +53,10 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Levantar Postgres (Docker Compose)
+        # El servicio "postgres" usa un Dockerfile propio (postgis/postgis +
+        # pgvector, ver infrastructure/postgres.Dockerfile): las migraciones
+        # necesitan ambas extensiones y la imagen ankane/pgvector original
+        # solo traia pgvector. "up -d" construye la imagen si hace falta.
         run: docker compose -f infrastructure/docker-compose.yml up -d postgres
 
       - name: Esperar a que Postgres acepte conexiones
