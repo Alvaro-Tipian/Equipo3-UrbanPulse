@@ -166,15 +166,35 @@ jobs:
         # Solo toma efecto la proxima vez que n8n arranca -- por eso todo
         # esto pasa antes de "Levantar n8n" mas abajo.
         run: |
-          set -euo pipefail
-          docker compose -f infrastructure/docker-compose.yml run --rm \
+          set -o pipefail
+          echo "::group::Importar credenciales"
+          if ! docker compose -f infrastructure/docker-compose.yml run --rm \
             -v /tmp/n8n-ci-import:/import:ro \
-            n8n import:credentials --input=/import/credentials.json
-          docker compose -f infrastructure/docker-compose.yml run --rm \
+            n8n import:credentials --input=/import/credentials.json 2>&1 | tee /tmp/import.log; then
+            echo "::endgroup::"
+            echo "::error::Fallo import:credentials"
+            exit 1
+          fi
+          echo "::endgroup::"
+
+          echo "::group::Importar workflow"
+          if ! docker compose -f infrastructure/docker-compose.yml run --rm \
             -v /tmp/n8n-ci-import:/import:ro \
-            n8n import:workflow --input=/import/workflow.json
-          docker compose -f infrastructure/docker-compose.yml run --rm \
-            n8n update:workflow --id=HHqFhjEJ08cUlSEt --active=true
+            n8n import:workflow --input=/import/workflow.json 2>&1 | tee /tmp/import.log; then
+            echo "::endgroup::"
+            echo "::error::Fallo import:workflow"
+            exit 1
+          fi
+          echo "::endgroup::"
+
+          echo "::group::Activar workflow"
+          if ! docker compose -f infrastructure/docker-compose.yml run --rm \
+            n8n update:workflow --id=HHqFhjEJ08cUlSEt --active=true 2>&1 | tee /tmp/import.log; then
+            echo "::endgroup::"
+            echo "::error::Fallo update:workflow --active=true"
+            exit 1
+          fi
+          echo "::endgroup::"
 
       - name: Eliminar el archivo de credenciales en texto plano
         if: always()
