@@ -2,7 +2,7 @@
     "info": {
         "_postman_id": "405b4c7c-807e-469f-bb9e-eac08a9eb81d",
         "name": "UrbanPulse - Pruebas QA",
-        "description": "ColecciÃ³n organizada por TIPO DE PRUEBA (funcionales, negativas, seguridad, consistencia del LLM, integraciÃ³n externa) contra el workflow real de producciÃ³n 'UrbanPulse - Central' (webhook POST /webhook/urbanpulse/chat).\n\nOJO: el flujo real tiene 3 estados -- recolectando -> confirmando -> completado -- con una validaciÃ³n de contenido por LLM y un paso explÃ­cito de confirmaciÃ³n 'sÃ­/no' antes de clasificar. Esto NO coincide con la hoja de Criterios de AceptaciÃ³n de PRODUCT_BACKLOG_ACTUALIZADO (que describe esperando_imagen/esperando_ubicacion, sin paso de confirmaciÃ³n ni validaciÃ³n de contenido) -- ese documento quedÃ³ desactualizado respecto a lo implementado y conviene reportarlo al equipo/PO.\n\nCada carpeta de HU-01 usa un session_id generado dinÃ¡micamente en el pre-request script del primer paso (para no ensuciar la base de datos real de producciÃ³n con IDs fijos reutilizados entre corridas) y debe correr en el orden en que aparece.",
+        "description": "Colección organizada por TIPO DE PRUEBA (funcionales, negativas, seguridad, consistencia del LLM, integración externa) contra el workflow real de producción 'UrbanPulse - Central' (webhook POST /webhook/urbanpulse/chat).\n\nOJO: el flujo real tiene 3 estados -- recolectando -> confirmando -> completado -- con una validación de contenido por LLM y un paso explícito de confirmación 'sí/no' antes de clasificar. Esto NO coincide con la hoja de Criterios de Aceptación de PRODUCT_BACKLOG_ACTUALIZADO (que describe esperando_imagen/esperando_ubicacion, sin paso de confirmación ni validación de contenido) -- ese documento quedó desactualizado respecto a lo implementado y conviene reportarlo al equipo/PO.\n\nCada carpeta de HU-01 usa un session_id generado dinámicamente en el pre-request script del primer paso (para no ensuciar la base de datos real de producción con IDs fijos reutilizados entre corridas) y debe correr en el orden en que aparece.",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
     "item": [
@@ -94,7 +94,7 @@
                                 "exec": [
                                     "pm.test(\"HTTP 200 OK\", () => pm.response.to.have.status(200));",
                                     "pm.test(\"estado: recolectando\", () => pm.expect(pm.response.json().estado).to.eql(\"recolectando\"));",
-                                    "pm.test(\"Pide la ubicacion\", () => pm.expect((pm.response.json().respuesta || \"\").toLowerCase()).to.match(/ubicaci[oÃ³]n/));"
+                                    "pm.test(\"Pide la ubicacion\", () => pm.expect((pm.response.json().respuesta || \"\").toLowerCase()).to.match(/ubicaci[oó]n/));"
                                 ]
                             }
                         }
@@ -756,7 +756,7 @@
                         },
                         "body": {
                             "mode": "raw",
-                            "raw": "{ \"contents\": [{ \"parts\": [{ \"text\": \"Responde Ãºnicamente con la palabra OK si puedes leer este mensaje.\" }] }] }",
+                            "raw": "{ \"contents\": [{ \"parts\": [{ \"text\": \"Responde únicamente con la palabra OK si puedes leer este mensaje.\" }] }] }",
                             "options": {
                                 "raw": {
                                     "language": "json"
