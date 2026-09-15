@@ -78,10 +78,13 @@ jobs:
         run: npm install -g newman
 
       - name: Ejecutar Colección de Pruebas QA
-        # Dispara los casos de prueba apuntando exactamente a los archivos JSON subidos al repositorio
+        # La coleccion referencia {{n8n_webhook_url}}; sin --env-var, Newman
+        # deja el placeholder sin resolver y falla con "getaddrinfo ENOTFOUND
+        # {{n8n_webhook_url}}" antes de intentar conectar siquiera.
         run: |
-          echo "Disparando pruebas contra http://localhost:5678/webhook/urbanpulse/report..."
-          newman run "postman/collections/UrbanPulse - Pruebas QA/.resources/UrbanPulse  Pruebas QA.postman_collection.json"
+          echo "Disparando pruebas contra http://localhost:5678/webhook/urbanpulse/chat..."
+          newman run "postman/collections/UrbanPulse - Pruebas QA/.resources/UrbanPulse  Pruebas QA.postman_collection.json" \
+            --env-var "n8n_webhook_url=http://localhost:5678/webhook/urbanpulse/chat"
 
       - name: Limpiar infraestructura local
         if: always()
