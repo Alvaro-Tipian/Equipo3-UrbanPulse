@@ -77,22 +77,23 @@ jobs:
       - name: Aplicar migraciones de base de datos
         # Las mismas migraciones que corren contra Neon en producción, en el
         # mismo orden (el prefijo de timestamp del nombre de archivo ya
-        # ordena correctamente con un sort lexicográfico). Se captura
-        # stdout+stderr de cada archivo para poder ver el mensaje real de
-        # psql en el log del job en vez de solo el exit code del step.
+        # ordena correctamente con un sort lexicográfico). La salida de
+        # psql se transmite en vivo con "tee" (no se junta en una variable)
+        # para evitar problemas de buffering, y "set -o pipefail" hace que
+        # el "if" vea el exit code real de psql y no el de tee.
         run: |
-          set -uo pipefail
+          set -o pipefail
+          echo "docker compose version: $(docker compose version)"
+          docker compose -f infrastructure/docker-compose.yml ps
           for archivo in $(ls database/migrations/*.sql | sort); do
             echo "::group::Aplicando $(basename "$archivo")"
-            salida=$(docker compose -f infrastructure/docker-compose.yml exec -T postgres \
-              psql -U urban_admin -d urbanpulse_db -v ON_ERROR_STOP=1 -f - < "$archivo" 2>&1)
-            codigo=$?
-            echo "$salida"
-            echo "::endgroup::"
-            if [ $codigo -ne 0 ]; then
-              echo "::error::Fallo aplicando $(basename "$archivo") (exit $codigo)"
+            if ! docker compose -f infrastructure/docker-compose.yml exec -T postgres \
+              psql -U urban_admin -d urbanpulse_db -v ON_ERROR_STOP=1 -f - < "$archivo" 2>&1 | tee /tmp/migracion.log; then
+              echo "::endgroup::"
+              echo "::error::Fallo aplicando $(basename "$archivo")"
               exit 1
             fi
+            echo "::endgroup::"
           done
 
       - name: Preparar credenciales y workflow para importar a n8n
