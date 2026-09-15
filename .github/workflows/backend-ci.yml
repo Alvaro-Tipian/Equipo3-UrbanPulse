@@ -116,6 +116,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/n8n-ci-import
+          chmod 755 /tmp/n8n-ci-import
           jq -n \
             --arg gemini "$GEMINI_API_KEY" \
             --arg groq "$GROQ_API_KEY" \
@@ -153,8 +154,15 @@ jobs:
                 "data": { "name": "key", "value": $tomtom }
               }
             ]' > /tmp/n8n-ci-import/credentials.json
-          chmod 600 /tmp/n8n-ci-import/credentials.json
+          # 644 (no 600): el proceso dentro del contenedor n8n corre con un
+          # UID distinto al del runner que crea este archivo, asi que
+          # "otros" necesita permiso de lectura o el import falla con un
+          # error de permisos que n8n reporta de forma generica. El archivo
+          # vive en un directorio temporal de una VM efimera de un solo uso
+          # y se borra apenas se usa, asi que 644 sigue siendo razonable.
+          chmod 644 /tmp/n8n-ci-import/credentials.json
           cp "src/n8n-workflows/production/UrbanPulse-Flujo-vr3.json" /tmp/n8n-ci-import/workflow.json
+          chmod 644 /tmp/n8n-ci-import/workflow.json
 
       - name: Importar credenciales y workflow en n8n
         # "docker compose run" crea un contenedor de un solo uso (no el
