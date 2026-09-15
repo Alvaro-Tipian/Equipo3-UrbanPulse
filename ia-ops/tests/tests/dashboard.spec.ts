@@ -100,17 +100,13 @@ test('muestra un mensaje de error si el servidor de métricas falla', async ({ p
   await expect(page.getByText('Error de conexión con n8n: 500')).toBeVisible();
 });
 
-// DEFECTO CONOCIDO D-14 — el panel se cae al dibujar los gráficos.
-// Cuando la respuesta trae datos, Recharts se monta y el navegador lanza
-// "Invalid hook call ... You might have mismatching versions of React" y
-// "Cannot read properties of null (reading 'useRef')": el micro-frontend carga
-// su propia copia de React en vez de compartir la del host, y la página queda
-// EN BLANCO por completo (no solo el panel). Los estados de carga y de error sí
-// funcionan porque en ellos Recharts nunca llega a montarse.
-// Las tres pruebas que dependen de datos quedan marcadas como "se espera que
-// fallen": documentan el defecto y avisarán en cuanto se corrija.
+// D-14 CORREGIDO — mf-dashboard/vite.config.js ahora declara react/react-dom
+// como singleton, igual que el host (antes solo el host lo declaraba así,
+// mf-dashboard cargaba su propia copia de React y la app quedaba en blanco
+// al montar Recharts con "Invalid hook call" / "Cannot read properties of
+// null (reading 'useRef')"). Se retiraron los test.fail() de esta suite:
+// si el defecto reaparece, estas pruebas volverán a fallar y lo señalarán.
 test('muestra las tarjetas de KPIs y los gráficos con los datos recibidos', async ({ page }) => {
-  test.fail(); // D-14: la app se cae al renderizar los gráficos
   await page.route(KPIS_PATH, (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(SAMPLE_KPIS_RESPONSE) })
   );
@@ -139,7 +135,6 @@ test('muestra las tarjetas de KPIs y los gráficos con los datos recibidos', asy
 });
 
 test('el botón Actualizar vuelve a pedir los KPIs al servidor', async ({ page }) => {
-  test.fail(); // D-14: la app se cae al renderizar los gráficos
   let callCount = 0;
   await page.route(KPIS_PATH, (route) => {
     callCount += 1;
@@ -159,7 +154,6 @@ test('el botón Actualizar vuelve a pedir los KPIs al servidor', async ({ page }
 });
 
 test('la congestión promedio muestra "—" cuando el backend no la envía', async ({ page }) => {
-  test.fail(); // D-14: la app se cae al renderizar los gráficos
   const responseSinCongestion = {
     ...SAMPLE_KPIS_RESPONSE,
     kpis: { ...SAMPLE_KPIS_RESPONSE.kpis, congestion_promedio: null },
