@@ -156,7 +156,10 @@ export default function OperatorTicketGrid({ session }) {
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${info.clase}`}>
+                      <span
+                        data-testid={`estado-actual-${ticket.id}`}
+                        className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${info.clase}`}
+                      >
                         {info.etiqueta}
                       </span>
                       {ticket.severity && (
