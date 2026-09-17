@@ -259,10 +259,19 @@ jobs:
         run: npm install -g newman
 
       - name: Ejecutar Colección de Pruebas QA
+        # La coleccion tiene pruebas que llaman directo a Gemini y TomTom
+        # (fuera del flujo de n8n) para aislar esos servicios; sin estas dos
+        # env-var esas requests salen con key vacia y Google/TomTom
+        # responden 400/403, tumbando Newman.
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TOMTOM_API_KEY: ${{ secrets.TOMTOM_API_KEY }}
         run: |
           echo "Disparando pruebas contra http://localhost:5678/webhook/urbanpulse/chat..."
           newman run "postman/collections/UrbanPulse - Pruebas QA/.resources/UrbanPulse  Pruebas QA.postman_collection.json" \
-            --env-var "n8n_webhook_url=http://localhost:5678/webhook/urbanpulse/chat"
+            --env-var "n8n_webhook_url=http://localhost:5678/webhook/urbanpulse/chat" \
+            --env-var "gemini_api_key=${GEMINI_API_KEY}" \
+            --env-var "tomtom_api_key=${TOMTOM_API_KEY}"
 
       - name: Limpiar infraestructura local
         if: always()
