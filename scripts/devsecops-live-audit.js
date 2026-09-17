@@ -1,24 +1,48 @@
 #!/usr/bin/env node
+/**
+ * ====================================================================
+ *   URBANPULSE DEVSECOPS - SUITE DE AUDITORÍA Y CUMPLIMIENTO EN VIVO
+ * ====================================================================
+ * Herramienta de observabilidad y verificación de ciberseguridad continua.
+ * Audita en tiempo real los encabezados de seguridad de producción en Vercel,
+ * ejecuta análisis estático SAST y emite la certificación formal de cumplimiento.
+ *
+ * Estándares evaluados:
+ *  - OWASP ASVS v4.0 (Application Security Verification Standard)
+ *  - NIST SP 800-218 (Secure Software Development Framework - SSDF)
+ *  - W3C Content Security Policy Level 3
+ *  - RFC 6797 (HTTP Strict Transport Security)
+ *  - RFC 7034 (HTTP Frame Options)
+ * ====================================================================
+ */
+
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const PRODUCTION_URL = 'https://equipo3-urban-pulse.vercel.app';
+const TARGET_HOST = 'equipo3-urban-pulse.vercel.app';
+const TARGET_URL = `https://${TARGET_HOST}`;
 const REPORT_OUTPUT_PATH = path.join(__dirname, '..', 'docs', 'SECURITY_COMPLIANCE_AUDIT_REPORT.md');
 
-console.log('\n' + '='.repeat(68));
-console.log('  🛡️   URBANPULSE DEVSECOPS — AUDITORÍA DE SEGURIDAD EN VIVO (HT-30)');
-console.log('      Estándares: OWASP ASVS v4.0 | NIST SP 800-218 | SSL Labs A+');
-console.log('='.repeat(68) + '\n');
-
-function auditLiveHeaders() {
+async function auditLiveHeaders() {
+  console.log(`\n📡 [1/3] Conectando a Producción: ${TARGET_URL}...`);
   return new Promise((resolve) => {
-    console.log(`📡 [1/3] Conectando a Producción: ${PRODUCTION_URL}...`);
-    const req = https.request(PRODUCTION_URL, { method: 'HEAD', timeout: 8000 }, (res) => {
+    const options = {
+      hostname: TARGET_HOST,
+      port: 443,
+      path: '/',
+      method: 'GET',
+      headers: {
+        'User-Agent': 'UrbanPulse-DevSecOps-Auditor/2.0'
+      }
+    };
+
+    const req = https.request(options, (res) => {
       const headers = res.headers;
       const results = [];
 
+      // 1. HSTS
       const hsts = headers['strict-transport-security'];
       const hasHsts = hsts && hsts.includes('max-age=63072000') && hsts.includes('includeSubDomains') && hsts.includes('preload');
       results.push({
@@ -30,8 +54,9 @@ function auditLiveHeaders() {
         weight: 20
       });
 
+      // 2. X-Frame-Options
       const xfo = headers['x-frame-options'];
-      const hasXfo = xfo === 'DENY';
+      const hasXfo = xfo && xfo.toUpperCase() === 'DENY';
       results.push({
         rule: 'X-Frame-Options (Anti-Clickjacking)',
         standard: 'RFC 7034 / CWE-1021',
@@ -41,8 +66,9 @@ function auditLiveHeaders() {
         weight: 15
       });
 
+      // 3. X-Content-Type-Options
       const xcto = headers['x-content-type-options'];
-      const hasXcto = xcto === 'nosniff';
+      const hasXcto = xcto && xcto.toLowerCase() === 'nosniff';
       results.push({
         rule: 'X-Content-Type-Options (MIME Sniffing)',
         standard: 'Fetch Spec / CWE-79',
@@ -52,8 +78,9 @@ function auditLiveHeaders() {
         weight: 15
       });
 
+      // 4. Referrer-Policy
       const rp = headers['referrer-policy'];
-      const hasRp = rp === 'strict-origin-when-cross-origin';
+      const hasRp = rp && rp.toLowerCase() === 'strict-origin-when-cross-origin';
       results.push({
         rule: 'Referrer-Policy (Privacidad)',
         standard: 'W3C Referrer Policy / CWE-200',
@@ -63,6 +90,7 @@ function auditLiveHeaders() {
         weight: 10
       });
 
+      // 5. Permissions-Policy
       const pp = headers['permissions-policy'];
       const hasPp = pp && pp.includes('camera=()') && pp.includes('microphone=()');
       results.push({
@@ -74,10 +102,25 @@ function auditLiveHeaders() {
         weight: 10
       });
 
+      // 6. CSP Level 3 - Token parsing (evita alertas de sanitización de subcadenas)
       const csp = headers['content-security-policy'] || '';
-      const hasCspWorkers = csp.includes("worker-src 'self' blob:");
-      const hasCspConnect = csp.includes("connect-src") && csp.includes("blob:") && csp.includes("generativelanguage.googleapis.com");
-      const hasCspVercel = csp.includes("https://*.vercel.app");
+      const directiveMap = new Map();
+      csp.split(';').forEach((dir) => {
+        const parts = dir.trim().split(/\s+/).filter(Boolean);
+        if (parts.length > 0) {
+          const name = parts[0].toLowerCase();
+          const tokens = new Set(parts.slice(1));
+          directiveMap.set(name, tokens);
+        }
+      });
+
+      const workerSrc = directiveMap.get('worker-src') || new Set();
+      const connectSrc = directiveMap.get('connect-src') || new Set();
+      const styleSrc = directiveMap.get('style-src') || new Set();
+
+      const hasCspWorkers = workerSrc.has("'self'") && workerSrc.has('blob:');
+      const hasCspConnect = connectSrc.has('blob:') && connectSrc.has('https://generativelanguage.googleapis.com');
+      const hasCspVercel = styleSrc.has('https://*.vercel.app');
       const cspOk = hasCspWorkers && hasCspConnect && hasCspVercel;
 
       results.push({
@@ -93,8 +136,8 @@ function auditLiveHeaders() {
       resolve(results);
     });
 
-    req.on('error', (err) => {
-      console.error('❌ Error de red conectando a Vercel:', err.message);
+    req.on('error', () => {
+      console.error('❌ Error de red conectando a Vercel: solicitud HTTPS no completada.');
       resolve([]);
     });
 
@@ -112,30 +155,26 @@ function auditLocalSast() {
       rule: 'Análisis Estático SAST (Secretos y Variables)',
       standard: 'OWASP Top 10 A02:2021 (Cryptographic Failures)',
       status: passed ? 'PASS' : 'FAIL',
-      detail: passed ? '0 vulnerabilidades detectadas en src/frontend y microfrontends' : 'Vulnerabilidades detectadas',
-      weight: 100
+      detail: passed ? '0 vulnerabilidades detectadas en src/frontend y microfrontends' : 'Hallazgos SAST detectados'
     };
-  } catch (error) {
+  } catch {
     return {
-      rule: 'Análisis Estático SAST (Secretos y Variables)',
-      standard: 'OWASP Top 10 A02:2021',
+      rule: 'Análisis Estático SAST',
+      standard: 'OWASP Top 10',
       status: 'FAIL',
-      detail: error.message,
-      weight: 100
+      detail: 'Fallo al ejecutar el escáner SAST local'
     };
   }
 }
 
-function generateMarkdownReport(headerResults, sastResult, totalScore, rating) {
-  const date = new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
-  
+function generateMarkdownReport(headerResults, sastResult, score, rating) {
   let md = `# 🛡️ Reporte Oficial de Auditoría y Cumplimiento DevSecOps (Sprint 2)\n`;
   md += `**Proyecto:** UrbanPulse — Gestión Inteligente de Tráfico y Seguridad Vial  \n`;
   md += `**Módulo:** DevSecOps (HT-30 / Hardening y Seguridad en Producción)  \n`;
-  md += `**Entorno Auditado:** Producción Vercel (\`${PRODUCTION_URL}\`)  \n`;
-  md += `**Fecha de Ejecución:** ${date}  \n`;
+  md += `**Entorno Auditado:** Producción Vercel (\`${TARGET_HOST}\`)  \n`;
+  md += `**Fecha de Ejecución:** ${new Date().toISOString().replace('T', ' ').substring(0, 19)} UTC  \n`;
   md += `**Auditor Responsable:** Álvaro Tipian (DevSecOps Lead)  \n`;
-  md += `**Calificación Obtenida:** **${rating} (${totalScore}/100)** 🏆  \n\n`;
+  md += `**Calificación Obtenida:** **${rating} (${score}/100)** 🏆  \n\n`;
   md += `---\n\n`;
   md += `## 1. 📊 Resumen Ejecutivo de Cumplimiento\n\n`;
   md += `El presente reporte certifica que la arquitectura frontend y de despliegue de **UrbanPulse** cumple con los estándares internacionales de ciberseguridad para aplicaciones web (**OWASP ASVS v4.0, NIST SP 800-218 y directrices de cabeceras seguras de Mozilla Observatory**).\n\n`;
@@ -151,7 +190,7 @@ function generateMarkdownReport(headerResults, sastResult, totalScore, rating) {
   md += `| Cabecera de Seguridad | Estándar / RFC | Valor Verificado en Producción | Estado |\n`;
   md += `|---|---|---|:---:|\n`;
 
-  headerResults.forEach(r => {
+  headerResults.forEach((r) => {
     md += `| **${r.rule}** | ${r.standard} | \`${r.actual}\` | **${r.status === 'PASS' ? '✅ PASS' : '❌ FAIL'}** |\n`;
   });
 

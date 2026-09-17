@@ -1,8 +1,8 @@
 # 🛡️ Reporte Oficial de Auditoría y Cumplimiento DevSecOps (Sprint 2)
 **Proyecto:** UrbanPulse — Gestión Inteligente de Tráfico y Seguridad Vial  
 **Módulo:** DevSecOps (HT-30 / Hardening y Seguridad en Producción)  
-**Entorno Auditado:** Producción Vercel (`https://equipo3-urban-pulse.vercel.app`)  
-**Fecha de Ejecución:** 2026-09-17 06:51:41 UTC  
+**Entorno Auditado:** Producción Vercel (`equipo3-urban-pulse.vercel.app`)  
+**Fecha de Ejecución:** 2026-09-17 06:58:42 UTC  
 **Auditor Responsable:** Álvaro Tipian (DevSecOps Lead)  
 **Calificación Obtenida:** **Nivel A+ (Excelente) (100/100)** 🏆  
 
