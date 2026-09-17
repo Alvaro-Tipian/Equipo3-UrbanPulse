@@ -1,0 +1,79 @@
+# ==============================================================================
+# Workflow: Pruebas QA - Robustez de Endpoints GeoJSON (Newman, HT-29 T01)
+#
+# La coleccion urbanpulse-geojson-adversarial.postman_collection.json ataca los
+# webhooks GeoJSON de Open Data (HT-26) en PRODUCCION (n8n / Lightsail, que a
+# su vez depende de la base de datos Postgres/Neon). Solo se dispara
+# manualmente ("Run workflow" en la UI de Actions) -- sin cron -- para no
+# gastar minutos de CI ni contra el pool de conexiones de la base de datos de
+# forma recurrente.
+#
+# La carpeta "1. Casos adversariales" corre en modo data-driven contra
+# postman/data/payloads.csv (una iteracion por fila: nulos, vacios, fuera de
+# rango, SQL injection y buffer overflow). La carpeta "2. Smoke test" corre
+# una sola vez sin data file para confirmar el camino feliz.
+# ==============================================================================
+
+name: Pruebas QA - Robustez de Endpoints GeoJSON (Newman)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  newman:
+    name: Correr suite adversarial contra los endpoints GeoJSON
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v7
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+
+      - name: Instalar Newman y el reporter HTML
+        run: npm install -g newman newman-reporter-htmlextra
+
+      - name: Correr casos adversariales (data-driven, payloads.csv)
+        env:
+          N8N_GEOJSON_ONSV_URL: ${{ secrets.N8N_GEOJSON_ONSV_URL }}
+          N8N_GEOJSON_SUTRAN_URL: ${{ secrets.N8N_GEOJSON_SUTRAN_URL }}
+          MAPS_API_KEY_HEADER: ${{ secrets.MAPS_API_KEY_HEADER }}
+          MAPS_API_KEY_VALUE: ${{ secrets.MAPS_API_KEY_VALUE }}
+        run: |
+          newman run "postman/collections/urbanpulse-geojson-adversarial.postman_collection.json" \
+            --folder "1. Casos adversariales (data-driven via payloads.csv)" \
+            -d postman/data/payloads.csv \
+            --env-var "n8n_geojson_onsv_url=$N8N_GEOJSON_ONSV_URL" \
+            --env-var "n8n_geojson_sutran_url=$N8N_GEOJSON_SUTRAN_URL" \
+            --env-var "maps_api_key_header=$MAPS_API_KEY_HEADER" \
+            --env-var "maps_api_key_value=$MAPS_API_KEY_VALUE" \
+            --reporters cli,htmlextra \
+            --reporter-htmlextra-export newman-report/geojson-adversarial-report.html
+
+      - name: Correr smoke test (camino feliz, sin data file)
+        if: ${{ !cancelled() }}
+        env:
+          N8N_GEOJSON_ONSV_URL: ${{ secrets.N8N_GEOJSON_ONSV_URL }}
+          N8N_GEOJSON_SUTRAN_URL: ${{ secrets.N8N_GEOJSON_SUTRAN_URL }}
+          MAPS_API_KEY_HEADER: ${{ secrets.MAPS_API_KEY_HEADER }}
+          MAPS_API_KEY_VALUE: ${{ secrets.MAPS_API_KEY_VALUE }}
+        run: |
+          newman run "postman/collections/urbanpulse-geojson-adversarial.postman_collection.json" \
+            --folder "2. Smoke test (camino feliz, sin CSV)" \
+            --env-var "n8n_geojson_onsv_url=$N8N_GEOJSON_ONSV_URL" \
+            --env-var "n8n_geojson_sutran_url=$N8N_GEOJSON_SUTRAN_URL" \
+            --env-var "maps_api_key_header=$MAPS_API_KEY_HEADER" \
+            --env-var "maps_api_key_value=$MAPS_API_KEY_VALUE" \
+            --reporters cli,htmlextra \
+            --reporter-htmlextra-export newman-report/geojson-smoke-report.html
+
+      - name: Subir reporte HTML
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: geojson-adversarial-report
+          path: newman-report/
+          retention-days: 30

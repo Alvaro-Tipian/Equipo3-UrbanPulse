@@ -1,0 +1,206 @@
+{
+  "info": {
+    "_postman_id": "f6ce27d7-9c0f-4c61-b944-8e38984ac377",
+    "name": "UrbanPulse - Adversarial GeoJSON (HT-29 T01)",
+    "description": "Coleccion Newman de HT-29 T01. Certifica que los endpoints GeoJSON de Open Data de HT-26 (GET {{n8n_geojson_onsv_url}} y GET {{n8n_geojson_sutran_url}}, definidos en 'src/n8n-workflows/production/UrbanPulse - Dashboard KPIs vr2.json') rechazan payloads maliciosos sin caerse ni filtrar informacion sensible (stack traces, 'neon', 'postgres'). La carpeta 1 se corre con 'newman run ... -d postman/data/payloads.csv' (una iteracion por fila: coordenadas/valores nulos, vacios, fuera de rango, SQL injection y buffer overflow de 10000 caracteres). La carpeta 2 es un smoke test de camino feliz sin data file.\n\nGAP conocido: el ticket original describe filtros lat/lng y 'distrito' que HT-26 todavia no expone (los unicos query params reales son eps/minpoints en ONSV; SUTRAN no acepta ninguno). Los casos se adaptaron a los parametros reales -- ver comentarios en 'scripts/build-geojson-adversarial-collection.mjs'. Se espera que varias pruebas [GAP HT-26] fallen hoy porque el workflow aun no valida entrada ni homogeneiza errores; sirven para dejar constancia del gap hasta que se implemente.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Casos adversariales (data-driven via payloads.csv)",
+      "item": [
+        {
+          "name": "1.1 - GeoJSON ONSV con payload adversarial (eps/minpoints/distrito)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('eps_enc', encodeURIComponent(pm.iterationData.get('eps') ?? ''));",
+                  "pm.variables.set('minpoints_enc', encodeURIComponent(pm.iterationData.get('minpoints') ?? ''));",
+                  "pm.variables.set('distrito_enc', encodeURIComponent(pm.iterationData.get('distrito') ?? ''));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Caso: {{caso}} (mapa-siniestros-onsv)",
+                  "let json = null;",
+                  "try { json = pm.response.json(); } catch (e) { /* body no-JSON, se valida abajo */ }",
+                  "",
+                  "pm.test(\"[GAP HT-26] Responde 400 o 422 ante entrada adversarial (no 200 ni 500)\", () => {",
+                  "  pm.expect([400, 422]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "pm.test(\"[GAP HT-26] Cuerpo de error con estructura { error, message }\", () => {",
+                  "  pm.expect(json, \"el body debe ser JSON\").to.not.be.null;",
+                  "  pm.expect(json).to.have.property(\"error\");",
+                  "  pm.expect(json).to.have.property(\"message\");",
+                  "});",
+                  "",
+                  "const bodyText = pm.response.text();",
+                  "const lower = bodyText.toLowerCase();",
+                  "[\"stack\", \"neon\", \"postgres\"].forEach((forbidden) => {",
+                  "  pm.test(`No filtra la palabra \"${forbidden}\" en el body (evita fugas de infraestructura)`, () => {",
+                  "    pm.expect(lower).to.not.include(forbidden);",
+                  "  });",
+                  "});",
+                  "",
+                  "pm.test(\"Latencia < 2000ms (no bloquea el pool de conexiones)\", () => {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(2000);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "{{maps_api_key_header}}",
+                "value": "{{maps_api_key_value}}"
+              }
+            ],
+            "url": {
+              "raw": "{{n8n_geojson_onsv_url}}?eps={{eps_enc}}&minpoints={{minpoints_enc}}&distrito={{distrito_enc}}",
+              "host": [
+                "{{n8n_geojson_onsv_url}}?eps={{eps_enc}}&minpoints={{minpoints_enc}}&distrito={{distrito_enc}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "1.2 - GeoJSON SUTRAN con payload adversarial (distrito como query param desconocido)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('eps_enc', encodeURIComponent(pm.iterationData.get('eps') ?? ''));",
+                  "pm.variables.set('minpoints_enc', encodeURIComponent(pm.iterationData.get('minpoints') ?? ''));",
+                  "pm.variables.set('distrito_enc', encodeURIComponent(pm.iterationData.get('distrito') ?? ''));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Caso: {{caso}} (mapa-siniestros-sutran)",
+                  "let json = null;",
+                  "try { json = pm.response.json(); } catch (e) { /* body no-JSON, se valida abajo */ }",
+                  "",
+                  "pm.test(\"[GAP HT-26] Responde 400 o 422 ante entrada adversarial (no 200 ni 500)\", () => {",
+                  "  pm.expect([400, 422]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "pm.test(\"[GAP HT-26] Cuerpo de error con estructura { error, message }\", () => {",
+                  "  pm.expect(json, \"el body debe ser JSON\").to.not.be.null;",
+                  "  pm.expect(json).to.have.property(\"error\");",
+                  "  pm.expect(json).to.have.property(\"message\");",
+                  "});",
+                  "",
+                  "const bodyText = pm.response.text();",
+                  "const lower = bodyText.toLowerCase();",
+                  "[\"stack\", \"neon\", \"postgres\"].forEach((forbidden) => {",
+                  "  pm.test(`No filtra la palabra \"${forbidden}\" en el body (evita fugas de infraestructura)`, () => {",
+                  "    pm.expect(lower).to.not.include(forbidden);",
+                  "  });",
+                  "});",
+                  "",
+                  "pm.test(\"Latencia < 2000ms (no bloquea el pool de conexiones)\", () => {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(2000);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "{{maps_api_key_header}}",
+                "value": "{{maps_api_key_value}}"
+              }
+            ],
+            "url": {
+              "raw": "{{n8n_geojson_sutran_url}}?distrito={{distrito_enc}}",
+              "host": [
+                "{{n8n_geojson_sutran_url}}?distrito={{distrito_enc}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Smoke test (camino feliz, sin CSV)",
+      "item": [
+        {
+          "name": "2.1 - GeoJSON ONSV con parametros validos devuelve FeatureCollection",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": "pm.test(\"Status 200\", () => pm.response.to.have.status(200));\npm.test(\"Devuelve un FeatureCollection valido\", () => {\n  const json = pm.response.json();\n  pm.expect(json.type).to.eql(\"FeatureCollection\");\n  pm.expect(json.features).to.be.an(\"array\");\n});\npm.test(\"Latencia < 2000ms (no bloquea el pool de conexiones)\", () => {\n  pm.expect(pm.response.responseTime).to.be.below(2000);\n});"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "{{maps_api_key_header}}",
+                "value": "{{maps_api_key_value}}"
+              }
+            ],
+            "url": {
+              "raw": "{{n8n_geojson_onsv_url}}?eps=0.01&minpoints=3",
+              "host": [
+                "{{n8n_geojson_onsv_url}}?eps=0.01&minpoints=3"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "2.2 - GeoJSON SUTRAN devuelve FeatureCollection",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": "pm.test(\"Status 200\", () => pm.response.to.have.status(200));\npm.test(\"Devuelve un FeatureCollection valido\", () => {\n  const json = pm.response.json();\n  pm.expect(json.type).to.eql(\"FeatureCollection\");\n  pm.expect(json.features).to.be.an(\"array\");\n});\npm.test(\"Latencia < 2000ms (no bloquea el pool de conexiones)\", () => {\n  pm.expect(pm.response.responseTime).to.be.below(2000);\n});"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "{{maps_api_key_header}}",
+                "value": "{{maps_api_key_value}}"
+              }
+            ],
+            "url": {
+              "raw": "{{n8n_geojson_sutran_url}}",
+              "host": [
+                "{{n8n_geojson_sutran_url}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
