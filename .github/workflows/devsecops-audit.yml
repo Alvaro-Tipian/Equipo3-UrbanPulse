@@ -38,12 +38,10 @@ jobs:
             cat docs/SECURITY_COMPLIANCE_AUDIT_REPORT.md >> $GITHUB_STEP_SUMMARY
           fi
 
-      - name: Subir Reportes Oficiales como Artefactos
+      - name: Subir Reporte Oficial como Artefacto
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: reporte-auditoria-devsecops-sprint2
-          path: |
-            docs/SECURITY_COMPLIANCE_AUDIT_REPORT.md
-            docs/INFORME_TECNICO_DEVSECOPS_HT30_AUDITORIA_CONTINUA.docx
+          path: docs/SECURITY_COMPLIANCE_AUDIT_REPORT.md
           retention-days: 90
