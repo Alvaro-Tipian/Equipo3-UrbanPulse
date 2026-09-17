@@ -1,1 +1,0 @@
-import{n as e,t}from"./_virtual_mf___mfe_internal__host_urbanpulse__mf_owner__1__H_A_I__hostAutoInit__H_A_I__-Cc2Hm3RJ.js";export{t as hostInitPromise,e as initHost};
