@@ -129,7 +129,10 @@ jobs:
         # contiene alguno de esos caracteres (causa mas probable de que
         # "import:credentials" fallara sin mensaje claro).
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # Key dedicada para CI/QA, separada de la de produccion (GEMINI_API_KEY):
+          # este job monta un n8n descartable solo para la corrida, pero comparte
+          # cuota/facturacion con lo que sea que use la key que le pases.
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_QA }}
           TOMTOM_API_KEY: ${{ secrets.TOMTOM_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: |
@@ -264,7 +267,7 @@ jobs:
         # env-var esas requests salen con key vacia y Google/TomTom
         # responden 400/403, tumbando Newman.
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_QA }}
           TOMTOM_API_KEY: ${{ secrets.TOMTOM_API_KEY }}
         run: |
           echo "Disparando pruebas contra http://localhost:5678/webhook/urbanpulse/chat..."
