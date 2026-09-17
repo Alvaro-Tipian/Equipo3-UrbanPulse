@@ -1,0 +1,951 @@
+{
+  "name": "UrbanPulse - Dashboard KPIs",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "urbanpulse/chat-history-append",
+        "responseMode": "lastNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        1056,
+        -176
+      ],
+      "id": "2f7f1423-e0e4-425c-8672-11eb4037b6a8",
+      "name": "Webhook Guardar Turno",
+      "webhookId": "c7a71a01-0001-4a01-9b01-100000000001"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Deja el turno al final del hilo que ya tenia la conversacion.\n-- La foto no se copia aqui: ya vive en conversaciones.imagen_base64 y meterla\n-- en cada mensaje haria crecer la fila sin necesidad. En el historial solo\n-- queda la marca de que ese mensaje traia una.\n-- La fila la crea el flujo del chat al primer mensaje; aqui solo se anade, y\n-- unicamente si la conversacion es de quien la manda.\nUPDATE conversaciones\nSET historial_mensajes = historial_mensajes || $3::jsonb,\n    updated_at = now()\nWHERE session_id = $1\n  AND (usuario_id IS NULL OR usuario_id = $2::uuid)\nRETURNING session_id, jsonb_array_length(historial_mensajes) AS mensajes_guardados;",
+        "options": {
+          "queryReplacement": "={{ [ $json.body.session_id || null, /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test($json.body.usuario_id || '') ? $json.body.usuario_id : null, JSON.stringify(Array.isArray($json.body.mensajes) ? $json.body.mensajes : []) ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        1280,
+        -176
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "id": "a85b5c87-36be-451d-8162-c46e2ae1fca6",
+      "name": "Guardar turno",
+      "credentials": {
+        "postgres": {
+          "id": "OG4PhmWgT8L86uMa",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "path": "urbanpulse/chat-history",
+        "responseMode": "lastNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        1056,
+        144
+      ],
+      "id": "33651ed2-e1db-41b5-89e3-bae15e186999",
+      "name": "Webhook Leer Hilo",
+      "webhookId": "c7a71a01-0001-4a01-9b01-100000000003"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Hilo guardado de una conversacion, solo para su dueno.\n-- imagen_base64 viaja aparte porque el historial guarda la marca del mensaje\n-- con foto, no la foto en si.\nSELECT session_id, estado, historial_mensajes, imagen_base64, updated_at\nFROM conversaciones\nWHERE session_id = $1\n  AND (usuario_id IS NULL OR usuario_id = $2::uuid);",
+        "options": {
+          "queryReplacement": "={{ [ $json.query.session_id || null, /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test($json.query.usuario_id || '') ? $json.query.usuario_id : null ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        1280,
+        144
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "id": "c88f5573-f0ee-4fa0-aaff-e137d3324997",
+      "name": "Hilo de la conversacion",
+      "credentials": {
+        "postgres": {
+          "id": "OG4PhmWgT8L86uMa",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "path": "urbanpulse/dashboard-kpis",
+        "responseMode": "lastNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        2480,
+        -48
+      ],
+      "id": "fbbbdaf5-91b4-4728-ab71-cc839bb95206",
+      "name": "Webhook KPIs",
+      "webhookId": "b3f1a001-1a2b-4c3d-9e4f-100000000001"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*)::int AS total FROM reports;",
+        "options": {}
+      },
+      "executeOnce": true,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        2704,
+        -48
+      ],
+      "id": "6fc3aa1f-e45c-4e9b-a407-b30d3b799b04",
+      "name": "Total reportes",
+      "credentials": {
+        "postgres": {
+          "id": "OG4PhmWgT8L86uMa",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*)::int AS total FROM reports WHERE created_at >= now() - interval '24 hours';",
+        "options": {}
+      },
+      "executeOnce": true,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        2928,
+        -48
+      ],
+      "id": "b062d9f6-a1a6-4fa0-8a0c-5e29dfe59ce2",
+      "name": "Reportes 24h",
+      "credentials": {
+        "postgres": {
+          "id": "OG4PhmWgT8L86uMa",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT incident_type AS name, COUNT(*)::int AS value\nFROM reports\nWHERE incident_type IS NOT NULL\nGROUP BY incident_type\nORDER BY value DESC;",
+        "options": {}
+      },
+      "executeOnce": true,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        3152,
+        -48
+      ],
+      "id": "fe7ec922-1d94-4bcc-91ed-018519cfcc0a",
+      "name": "Reportes por tipo",
+      "credentials": {
+        "postgres": {
+          "id": "OG4PhmWgT8L86uMa",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT severity AS name, COUNT(*)::int AS value\nFROM reports\nWHERE severity IS NOT NULL\nGROUP BY severity\nORDER BY value DESC;",
+        "options": {}
+      },
+      "executeOnce": true,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        3376,
+        -48
+      ],
+      "id": "7285a3ff-f74e-4085-8798-922622102869",
+      "name": "Reportes por severidad",
+      "credentials": {
+        "postgres": {
+          "id": "OG4PhmWgT8L86uMa",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT to_char(date_trunc('day', created_at), 'YYYY-MM-DD') AS name, COUNT(*)::int AS value\nFROM reports\nWHERE created_at >= now() - interval '30 days'\nGROUP BY 1\nORDER BY 1;",
+        "options": {}
+      },
+      "executeOnce": true,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        3600,
+        -48
+      ],
+      "id": "77bf1059-f7b6-40cf-b799-6da70f377242",
+      "name": "Tendencia 30 dias",
+      "credentials": {
+        "postgres": {
+          "id": "OG4PhmWgT8L86uMa",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH latest AS (\n  SELECT DISTINCT ON (punto_nombre) punto_nombre, porcentaje_congestion, estado\n  FROM traffic_readings\n  ORDER BY punto_nombre, captured_at DESC\n)\nSELECT\n  ROUND(AVG(porcentaje_congestion)::numeric, 1) AS congestion_promedio,\n  COUNT(*) FILTER (WHERE estado = 'Congestionado')::int AS puntos_congestionados,\n  COUNT(*)::int AS total_puntos\nFROM latest;",
+        "options": {}
+      },
+      "executeOnce": true,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        3824,
+        -48
+      ],
+      "id": "4cab0b04-8b99-4c8b-82a3-289fa8421390",
+      "name": "Congestion snapshot",
+      "credentials": {
+        "postgres": {
+          "id": "OG4PhmWgT8L86uMa",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT distrito AS name, COUNT(*)::int AS value\nFROM siniestros_fatales\nWHERE distrito IS NOT NULL\nGROUP BY distrito\nORDER BY value DESC\nLIMIT 10;",
+        "options": {}
+      },
+      "executeOnce": true,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        4048,
+        -48
+      ],
+      "id": "84004315-70be-44ed-8772-e42e67995635",
+      "name": "Siniestros por distrito",
+      "credentials": {
+        "postgres": {
+          "id": "OG4PhmWgT8L86uMa",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT clase_siniestro AS name, COUNT(*)::int AS value, COALESCE(SUM(fallecidos), 0)::int AS fallecidos\nFROM siniestros_fatales\nWHERE clase_siniestro IS NOT NULL\nGROUP BY clase_siniestro\nORDER BY value DESC;",
+        "options": {}
+      },
+      "executeOnce": true,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        4272,
+        -48
+      ],
+      "id": "5dfca48b-08fe-4aca-8d4e-fd62441c8730",
+      "name": "Siniestros por clase",
+      "credentials": {
+        "postgres": {
+          "id": "OG4PhmWgT8L86uMa",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*)::int AS total, COALESCE(SUM(fallecidos), 0)::int AS fallecidos_total\nFROM siniestros_fatales;",
+        "options": {}
+      },
+      "executeOnce": true,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        4496,
+        -48
+      ],
+      "id": "a3ab99e3-12f1-4970-9619-dd5ca0acd693",
+      "name": "Siniestros totales",
+      "credentials": {
+        "postgres": {
+          "id": "OG4PhmWgT8L86uMa",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*)::int AS total, COALESCE(SUM(fallecidos), 0)::int AS fallecidos_total, COALESCE(SUM(heridos), 0)::int AS heridos_total\nFROM siniestros_sutran;",
+        "options": {}
+      },
+      "executeOnce": true,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        4496,
+        192
+      ],
+      "id": "96b84c91-1c68-4322-9982-9fb00c5909f3",
+      "name": "Siniestros SUTRAN totales",
+      "credentials": {
+        "postgres": {
+          "id": "OG4PhmWgT8L86uMa",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT departamento AS name, COUNT(*)::int AS value\nFROM siniestros_sutran\nWHERE departamento IS NOT NULL\nGROUP BY departamento\nORDER BY value DESC\nLIMIT 10;",
+        "options": {}
+      },
+      "executeOnce": true,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        4720,
+        192
+      ],
+      "id": "1b3e5dad-8510-4b7d-bea9-c403bd951db4",
+      "name": "Siniestros SUTRAN por departamento",
+      "credentials": {
+        "postgres": {
+          "id": "OG4PhmWgT8L86uMa",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT modalidad AS name, COUNT(*)::int AS value, COALESCE(SUM(fallecidos), 0)::int AS fallecidos\nFROM siniestros_sutran\nWHERE modalidad IS NOT NULL\nGROUP BY modalidad\nORDER BY value DESC;",
+        "options": {}
+      },
+      "executeOnce": true,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        4944,
+        192
+      ],
+      "id": "1af74fff-b4a9-438e-8e2c-6e4a58f840d6",
+      "name": "Siniestros SUTRAN por modalidad",
+      "credentials": {
+        "postgres": {
+          "id": "OG4PhmWgT8L86uMa",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const totalReportes = $('Total reportes').item.json.total;\nconst reportes24h = $('Reportes 24h').item.json.total;\nconst reportesPorTipo = $('Reportes por tipo').all().map(i => ({ name: i.json.name, value: i.json.value }));\nconst reportesPorSeveridad = $('Reportes por severidad').all().map(i => ({ name: i.json.name, value: i.json.value }));\nconst tendencia = $('Tendencia 30 dias').all().map(i => ({ name: i.json.name, value: i.json.value }));\nconst congestion = $('Congestion snapshot').item.json;\nconst siniestrosPorDistrito = $('Siniestros por distrito').all().map(i => ({ name: i.json.name, value: i.json.value }));\nconst siniestrosPorClase = $('Siniestros por clase').all().map(i => ({ name: i.json.name, value: i.json.value, fallecidos: i.json.fallecidos }));\nconst siniestrosTotales = $('Siniestros totales').item.json;\nconst siniestrosSutranTotales = $('Siniestros SUTRAN totales').item.json;\nconst siniestrosSutranPorDepartamento = $('Siniestros SUTRAN por departamento').all().map(i => ({ name: i.json.name, value: i.json.value }));\nconst siniestrosSutranPorModalidad = $('Siniestros SUTRAN por modalidad').all().map(i => ({ name: i.json.name, value: i.json.value, fallecidos: i.json.fallecidos }));\n\nreturn [{\n  json: {\n    kpis: {\n      total_reportes: totalReportes,\n      reportes_ultimas_24h: reportes24h,\n      congestion_promedio: congestion.congestion_promedio != null ? Number(congestion.congestion_promedio) : null,\n      puntos_congestionados: congestion.puntos_congestionados,\n      total_puntos_monitoreo: congestion.total_puntos,\n      total_siniestros_fatales: siniestrosTotales.total,\n      total_fallecidos_historico: siniestrosTotales.fallecidos_total,\n      total_siniestros_sutran: siniestrosSutranTotales.total,\n      total_fallecidos_sutran: siniestrosSutranTotales.fallecidos_total,\n      total_heridos_sutran: siniestrosSutranTotales.heridos_total\n    },\n    charts: {\n      reportes_por_tipo: reportesPorTipo,\n      reportes_por_severidad: reportesPorSeveridad,\n      tendencia_reportes_30d: tendencia,\n      siniestros_por_distrito: siniestrosPorDistrito,\n      siniestros_por_clase: siniestrosPorClase,\n      siniestros_sutran_por_departamento: siniestrosSutranPorDepartamento,\n      siniestros_sutran_por_modalidad: siniestrosSutranPorModalidad\n    },\n    generated_at: new Date().toISOString()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5152,
+        192
+      ],
+      "id": "6437c513-675d-41a9-9162-111c50852b36",
+      "name": "Armar respuesta KPIs"
+    },
+    {
+      "parameters": {
+        "path": "urbanpulse/reports-list",
+        "responseMode": "lastNode",
+        "responseData": "allEntries",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        2480,
+        288
+      ],
+      "id": "465c8d33-a89f-487c-9f67-1e902f03a45a",
+      "name": "Webhook Reportes",
+      "webhookId": "b3f1a001-1a2b-4c3d-9e4f-100000000012"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT r.id, r.description, r.incident_type, r.severity, r.priority, r.status,\n       r.latitude, r.longitude, r.created_at, r.resolved_at,\n       (r.image_url IS NOT NULL) AS tiene_imagen,\n       u.email AS reportado_por\nFROM reports AS r\nLEFT JOIN usuarios AS u ON u.id = r.usuario_id\nWHERE r.latitude IS NOT NULL AND r.longitude IS NOT NULL\nORDER BY r.created_at DESC\nLIMIT 500;",
+        "options": {}
+      },
+      "executeOnce": true,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        2704,
+        288
+      ],
+      "id": "f76eec94-4127-4801-96dc-ac6e7ee1f8ab",
+      "name": "Listar reportes",
+      "credentials": {
+        "postgres": {
+          "id": "OG4PhmWgT8L86uMa",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "path": "urbanpulse/reports-history",
+        "responseMode": "lastNode",
+        "responseData": "allEntries",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        2480,
+        608
+      ],
+      "id": "5762df52-dba1-482a-b2a0-f6c943359d36",
+      "name": "Webhook Historial",
+      "webhookId": "b3f1a001-1a2b-4c3d-9e4f-100000000014"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- El historial es privado: solo devuelve los reportes del usuario que lo pide.\n-- El operador, que atiende los de toda la ciudad, sigue viendo todos.\n-- Sin un usuario_id valido no sale ninguna fila, asi que el historial queda\n-- vacio para quien no ha iniciado sesion.\nWITH solicitante AS (\n  SELECT id, role FROM usuarios WHERE id = $1::uuid\n)\nSELECT r.id, r.description, r.incident_type, r.severity, r.priority, r.status,\n       r.latitude, r.longitude, r.created_at, r.resolved_at,\n       (r.image_url IS NOT NULL) AS tiene_imagen,\n       u.email AS reportado_por\nFROM reports AS r\nLEFT JOIN usuarios AS u ON u.id = r.usuario_id\nWHERE r.usuario_id = (SELECT id FROM solicitante)\n   OR (SELECT role FROM solicitante) = 'operador'\nORDER BY r.created_at DESC\nLIMIT 200;",
+        "options": {
+          "queryReplacement": "={{ [ /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test($json.query.usuario_id || '') ? $json.query.usuario_id : null ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        2704,
+        608
+      ],
+      "id": "432992ab-1b03-4d99-93b1-5151c51394f0",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "name": "Historial de reportes",
+      "credentials": {
+        "postgres": {
+          "id": "OG4PhmWgT8L86uMa",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "path": "urbanpulse/report-image",
+        "responseMode": "lastNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        2480,
+        928
+      ],
+      "id": "619e2c08-98aa-4a77-8d1a-a1acfd5bd95c",
+      "name": "Webhook Imagen",
+      "webhookId": "b3f1a001-1a2b-4c3d-9e4f-100000000016"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, image_url FROM reports WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [$json.query.id || null] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        2704,
+        928
+      ],
+      "id": "697a3656-3b8b-4637-a067-a82b612c3d6a",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "name": "Imagen del reporte",
+      "credentials": {
+        "postgres": {
+          "id": "OG4PhmWgT8L86uMa",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "urbanpulse/report-resolve",
+        "responseMode": "lastNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        2480,
+        1248
+      ],
+      "id": "386e3501-24a9-4bde-a620-737cba29e003",
+      "name": "Webhook Resolver",
+      "webhookId": "b3f1a001-1a2b-4c3d-9e4f-100000000018"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Cada quien resuelve sus propios reportes; el operador, cualquiera.\n-- Si el reporte no es suyo no se actualiza ninguna fila y la respuesta vuelve\n-- vacia, que es como el frontend detecta que el cambio no se aplico.\nUPDATE reports AS r\nSET status = CASE WHEN $2 = 'resuelto' THEN 'resuelto' ELSE 'pending' END,\n    resolved_at = CASE WHEN $2 = 'resuelto' THEN now() ELSE NULL END\nWHERE r.id = $1::uuid\n  AND (r.usuario_id = $3::uuid\n       OR EXISTS (SELECT 1 FROM usuarios AS o\n                  WHERE o.id = $3::uuid AND o.role = 'operador'))\nRETURNING r.id, r.status, r.resolved_at;",
+        "options": {
+          "queryReplacement": "={{ [ /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test($json.body.id || '') ? $json.body.id : null, $json.body.status || 'pending', /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test($json.body.usuario_id || '') ? $json.body.usuario_id : null ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        2704,
+        1248
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "id": "b4c0dd31-aec1-4ae6-b65e-d9ab9441ccd8",
+      "name": "Marcar reporte",
+      "credentials": {
+        "postgres": {
+          "id": "OG4PhmWgT8L86uMa",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "path": "urbanpulse/mapa-siniestros-onsv",
+        "authentication": "headerAuth",
+        "responseMode": "lastNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        1040,
+        496
+      ],
+      "id": "335a1298-5c9b-4eb8-8570-7c23270f994e",
+      "name": "Webhook GeoJSON ONSV (GET)",
+      "webhookId": "18061197-b82f-4dd3-88d7-be071a77ded3",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "wkv9uHHFUkwkTveR",
+          "name": "Maps API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH clustered AS (\n  SELECT\n    codigo_siniestro,\n    geom,\n    fallecidos,\n    ST_ClusterDBSCAN(geom, eps := $1, minpoints := $2) OVER () AS cluster_id\n  FROM siniestros_fatales\n  WHERE geom IS NOT NULL\n),\nagrupado AS (\n  SELECT\n    cluster_id,\n    COUNT(*) AS cantidad,\n    COALESCE(SUM(fallecidos), 0) AS fallecidos_total,\n    ST_X(ST_Centroid(ST_Collect(geom))) AS lon,\n    ST_Y(ST_Centroid(ST_Collect(geom))) AS lat\n  FROM clustered\n  WHERE cluster_id IS NOT NULL\n  GROUP BY cluster_id\n)\nSELECT json_build_object(\n  'type', 'FeatureCollection',\n  'features', COALESCE(json_agg(\n    json_build_object(\n      'type', 'Feature',\n      'geometry', json_build_object(\n        'type', 'Point',\n        'coordinates', json_build_array(lon, lat)\n      ),\n      'properties', json_build_object(\n        'cluster_id', cluster_id,\n        'cantidad_siniestros', cantidad,\n        'fallecidos_total', fallecidos_total\n      )\n    )\n  ), '[]'::json)\n) AS geojson\nFROM agrupado;",
+        "options": {
+          "queryReplacement": "={{ [$json.query.eps ? parseFloat($json.query.eps) : 0.01, $json.query.minpoints ? parseInt($json.query.minpoints) : 3] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        1296,
+        496
+      ],
+      "id": "24816125-7a87-4a16-8744-2d29450ddd62",
+      "name": "Clustering ONSV",
+      "credentials": {
+        "postgres": {
+          "id": "OG4PhmWgT8L86uMa",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return { json: $json.geojson };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        496
+      ],
+      "id": "8e7fec91-27f6-4319-92a5-c93031ddf5a1",
+      "name": "Responder: GeoJSON ONSV"
+    },
+    {
+      "parameters": {
+        "path": "urbanpulse/mapa-siniestros-sutran",
+        "authentication": "headerAuth",
+        "responseMode": "lastNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        1040,
+        912
+      ],
+      "id": "b30a3dfa-f0bb-4a28-9cdc-81624db05256",
+      "name": "Webhook GeoJSON SUTRAN (GET)",
+      "webhookId": "1a4f5bac-006d-427f-a563-a8d8f7c7fa9d",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "wkv9uHHFUkwkTveR",
+          "name": "Maps API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH centroides(departamento, lon, lat) AS (\n  VALUES\n    ('AMAZONAS', -77.9, -5.9), ('ANCASH', -77.6, -9.3), ('APURIMAC', -72.9, -14.0),\n    ('AREQUIPA', -72.2, -15.8), ('AYACUCHO', -73.9, -13.9), ('CAJAMARCA', -78.6, -6.7),\n    ('CALLAO', -77.1, -12.0), ('CUSCO', -71.9, -13.4), ('HUANCAVELICA', -74.9, -12.9),\n    ('HUANUCO', -76.2, -9.6), ('ICA', -75.5, -14.3), ('JUNIN', -75.2, -11.7),\n    ('LA LIBERTAD', -78.6, -7.9), ('LAMBAYEQUE', -79.8, -6.5), ('LIMA', -76.9, -12.05),\n    ('LORETO', -74.0, -4.5), ('MADRE DE DIOS', -70.1, -12.3), ('MOQUEGUA', -70.9, -17.1),\n    ('PASCO', -75.9, -10.5), ('PIURA', -80.4, -5.3), ('PUNO', -70.1, -15.5),\n    ('SAN MARTIN', -76.6, -7.0), ('TACNA', -70.3, -17.9), ('TUMBES', -80.4, -3.6),\n    ('UCAYALI', -74.4, -8.9)\n),\nagregado AS (\n  SELECT departamento,\n         translate(UPPER(TRIM(departamento)), 'ÁÉÍÓÚÑ', 'AEIOUN') AS departamento_normalizado,\n         COUNT(*) AS cantidad,\n         COALESCE(SUM(fallecidos), 0) AS fallecidos_total,\n         COALESCE(SUM(heridos), 0) AS heridos_total\n  FROM siniestros_sutran\n  WHERE departamento IS NOT NULL\n  GROUP BY departamento\n)\nSELECT json_build_object(\n  'type', 'FeatureCollection',\n  'features', COALESCE(json_agg(\n    json_build_object(\n      'type', 'Feature',\n      'geometry', json_build_object(\n        'type', 'Point',\n        'coordinates', json_build_array(\n          COALESCE(c.lon, -76.0),\n          COALESCE(c.lat, -10.0)\n        )\n      ),\n      'properties', json_build_object(\n        'departamento', s.departamento,\n        'cantidad_siniestros', s.cantidad,\n        'fallecidos_total', s.fallecidos_total,\n        'heridos_total', s.heridos_total,\n        'ubicacion_aproximada', c.departamento IS NULL\n      )\n    )\n  ), '[]'::json)\n) AS geojson\nFROM agregado s\nLEFT JOIN centroides c ON s.departamento_normalizado = c.departamento;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        1312,
+        912
+      ],
+      "id": "8f66f036-d422-45f4-b1a6-ac75a5e36d63",
+      "name": "Agregado SUTRAN por departamento",
+      "credentials": {
+        "postgres": {
+          "id": "OG4PhmWgT8L86uMa",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return { json: $json.geojson };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1584,
+        912
+      ],
+      "id": "16d235d1-068b-402c-bf03-10387252af43",
+      "name": "Responder: GeoJSON SUTRAN"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Guardar Turno": {
+      "main": [
+        [
+          {
+            "node": "Guardar turno",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Leer Hilo": {
+      "main": [
+        [
+          {
+            "node": "Hilo de la conversacion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook KPIs": {
+      "main": [
+        [
+          {
+            "node": "Total reportes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Total reportes": {
+      "main": [
+        [
+          {
+            "node": "Reportes 24h",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reportes 24h": {
+      "main": [
+        [
+          {
+            "node": "Reportes por tipo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reportes por tipo": {
+      "main": [
+        [
+          {
+            "node": "Reportes por severidad",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reportes por severidad": {
+      "main": [
+        [
+          {
+            "node": "Tendencia 30 dias",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tendencia 30 dias": {
+      "main": [
+        [
+          {
+            "node": "Congestion snapshot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Congestion snapshot": {
+      "main": [
+        [
+          {
+            "node": "Siniestros por distrito",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Siniestros por distrito": {
+      "main": [
+        [
+          {
+            "node": "Siniestros por clase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Siniestros por clase": {
+      "main": [
+        [
+          {
+            "node": "Siniestros totales",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Siniestros totales": {
+      "main": [
+        [
+          {
+            "node": "Siniestros SUTRAN totales",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Siniestros SUTRAN totales": {
+      "main": [
+        [
+          {
+            "node": "Siniestros SUTRAN por departamento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Siniestros SUTRAN por departamento": {
+      "main": [
+        [
+          {
+            "node": "Siniestros SUTRAN por modalidad",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Siniestros SUTRAN por modalidad": {
+      "main": [
+        [
+          {
+            "node": "Armar respuesta KPIs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Reportes": {
+      "main": [
+        [
+          {
+            "node": "Listar reportes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Historial": {
+      "main": [
+        [
+          {
+            "node": "Historial de reportes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Imagen": {
+      "main": [
+        [
+          {
+            "node": "Imagen del reporte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Resolver": {
+      "main": [
+        [
+          {
+            "node": "Marcar reporte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook GeoJSON ONSV (GET)": {
+      "main": [
+        [
+          {
+            "node": "Clustering ONSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clustering ONSV": {
+      "main": [
+        [
+          {
+            "node": "Responder: GeoJSON ONSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook GeoJSON SUTRAN (GET)": {
+      "main": [
+        [
+          {
+            "node": "Agregado SUTRAN por departamento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agregado SUTRAN por departamento": {
+      "main": [
+        [
+          {
+            "node": "Responder: GeoJSON SUTRAN",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "saveDataSuccessExecution": "all",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "4f0739fc-f5af-41e0-a65e-d3168965866e",
+  "meta": {
+    "instanceId": "954822bcb0252493706022c5abd9df94db1655579dfc0586eeeabb7008e50537"
+  },
+  "nodeGroups": [],
+  "id": "2tmxI2K3p0otNvzm",
+  "tags": []
+}
