@@ -272,10 +272,24 @@ jobs:
           TOMTOM_API_KEY: ${{ secrets.TOMTOM_API_KEY }}
         run: |
           echo "Disparando pruebas contra http://localhost:5678/webhook/urbanpulse/chat..."
-          newman run "postman/collections/UrbanPulse - Pruebas QA/.resources/UrbanPulse  Pruebas QA.postman_collection.json" \
-            --env-var "n8n_webhook_url=http://localhost:5678/webhook/urbanpulse/chat" \
-            --env-var "gemini_api_key=${GEMINI_API_KEY}" \
-            --env-var "tomtom_api_key=${TOMTOM_API_KEY}"
+          # --delay-request espacia las llamadas para no ráfagar el limite por
+          # minuto (RPM) del tier gratuito de Gemini. Si aun asi la corrida
+          # choca con un 429 puntual, se reintenta la coleccion completa (no
+          # hay forma de reintentar solo el request que fallo) con backoff
+          # creciente antes de rendirse.
+          for intento in 1 2 3; do
+            if newman run "postman/collections/UrbanPulse - Pruebas QA/.resources/UrbanPulse  Pruebas QA.postman_collection.json" \
+              --env-var "n8n_webhook_url=http://localhost:5678/webhook/urbanpulse/chat" \
+              --env-var "gemini_api_key=${GEMINI_API_KEY}" \
+              --env-var "tomtom_api_key=${TOMTOM_API_KEY}" \
+              --delay-request 1500; then
+              exit 0
+            fi
+            echo "Intento ${intento}/3 fallo (posible rate-limit de Gemini/TomTom). Reintentando en $((intento * 30))s..."
+            sleep $((intento * 30))
+          done
+          echo "::error::La coleccion siguio fallando tras 3 intentos."
+          exit 1
 
       - name: Limpiar infraestructura local
         if: always()
