@@ -1,0 +1,274 @@
+# ==============================================================================
+# Workflow: Pruebas de Integracion de API (Newman contra n8n local + Gemini/TomTom)
+#
+# Antes vivia como un job de backend-ci.yml, disparado automaticamente en cada
+# PR que tocara 'infrastructure/**' o 'src/n8n-workflows/**' -- paths que no
+# necesariamente significan que la coleccion Postman cambio (ej. un merge que
+# solo trae workflows de n8n actualizados de otra persona). Eso volvia a
+# correr las ~23 llamadas reales a Gemini/TomTom en cada uno de esos pushes,
+# agotando la cuota de la API key sin que nadie lo pidiera.
+#
+# Se paso a workflow_dispatch (manual), igual que llm-robustness-newman.yml:
+# se dispara a mano desde la pestaña Actions cuando de verdad se quiere
+# validar la integracion, no en cada push.
+# ==============================================================================
+
+name: Pruebas de Integración de API (Newman)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  api-integration-tests:
+    name: Pruebas de Integración de API
+    runs-on: ubuntu-latest
+    # El workflow real necesita 3 servicios externos (Gemini, Groq, TomTom):
+    # si alguno da rate-limit o esta caido, este job no deberia bloquear PRs
+    # que no tienen nada que ver con eso.
+    continue-on-error: true
+
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v7
+
+      - name: Levantar Postgres (Docker Compose)
+        # El servicio "postgres" usa un Dockerfile propio (postgis/postgis +
+        # pgvector, ver infrastructure/postgres.Dockerfile): las migraciones
+        # necesitan ambas extensiones y la imagen ankane/pgvector original
+        # solo traia pgvector. "up -d" construye la imagen si hace falta.
+        run: docker compose -f infrastructure/docker-compose.yml up -d postgres
+
+      - name: Esperar a que Postgres acepte conexiones
+        # pg_isready solo confirma que el servidor acepta conexiones, no que
+        # el script de inicializacion de la imagen (docker-entrypoint-initdb.d,
+        # que activa postgis automaticamente en la DB por defecto) ya
+        # termino. Sin esta segunda comprobacion, "CREATE EXTENSION postgis"
+        # en una migracion posterior puede fallar de forma intermitente por
+        # una carrera contra ese script (reproducido en CI: la migracion de
+        # siniestros_fatales, que necesita postgis, fallaba solo a veces).
+        run: |
+          set -euo pipefail
+          for intento in $(seq 1 30); do
+            if docker compose -f infrastructure/docker-compose.yml exec -T postgres \
+              pg_isready -U urban_admin -d urbanpulse_db > /dev/null 2>&1; then
+              echo "Postgres acepta conexiones tras ${intento} intento(s)."
+              break
+            fi
+            echo "Intento ${intento}/30: Postgres todavía no está disponible."
+            sleep 2
+          done
+
+          for intento in $(seq 1 30); do
+            if docker compose -f infrastructure/docker-compose.yml exec -T postgres \
+              psql -U urban_admin -d urbanpulse_db -tAc "SELECT postgis_version();" > /dev/null 2>&1; then
+              echo "PostGIS listo tras ${intento} intento(s)."
+              exit 0
+            fi
+            echo "Intento ${intento}/30: PostGIS todavía no está listo."
+            sleep 2
+          done
+          echo "PostGIS no quedó listo dentro del tiempo de espera."
+          exit 1
+          echo "Postgres no respondió dentro de 1 minuto."
+          exit 1
+
+      - name: Aplicar migraciones de base de datos
+        # Las mismas migraciones que corren contra Neon en producción, en el
+        # mismo orden (el prefijo de timestamp del nombre de archivo ya
+        # ordena correctamente con un sort lexicográfico). La salida de
+        # psql se transmite en vivo con "tee" (no se junta en una variable)
+        # para evitar problemas de buffering, y "set -o pipefail" hace que
+        # el "if" vea el exit code real de psql y no el de tee.
+        run: |
+          set -o pipefail
+          echo "docker compose version: $(docker compose version)"
+          docker compose -f infrastructure/docker-compose.yml ps
+          for archivo in $(ls database/migrations/*.sql | sort); do
+            echo "::group::Aplicando $(basename "$archivo")"
+            if ! docker compose -f infrastructure/docker-compose.yml exec -T postgres \
+              psql -U urban_admin -d urbanpulse_db -v ON_ERROR_STOP=1 -f - < "$archivo" 2>&1 | tee /tmp/migracion.log; then
+              echo "::endgroup::"
+              echo "::error::Fallo aplicando $(basename "$archivo")"
+              exit 1
+            fi
+            echo "::endgroup::"
+          done
+
+      - name: Preparar credenciales y workflow para importar a n8n
+        # El archivo se escribe fuera del repositorio, nunca se commitea y se
+        # elimina mas abajo (mismo patron que deploy-lightsail-n8n.yml). n8n
+        # re-encripta estos valores al importarlos con su propia clave de
+        # cifrado (generada en este contenedor descartable), asi que el
+        # texto plano solo existe brevemente en el runner de CI.
+        #
+        # Se usa "jq --arg" para volcar los secrets al JSON en vez de
+        # interpolarlos crudo en un heredoc: --arg escapa automaticamente
+        # comillas, backslashes, etc. Interpolar "${GEMINI_API_KEY}" directo
+        # dentro de un string entre comillas rompe el JSON si la clave real
+        # contiene alguno de esos caracteres (causa mas probable de que
+        # "import:credentials" fallara sin mensaje claro).
+        env:
+          # Key dedicada para CI/QA, separada de la de produccion (GEMINI_API_KEY):
+          # este job monta un n8n descartable solo para la corrida, pero comparte
+          # cuota/facturacion con lo que sea que use la key que le pases.
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_QA }}
+          TOMTOM_API_KEY: ${{ secrets.TOMTOM_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/n8n-ci-import
+          chmod 755 /tmp/n8n-ci-import
+          jq -n \
+            --arg gemini "$GEMINI_API_KEY" \
+            --arg groq "$GROQ_API_KEY" \
+            --arg tomtom "$TOMTOM_API_KEY" \
+            '[
+              {
+                "id": "OG4PhmWgT8L86uMa",
+                "name": "Postgres account",
+                "type": "postgres",
+                "data": {
+                  "host": "postgres",
+                  "port": 5432,
+                  "database": "urbanpulse_db",
+                  "user": "urban_admin",
+                  "password": "urban_password_local",
+                  "ssl": "disable"
+                }
+              },
+              {
+                "id": "0FFynDlCDoVzDDcf",
+                "name": "Gemini API",
+                "type": "httpQueryAuth",
+                "data": { "name": "key", "value": $gemini }
+              },
+              {
+                "id": "5jvR61DQvh8AdLXi",
+                "name": "Groq API",
+                "type": "httpBearerAuth",
+                "data": { "token": $groq }
+              },
+              {
+                "id": "NJwR1YGyw5vsKdfv",
+                "name": "Tomtom API tráfico",
+                "type": "httpQueryAuth",
+                "data": { "name": "key", "value": $tomtom }
+              }
+            ]' > /tmp/n8n-ci-import/credentials.json
+          # 644 (no 600): el proceso dentro del contenedor n8n corre con un
+          # UID distinto al del runner que crea este archivo, asi que
+          # "otros" necesita permiso de lectura o el import falla con un
+          # error de permisos que n8n reporta de forma generica. El archivo
+          # vive en un directorio temporal de una VM efimera de un solo uso
+          # y se borra apenas se usa, asi que 644 sigue siendo razonable.
+          chmod 644 /tmp/n8n-ci-import/credentials.json
+          cp "src/n8n-workflows/production/UrbanPulse-Flujo-vr3.json" /tmp/n8n-ci-import/workflow.json
+          chmod 644 /tmp/n8n-ci-import/workflow.json
+
+      - name: Importar credenciales y workflow en n8n
+        # "docker compose run" crea un contenedor de un solo uso (no el
+        # servicio de larga duracion) que escribe la importacion directo en
+        # Postgres, ANTES de arrancar el n8n real. El ENTRYPOINT de la
+        # imagen ya ejecuta "n8n" por si solo, asi que el comando pasado
+        # aqui NO repite "n8n" (a diferencia de "docker compose exec",
+        # donde si hace falta).
+        #
+        # "import:workflow" deja el workflow inactivo aunque el JSON tenga
+        # "active": true (verificado localmente: imprime "Deactivating
+        # workflow..."). Se activa aparte con "update:workflow --active"
+        # (el id es el que trae UrbanPulse-Flujo-vr3.json). El comando esta
+        # marcado deprecated a favor de "publish:workflow --id", pero su
+        # propio aviso de deprecacion confirma que hacen lo mismo
+        # ("Please use: publish:workflow --id=..."); se deja este por ser
+        # mas explicito sobre que controla el estado activo del trigger.
+        # Solo toma efecto la proxima vez que n8n arranca -- por eso todo
+        # esto pasa antes de "Levantar n8n" mas abajo.
+        run: |
+          set -o pipefail
+          echo "::group::Importar credenciales"
+          if ! docker compose -f infrastructure/docker-compose.yml run --rm \
+            -v /tmp/n8n-ci-import:/import:ro \
+            n8n import:credentials --input=/import/credentials.json 2>&1 | tee /tmp/import.log; then
+            echo "::endgroup::"
+            echo "::error::Fallo import:credentials"
+            exit 1
+          fi
+          echo "::endgroup::"
+
+          echo "::group::Importar workflow"
+          if ! docker compose -f infrastructure/docker-compose.yml run --rm \
+            -v /tmp/n8n-ci-import:/import:ro \
+            n8n import:workflow --input=/import/workflow.json 2>&1 | tee /tmp/import.log; then
+            echo "::endgroup::"
+            echo "::error::Fallo import:workflow"
+            exit 1
+          fi
+          echo "::endgroup::"
+
+          echo "::group::Activar workflow"
+          if ! docker compose -f infrastructure/docker-compose.yml run --rm \
+            n8n update:workflow --id=HHqFhjEJ08cUlSEt --active=true 2>&1 | tee /tmp/import.log; then
+            echo "::endgroup::"
+            echo "::error::Fallo update:workflow --active=true"
+            exit 1
+          fi
+          echo "::endgroup::"
+
+      - name: Eliminar el archivo de credenciales en texto plano
+        if: always()
+        run: rm -rf /tmp/n8n-ci-import
+
+      - name: Levantar n8n (Docker Compose)
+        run: docker compose -f infrastructure/docker-compose.yml up -d n8n
+
+      - name: Esperar health check de n8n
+        run: |
+          set -euo pipefail
+          for intento in $(seq 1 60); do
+            if curl --fail --silent --show-error http://localhost:5678/healthz > /dev/null; then
+              echo "n8n está disponible tras ${intento} intento(s)."
+              exit 0
+            fi
+            echo "Intento ${intento}/60: n8n todavía no está disponible."
+            sleep 5
+          done
+          docker compose -f infrastructure/docker-compose.yml ps
+          echo "n8n no respondió al health check dentro de 5 minutos."
+          exit 1
+
+      - name: Instalar Newman
+        # Instalamos el runner oficial de Postman por línea de comandos
+        run: npm install -g newman
+
+      - name: Ejecutar Colección de Pruebas QA
+        # La coleccion tiene pruebas que llaman directo a Gemini y TomTom
+        # (fuera del flujo de n8n) para aislar esos servicios; sin estas dos
+        # env-var esas requests salen con key vacia y Google/TomTom
+        # responden 400/403, tumbando Newman.
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_QA }}
+          TOMTOM_API_KEY: ${{ secrets.TOMTOM_API_KEY }}
+        run: |
+          echo "Disparando pruebas contra http://localhost:5678/webhook/urbanpulse/chat..."
+          # --delay-request espacia las llamadas para no ráfagar el limite por
+          # minuto (RPM) del tier gratuito de Gemini. Si aun asi la corrida
+          # choca con un 429 puntual, se reintenta la coleccion completa (no
+          # hay forma de reintentar solo el request que fallo) con backoff
+          # creciente antes de rendirse.
+          for intento in 1 2 3; do
+            if newman run "postman/collections/UrbanPulse - Pruebas QA/.resources/UrbanPulse  Pruebas QA.postman_collection.json" \
+              --env-var "n8n_webhook_url=http://localhost:5678/webhook/urbanpulse/chat" \
+              --env-var "gemini_api_key=${GEMINI_API_KEY}" \
+              --env-var "tomtom_api_key=${TOMTOM_API_KEY}" \
+              --delay-request 1500; then
+              exit 0
+            fi
+            echo "Intento ${intento}/3 fallo (posible rate-limit de Gemini/TomTom). Reintentando en $((intento * 30))s..."
+            sleep $((intento * 30))
+          done
+          echo "::error::La coleccion siguio fallando tras 3 intentos."
+          exit 1
+
+      - name: Limpiar infraestructura local
+        if: always()
+        run: docker compose -f infrastructure/docker-compose.yml down -v
