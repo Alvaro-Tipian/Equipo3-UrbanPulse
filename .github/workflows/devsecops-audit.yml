@@ -1,0 +1,49 @@
+name: DevSecOps - Auditoria de Seguridad en Produccion
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/frontend/vercel.json'
+      - 'scripts/devsecops-live-audit.js'
+      - '.github/workflows/devsecops-audit.yml'
+  schedule:
+    - cron: '0 12 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  audit-production:
+    name: Auditoria en Vivo de Produccion Vercel & SAST
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v7
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Ejecutar Suite de Auditoria DevSecOps
+        run: |
+          node scripts/devsecops-live-audit.js
+
+      - name: Publicar Dashboard Visual en GitHub Actions (Step Summary)
+        if: always()
+        run: |
+          if [ -f "docs/SECURITY_COMPLIANCE_AUDIT_REPORT.md" ]; then
+            cat docs/SECURITY_COMPLIANCE_AUDIT_REPORT.md >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Subir Reportes Oficiales como Artefactos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-auditoria-devsecops-sprint2
+          path: |
+            docs/SECURITY_COMPLIANCE_AUDIT_REPORT.md
+            docs/INFORME_TECNICO_DEVSECOPS_HT30_AUDITORIA_CONTINUA.docx
+          retention-days: 90
