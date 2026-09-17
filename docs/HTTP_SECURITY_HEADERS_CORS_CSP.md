@@ -33,9 +33,9 @@ La directiva `Content-Security-Policy` fue diseñada a medida para permitir el f
 Content-Security-Policy:
   default-src 'self' https://*.vercel.app;
   script-src 'self' 'unsafe-inline' https://*.vercel.app;
-  style-src 'self' 'unsafe-inline' https://*.tomtom.com;
-  img-src 'self' data: blob: https://*.tomtom.com https://*.cs.amazonlightsail.com;
-  font-src 'self' data:;
+  style-src 'self' 'unsafe-inline' https://*.vercel.app https://*.tomtom.com;
+  img-src 'self' data: blob: https://*.tomtom.com https://*.cs.amazonlightsail.com https://*.vercel.app;
+  font-src 'self' data: https://*.vercel.app;
   connect-src 'self'
               https://*.vercel.app
               https://urbanpulse-n8n.xq33kajky1yy6.us-east-1.cs.amazonlightsail.com
