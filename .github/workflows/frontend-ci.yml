@@ -72,6 +72,18 @@ jobs:
         npm run build
         npm audit --audit-level=critical
 
+    - name: Ejecutar Tests de Route Guards
+      run: |
+        cd src/frontend
+        npm run test -- routeGuards.test.jsx --coverage --collectCoverageFrom="src/components/**/*.jsx"
+
+    - name: Subir reporte de cobertura
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: frontend-coverage-report
+        path: src/frontend/coverage/
+
     - name: Validar MF Dashboard
       run: |
         cd mf-dashboard

@@ -100,6 +100,12 @@ test('muestra un mensaje de error si el servidor de métricas falla', async ({ p
   await expect(page.getByText('Error de conexión con n8n: 500')).toBeVisible();
 });
 
+// D-14 CORREGIDO — mf-dashboard/vite.config.js ahora declara react/react-dom
+// como singleton, igual que el host (antes solo el host lo declaraba así,
+// mf-dashboard cargaba su propia copia de React y la app quedaba en blanco
+// al montar Recharts con "Invalid hook call" / "Cannot read properties of
+// null (reading 'useRef')"). Se retiraron los test.fail() de esta suite:
+// si el defecto reaparece, estas pruebas volverán a fallar y lo señalarán.
 test('muestra las tarjetas de KPIs y los gráficos con los datos recibidos', async ({ page }) => {
   await page.route(KPIS_PATH, (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(SAMPLE_KPIS_RESPONSE) })

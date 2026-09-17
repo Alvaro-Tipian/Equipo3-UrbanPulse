@@ -36,57 +36,8 @@ jobs:
             echo "✅ Escaneo completado: No se encontraron secretos en texto plano."
           fi
 
-  # ==========================================
-  # JOB 2: Pruebas de Integración (Newman)
-  # ==========================================
-  api-integration-tests:
-    name: Pruebas de Integración de API
-    needs: security-sast # Este job solo corre si el escáner SAST pasa con éxito
-    runs-on: ubuntu-latest
-    # El contenedor n8n se levanta en blanco (sin workflows importados), por lo
-    # que Newman retornará 404 en los webhooks. Este job es informativo hasta
-    # que se implemente la importación automática de workflows de producción.
-    continue-on-error: true
-    
-    steps:
-      - name: Checkout del repositorio
-        uses: actions/checkout@v7
-
-      - name: Levantar Infraestructura Local (Docker Compose)
-        # Emula el entorno de la Guía de Instalación Local
-        run: |
-          cd infrastructure
-          docker compose up -d
-          
-      - name: Esperar health check de n8n
-        run: |
-          set -euo pipefail
-          for intento in $(seq 1 60); do
-            if curl --fail --silent --show-error http://localhost:5678/healthz > /dev/null; then
-              echo "n8n está disponible tras ${intento} intento(s)."
-              exit 0
-            fi
-            echo "Intento ${intento}/60: n8n todavía no está disponible."
-            sleep 5
-          done
-          docker compose -f infrastructure/docker-compose.yml ps
-          echo "n8n no respondió al health check dentro de 5 minutos."
-          exit 1
-
-      - name: Instalar Newman
-        # Instalamos el runner oficial de Postman por línea de comandos
-        run: npm install -g newman
-
-      - name: Ejecutar Colección de Pruebas QA
-        continue-on-error: true
-        # Dispara los casos de prueba apuntando exactamente a los archivos JSON subidos al repositorio
-        run: |
-          echo "Disparando pruebas contra http://localhost:5678/webhook/urbanpulse/report..."
-          newman run "postman/collections/UrbanPulse - Pruebas QA/.resources/UrbanPulse  Pruebas QA.postman_collection.json" \
-            --env-var "n8n_webhook_url=http://localhost:5678/webhook/urbanpulse/report" \
-            --env-var "gemini_api_key=${{ secrets.GEMINI_API_KEY || 'ci-mock-key' }}" \
-            --env-var "tomtom_api_key=${{ secrets.TOMTOM_API_KEY || 'ci-mock-key' }}" || true
-
-      - name: Limpiar infraestructura local
-        if: always()
-        run: docker compose -f infrastructure/docker-compose.yml down -v
+  # Las Pruebas de Integracion (Newman contra Gemini/TomTom/n8n) se movieron a
+  # backend-integration-tests.yml como workflow_dispatch manual: este job de
+  # aca corria en cada PR que tocara infrastructure/** o src/n8n-workflows/**
+  # -- ej. un merge con workflows de n8n de otra persona -- sin que nadie
+  # necesitara probar Newman, quemando la cuota de la API key de Gemini.

@@ -266,7 +266,7 @@ const MapaUrbano = ({ lat, lon }) => {
 
   return (
     <div className="relative w-full h-full">
-      <div ref={mapContainer} style={{ width: '100%', height: '100%' }}></div>
+      <div id="tomtom-map-container" ref={mapContainer} style={{ width: '100%', height: '100%' }}></div>
 
       {/* Aviso de degradación segura cuando no se provee la API Key de TomTom */}
       {!import.meta.env.VITE_TOMTOM_API_KEY && (

@@ -1,0 +1,88 @@
+# ==============================================================================
+# Workflow: Pruebas QA - Robustez del LLM (Newman, HT-29 T02)
+#
+# La coleccion urbanpulse-llm-robustness.postman_collection.json ataca el
+# webhook de chat en PRODUCCION (n8n / Lightsail, que a su vez depende de la
+# base de datos Postgres). Solo se dispara manualmente ("Run workflow" en la
+# UI de Actions) -- sin cron -- para no gastar minutos de CI ni llamadas
+# reales a Gemini/Groq de forma recurrente.
+#
+# El job primero hace un healthcheck liviano contra el webhook antes de
+# correr la suite completa. Si el servicio esta caido (como ocurrio el
+# 2026-09-16), la corrida se SALTA (no falla) y lo indica en el resumen del
+# job en vez de ensuciar el historial de Actions con errores de parseo JSON
+# poco claros (502/503 en HTML). Cuando el servicio vuelva a estar arriba,
+# hay que volver a disparar el workflow manualmente.
+# ==============================================================================
+
+name: Pruebas QA - Robustez del LLM (Newman)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-and-run:
+    name: Verificar servicio y correr suite adversarial
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v7
+
+      - name: Verificar que el webhook de chat responde (healthcheck)
+        id: health
+        env:
+          N8N_WEBHOOK_URL: ${{ secrets.N8N_CHAT_WEBHOOK_URL }}
+        run: |
+          if [ -z "$N8N_WEBHOOK_URL" ]; then
+            echo "::warning::Falta el secret N8N_CHAT_WEBHOOK_URL, no se puede verificar el servicio."
+            echo "up=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # session_id fijo a proposito: es solo un ping de salud, no debe
+          # crear una fila nueva por cada corrida del cron.
+          status=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$N8N_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d '{"session_id":"ci-healthcheck","mensaje":"healthcheck"}' \
+            --max-time 15 || echo "000")
+
+          echo "Webhook respondio HTTP $status"
+          if [ "$status" = "200" ]; then
+            echo "up=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "up=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configurar Node.js
+        if: steps.health.outputs.up == 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+
+      - name: Instalar Newman y el reporter HTML
+        if: steps.health.outputs.up == 'true'
+        run: npm install -g newman newman-reporter-htmlextra
+
+      - name: Correr la suite de robustez del LLM
+        if: steps.health.outputs.up == 'true'
+        env:
+          N8N_WEBHOOK_URL: ${{ secrets.N8N_CHAT_WEBHOOK_URL }}
+        run: |
+          newman run "postman/collections/urbanpulse-llm-robustness.postman_collection.json" \
+            --env-var "n8n_webhook_url=$N8N_WEBHOOK_URL" \
+            --reporters cli,htmlextra \
+            --reporter-htmlextra-export newman-report/llm-robustness-report.html
+
+      - name: Subir reporte HTML
+        if: ${{ steps.health.outputs.up == 'true' && !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: llm-robustness-report
+          path: newman-report/
+          retention-days: 30
+
+      - name: Servicio caido - se salta esta corrida
+        if: steps.health.outputs.up != 'true'
+        run: |
+          echo "::notice::El webhook de produccion no respondio 200 (servicio caido o base de datos suspendida). Se salta esta corrida; vuelve a correr el workflow manualmente cuando el servicio este arriba."

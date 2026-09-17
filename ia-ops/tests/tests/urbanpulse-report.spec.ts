@@ -3,12 +3,10 @@ import { test, expect } from '@playwright/test';
 // Pruebas E2E del flujo de reporte de incidentes por chat (guía QA, Fase 4,
 // prueba #8) para src/frontend + el microfrontend mf-chatbot.
 //
-// La app ahora exige login de operadores antes de mostrar cualquier
-// pestaña (ver src/frontend/src/App.jsx y LoginView.jsx). Ese login pega
-// contra un webhook real de n8n con cuentas reales en Postgres, así que
-// para que estas pruebas sean deterministas se "salta" precargando una
-// sesión válida en localStorage (mismo formato que guarda session.js) en
-// lugar de completar el formulario de login contra el backend real.
+// El chat exige que el ciudadano haya iniciado sesión (ChatAuthGate). Para
+// que estas pruebas sean deterministas, ese paso se "salta" precargando una
+// sesión válida en localStorage en lugar de completar el formulario contra el
+// backend real. La autenticación en sí se cubre en login.spec.ts.
 //
 // El webhook de reporte del chat (TE_N8N_WEBHOOK_URL) también se
 // intercepta con page.route() para no depender de que n8n/Gemini estén
@@ -17,6 +15,16 @@ import { test, expect } from '@playwright/test';
 const CHAT_WEBHOOK_PATH = (url: URL) =>
   url.pathname === '/webhook/urbanpulse/chat' ||
   url.pathname === '/webhook/urbanpulse/report';
+
+// El chat pide la ubicación real del dispositivo antes de enviar el mensaje
+// (obtenerUbicacionActual en NLQCommandCenter.jsx). Sin permiso concedido, esa
+// llamada espera hasta agotar su tiempo de espera y el turno del bot tarda más
+// de lo que aguantan las aserciones. Se concede el permiso y se fija una
+// posición conocida para que el flujo avance de inmediato.
+test.use({
+  permissions: ['geolocation'],
+  geolocation: { latitude: -12.0464, longitude: -77.0428 },
+});
 
 test.beforeEach(async ({ page }) => {
   // Este entorno de pruebas no tiene salida a redes externas reales (p. ej.
@@ -27,17 +35,17 @@ test.beforeEach(async ({ page }) => {
     (route) => route.abort()
   );
 
-  // Precarga una sesión válida para saltar la pantalla de login (session.js
-  // espera esta forma exacta bajo la clave "urbanpulse_citizen_session").
+  // La sesión del ciudadano se comparte entre el host y los micro-frontends bajo
+  // la clave 'urbanpulse_citizen_session' (ver mf-chatbot/src/session.js). El chat
+  // exige 'id' porque lo usa como usuario_id al guardar el reporte y su historial.
   await page.addInitScript(() => {
     window.localStorage.setItem(
       'urbanpulse_citizen_session',
       JSON.stringify({
         success: true,
-        id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-        email: 'qa-tester@example.com',
-        username: 'qa-tester',
-        role: 'Operador QA',
+        id: '11111111-1111-4111-8111-111111111111',
+        email: 'qa-tester@ejemplo.com',
+        role: 'ciudadano',
         expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
       })
     );
@@ -47,7 +55,7 @@ test.beforeEach(async ({ page }) => {
   await page.getByRole('button', { name: 'CHAT', exact: true }).click();
 });
 
-test('el operador entra directo a la app sin ver el login (sesión válida)', async ({ page }) => {
+test('con sesión válida se entra directo al chat, sin formulario de login', async ({ page }) => {
   await expect(page.getByPlaceholder('Reporta un incidente....')).toBeVisible();
   await expect(page.getByPlaceholder('Correo electrónico')).toHaveCount(0);
 });
