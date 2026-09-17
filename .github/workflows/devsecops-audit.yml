@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: read
+  security-events: write
 
 jobs:
   audit-production:
@@ -37,6 +38,13 @@ jobs:
           if [ -f "docs/SECURITY_COMPLIANCE_AUDIT_REPORT.md" ]; then
             cat docs/SECURITY_COMPLIANCE_AUDIT_REPORT.md >> $GITHUB_STEP_SUMMARY
           fi
+
+      - name: Publicar Certificacion en GitHub Code Scanning (SARIF)
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: docs/security-audit.sarif
+          category: devsecops-compliance
 
       - name: Subir Reporte Oficial como Artefacto
         if: always()

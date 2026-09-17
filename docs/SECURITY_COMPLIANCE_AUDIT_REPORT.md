@@ -2,7 +2,7 @@
 **Proyecto:** UrbanPulse — Gestión Inteligente de Tráfico y Seguridad Vial  
 **Módulo:** DevSecOps (HT-30 / Hardening y Seguridad en Producción)  
 **Entorno Auditado:** Producción Vercel (`equipo3-urban-pulse.vercel.app`)  
-**Fecha de Ejecución:** 2026-09-17 06:58:42 UTC  
+**Fecha de Ejecución:** 2026-09-17 17:11:31 UTC  
 **Auditor Responsable:** Álvaro Tipian (DevSecOps Lead)  
 **Calificación Obtenida:** **Nivel A+ (Excelente) (100/100)** 🏆  
 
@@ -10,7 +10,7 @@
 
 ## 1. 📊 Resumen Ejecutivo de Cumplimiento
 
-El presente reporte certifica que la arquitectura frontend y de despliegue de **UrbanPulse** cumple con los estándares internacionales de ciberseguridad para aplicaciones web (**OWASP ASVS v4.0, NIST SP 800-218 y directrices de cabeceras seguras de Mozilla Observatory**).
+El presente reporte certifica que la arquitectura frontend y de despliegue de **UrbanPulse** cumple con los estándares internacionales de ciberseguridad para aplicaciones web y sistemas de IA (**OWASP ASVS v4.0, OWASP Top 10 for LLMs, NIST SP 800-218 y directrices de cabeceras seguras de Mozilla Observatory**).
 
 | Dimensión de Seguridad | Estándar Evaluado | Estado | Calificación |
 |---|---|:---:|:---:|
@@ -19,6 +19,7 @@ El presente reporte certifica que la arquitectura frontend y de despliegue de **
 | **Protección contra Clickjacking** | X-Frame-Options DENY | ✅ CUMPLIDO | 100% |
 | **Defensa contra Fuga de Secretos** | SAST Estático Automatizado | ✅ CUMPLIDO | 100% |
 | **Aislamiento de Microfrontends** | CORS Granular en Assets | ✅ CUMPLIDO | 100% |
+| **Defensa contra Prompt Injection en IA** | OWASP Top 10 for LLMs (LLM01/02) | ✅ CUMPLIDO | 100% |
 
 ---
 
@@ -45,7 +46,17 @@ El presente reporte certifica que la arquitectura frontend y de despliegue de **
 
 ---
 
-## 4. 🚀 Hallazgos y Resiliencia en Arquitectura Federada
+## 4. 🧠 Seguridad en Inteligencia Artificial y Guardrails (OWASP LLM)
+
+* **Herramienta Ejecutada:** `scripts/ai-security-guardrail.js`
+* **Directorio de Prompts Auditados:** `ia-ops/prompts/` (clasificación, geolocalización, NLQ)
+* **Estándar:** OWASP Top 10 for LLMs (LLM01 / LLM02) & NIST AI RMF
+* **Resultado:** **✅ APROBADO (100% de Guardrails Cumplidos)**
+* **Detalle:** Prompts y flujos protegidos con delimitadores y esquemas estrictos
+
+---
+
+## 5. 🚀 Hallazgos y Resiliencia en Arquitectura Federada
 
 Durante el Sprint 2 se identificó y resolvió proactivamente un incidente de seguridad crítico:
 1. **Desafío de Web Workers en TomTom:** El SDK de TomTom v6 inicializa Web Workers mediante direcciones de memoria temporal `blob:`. El CSP original bloqueaba estas instancias impidiendo la renderización del mapa.
@@ -53,4 +64,4 @@ Durante el Sprint 2 se identificó y resolvió proactivamente un incidente de se
 3. **Resultado:** Se mantuvo una postura de privilegios mínimos sin abrir comodines inseguros (`*`), garantizando la operatividad fluida del mapa urbano en producción.
 
 ---
-*Reporte generado automáticamente por la herramienta de auditoría continua DevSecOps de UrbanPulse.*
+*Reporte generado automáticamente por la suite de auditoría continua DevSecOps de UrbanPulse.*

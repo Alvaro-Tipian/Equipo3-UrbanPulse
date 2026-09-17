@@ -1,0 +1,197 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "UrbanPulse-DevSecOps-Compliance",
+          "version": "2.0.0",
+          "informationUri": "https://github.com/SergioAscurraPerez/Equipo3-UrbanPulse",
+          "rules": [
+            {
+              "id": "UP-HSTS-01",
+              "name": "StrictTransportSecurityEnforcement",
+              "shortDescription": {
+                "text": "HSTS Preload Protection"
+              },
+              "fullDescription": {
+                "text": "Enforces HTTPS connections using HSTS Preload (RFC 6797) with a minimum 2-year duration."
+              },
+              "help": {
+                "text": "Configure Strict-Transport-Security with max-age=63072000; includeSubDomains; preload."
+              },
+              "properties": {
+                "security-severity": "8.0",
+                "cwe": "CWE-319",
+                "tags": [
+                  "security",
+                  "dast",
+                  "compliance",
+                  "hsts"
+                ]
+              }
+            },
+            {
+              "id": "UP-XFO-02",
+              "name": "AntiClickjackingFrameOptions",
+              "shortDescription": {
+                "text": "X-Frame-Options DENY"
+              },
+              "fullDescription": {
+                "text": "Prevents clickjacking attacks by blocking frame/iframe embedding (RFC 7034)."
+              },
+              "help": {
+                "text": "Configure X-Frame-Options: DENY on all responses."
+              },
+              "properties": {
+                "security-severity": "7.5",
+                "cwe": "CWE-1021",
+                "tags": [
+                  "security",
+                  "dast",
+                  "clickjacking"
+                ]
+              }
+            },
+            {
+              "id": "UP-XCTO-03",
+              "name": "MIMESniffingProtection",
+              "shortDescription": {
+                "text": "X-Content-Type-Options nosniff"
+              },
+              "fullDescription": {
+                "text": "Prevents MIME-sniffing execution by enforcing declared content-types."
+              },
+              "help": {
+                "text": "Configure X-Content-Type-Options: nosniff."
+              },
+              "properties": {
+                "security-severity": "6.0",
+                "cwe": "CWE-79",
+                "tags": [
+                  "security",
+                  "dast",
+                  "mime"
+                ]
+              }
+            },
+            {
+              "id": "UP-RP-04",
+              "name": "ReferrerPolicyPrivacy",
+              "shortDescription": {
+                "text": "Referrer-Policy strict-origin"
+              },
+              "fullDescription": {
+                "text": "Protects user privacy by stripping sensitive URL query params on cross-origin requests."
+              },
+              "help": {
+                "text": "Configure Referrer-Policy: strict-origin-when-cross-origin."
+              },
+              "properties": {
+                "security-severity": "5.0",
+                "cwe": "CWE-200",
+                "tags": [
+                  "security",
+                  "dast",
+                  "privacy"
+                ]
+              }
+            },
+            {
+              "id": "UP-PP-05",
+              "name": "PermissionsPolicyHardening",
+              "shortDescription": {
+                "text": "Permissions-Policy API Lockdown"
+              },
+              "fullDescription": {
+                "text": "Restricts browser device APIs (camera, microphone, payment) to authorized origins."
+              },
+              "help": {
+                "text": "Configure Permissions-Policy with restrictive device policies."
+              },
+              "properties": {
+                "security-severity": "6.0",
+                "cwe": "CWE-693",
+                "tags": [
+                  "security",
+                  "dast",
+                  "permissions"
+                ]
+              }
+            },
+            {
+              "id": "UP-CSP-06",
+              "name": "ContentSecurityPolicyLevel3",
+              "shortDescription": {
+                "text": "CSP Level 3 Anti-XSS & Worker Isolation"
+              },
+              "fullDescription": {
+                "text": "Mitigates XSS and isolates TomTom Web Workers blob: and Gemini AI endpoints."
+              },
+              "help": {
+                "text": "Configure strict CSP Level 3 directives in vercel.json."
+              },
+              "properties": {
+                "security-severity": "9.0",
+                "cwe": "CWE-79",
+                "tags": [
+                  "security",
+                  "dast",
+                  "csp",
+                  "owasp-a03"
+                ]
+              }
+            },
+            {
+              "id": "UP-SAST-07",
+              "name": "StaticSecretExposureScanner",
+              "shortDescription": {
+                "text": "Static Secret and Private Variable Protection"
+              },
+              "fullDescription": {
+                "text": "Scans frontend and microfrontend source code to guarantee zero private keys or secrets are exposed."
+              },
+              "help": {
+                "text": "Use Vercel Secrets and keep only sanitized VITE_ variables in frontend."
+              },
+              "properties": {
+                "security-severity": "9.5",
+                "cwe": "CWE-312",
+                "tags": [
+                  "security",
+                  "sast",
+                  "secrets"
+                ]
+              }
+            },
+            {
+              "id": "UP-AI-08",
+              "name": "AIGenerativeGuardrailPromptSecurity",
+              "shortDescription": {
+                "text": "OWASP LLM01 Prompt Injection & Jailbreak Defense"
+              },
+              "fullDescription": {
+                "text": "Validates system prompt delimiter boundaries and anti-jailbreak directives for GenAI models."
+              },
+              "help": {
+                "text": "Enforce XML delimiters and JSON output schema in ia-ops/prompts/."
+              },
+              "properties": {
+                "security-severity": "8.5",
+                "cwe": "CWE-20",
+                "tags": [
+                  "security",
+                  "ai-ops",
+                  "owasp-llm01",
+                  "prompt-injection"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "results": []
+    }
+  ]
+}
