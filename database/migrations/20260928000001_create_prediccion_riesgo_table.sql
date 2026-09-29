@@ -10,5 +10,6 @@ CREATE TABLE IF NOT EXISTS prediccion_riesgo (
     model_version TEXT NOT NULL
 );
 
+
 CREATE INDEX IF NOT EXISTS idx_prediccion_riesgo_fecha_zona_franja
 ON prediccion_riesgo (fecha_objetivo, zona_id, franja);
