@@ -1,0 +1,90 @@
+{
+  "name": "UrbanPulse - Ingesta RAG Conocimiento Vial (HT-50 T01)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "minutesInterval": 10080
+            }
+          ]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "Cron Semanal Ingesta RAG",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [ 100, 200 ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "urbanpulse/ingesta-rag",
+        "options": {}
+      },
+      "id": "webhook-rag",
+      "name": "Webhook Ingesta RAG (reporte.creado)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [ 100, 400 ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    distrito: $json.body?.datos?.distrito || 'Miraflores',\n    franja: $json.body?.datos?.franja || 'tarde',\n    fuente: $json.body?.datos?.tipo_incidente ? 'reportes_resueltos' : 'ONSV_SUTRAN',\n    contenido: `Ficha de riesgo vial para el distrito de ${$json.body?.datos?.distrito || 'Miraflores'} en la franja ${$json.body?.datos?.franja || 'tarde'}. Registra incidentes de ${$json.body?.datos?.tipo_incidente || 'choque'}.`,\n    vector_simulado_768: Array.from({length: 768}, () => Math.random() * 2 - 1)\n  }\n}];"
+      },
+      "id": "armar-ficha-rag",
+      "name": "Armar Ficha y Generar Embeddings (768 Dim)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [ 350, 300 ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO conocimiento_vial (distrito, franja, contenido, fuente, embedding) VALUES ('{{ $json.distrito }}', '{{ $json.franja }}', '{{ $json.contenido }}', '{{ $json.fuente }}', '[{{ $json.vector_simulado_768.join(\",\") }}]') RETURNING id;"
+      },
+      "id": "postgres-persist-rag",
+      "name": "Persistir en Neon DB (conocimiento_vial)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [ 600, 300 ]
+    }
+  ],
+  "connections": {
+    "Cron Semanal Ingesta RAG": {
+      "main": [
+        [
+          {
+            "node": "Armar Ficha y Generar Embeddings (768 Dim)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Ingesta RAG (reporte.creado)": {
+      "main": [
+        [
+          {
+            "node": "Armar Ficha y Generar Embeddings (768 Dim)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar Ficha y Generar Embeddings (768 Dim)": {
+      "main": [
+        [
+          {
+            "node": "Persistir en Neon DB (conocimiento_vial)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
