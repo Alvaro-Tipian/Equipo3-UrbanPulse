@@ -1,20 +1,56 @@
-name: MLOps CI/CD Pipeline & 1-Click Rollback (HT-47 T03)
+# ==============================================================================
+# Workflow: Pipeline MLOps del modelo de riesgo vial (HT-47 T03)
+#
+#   validar datos -> entrenar -> evaluar contra el champion -> registrar ->
+#   promover -> desplegar la API, con rollback en un solo paso.
+#
+# Cuando corre cada parte:
+#   - Pull Request: pruebas de la API y de los scripts, validacion del
+#     registro de prompts y la suite de HT-48 (mlops-tests.yml, de Fabio).
+#   - Push a main que cambia el modelo o los prompts, workflow_dispatch con
+#     deploy_new_champion, o el disparo de ml-monitoring.yml al detectar
+#     deriva (HT-49): todo lo anterior y ademas el ciclo completo.
+#   - workflow_dispatch con rollback_to_version: rollback.
+#
+# Dependencias de otras tareas (deben estar en main):
+#   - ml/data/build_dataset.py y ml/train/train.py (HT-46, Emily).
+#   - .github/workflows/mlops-tests.yml (HT-48, Fabio): es el quality gate.
+#
+# Quien decide la promocion es ia-ops/scripts/promover_modelo.py: evalua
+# challenger, champion y la heuristica de Central vr5 sobre el MISMO split de
+# validacion. Un challenger rechazado no es un fallo del pipeline: queda
+# documentado en el resumen y produccion sigue con el champion.
+#
+# Secrets: MLFLOW_TRACKING_URI, MLFLOW_TRACKING_USERNAME, MLFLOW_TRACKING_PASSWORD,
+# DB_HOST, DB_PORT, DB_DATABASE, DB_USER, DB_PASSWORD, y los de
+# deploy-api-inferencia.yml.
+# ==============================================================================
+
+name: MLOps - Pipeline del modelo de riesgo vial (HT-47)
 
 on:
   push:
     branches: [ main ]
     paths:
-      - 'ia-ops/**'
+      - 'ml/**'
+      - 'ia-ops/prompts/**'
+      - 'ia-ops/fastapi_service/**'
+      - 'ia-ops/scripts/**'
       - '.github/workflows/mlops-pipeline.yml'
+      - '.github/workflows/deploy-api-inferencia.yml'
   pull_request:
     branches: [ main ]
     paths:
-      - 'ia-ops/**'
+      - 'ml/**'
+      - 'ia-ops/prompts/**'
+      - 'ia-ops/fastapi_service/**'
+      - 'ia-ops/scripts/**'
       - '.github/workflows/mlops-pipeline.yml'
+      - '.github/workflows/deploy-api-inferencia.yml'
   workflow_dispatch:
     inputs:
       action_mode:
-        description: 'Acción MLOps a ejecutar'
+        description: 'Accion MLOps'
         required: true
         default: 'deploy_new_champion'
         type: choice
@@ -22,110 +58,298 @@ on:
           - 'deploy_new_champion'
           - 'rollback_to_version'
       rollback_version:
-        description: 'Versión del modelo a restaurar (ej. 1.0.0, 0.9.5)'
+        description: 'Version de riesgo_vial a restaurar (vacio = champion anterior)'
         required: false
-        default: '1.0.0'
+        default: ''
+        type: string
+      fecha_corte:
+        description: 'Fecha de corte del dataset (vacio = variable FECHA_CORTE_RIESGO o 2025-03-31)'
+        required: false
+        default: ''
         type: string
 
 permissions:
   contents: read
-  security-events: write
-  actions: read
+
+concurrency:
+  group: mlops-riesgo-vial
+  cancel-in-progress: false
+
+env:
+  PYTHON_VERSION: '3.12'
+  # ml/README.md: la ultima fecha con reporte completo del ONSV. Una fecha mas
+  # reciente deja la validacion sin "medio"/"alto" (lo detecta validar_dataset).
+  FECHA_CORTE: ${{ inputs.fecha_corte || vars.FECHA_CORTE_RIESGO || '2025-03-31' }}
 
 jobs:
-  model-quality-gate:
-    name: 🛡️ Quality Gate MLOps & Escaneo Trivy (Champion vs Challenger)
+  # --------------------------------------------------------------------------
+  # Pruebas (siempre)
+  # --------------------------------------------------------------------------
+  pruebas-codigo:
+    name: Pruebas de la API y de los scripts MLOps
+    if: github.event_name != 'workflow_dispatch' || inputs.action_mode != 'rollback_to_version'
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: urbanpulse
+        ports: [ '5432:5432' ]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - name: Checkout del repositorio
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
-      - name: Configurar Python 3.12
+      - name: Configurar Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: ia-ops/fastapi_service/requirements-dev.txt
 
-      - name: Validar Estructura del Prompt Registry y Guardrails
-        run: |
-          echo "Validando sintaxis y esquemas del registro de prompts MLOps..."
-          python -c "import json, sys; data = json.load(open('ia-ops/prompts/prompt_registry.json')); assert 'prompts' in data; print(f'✅ Prompt Registry v{data[\"version_schema\"]} validado con {len(data[\"prompts\"])} prompts.')"
+      - name: Instalar dependencias
+        run: pip install -r ia-ops/fastapi_service/requirements-dev.txt pyarrow==15.0.2 matplotlib==3.9.0
 
-      - name: Ejecutar Evaluación Champion vs Challenger (F1 Score & Data Drift)
-        run: |
-          echo "Ejecutando suite de pruebas de calidad del modelo de IA..."
-          python -c "
-          f1_score = 0.941
-          psi_drift = 0.042
-          assert f1_score >= 0.85, 'F1-Score por debajo del umbral mínimo'
-          assert psi_drift < 0.20, 'Data Drift (PSI) por encima del umbral de alerta'
-          print(f'✅ Quality Gate Aprobado: F1-Score={f1_score}, PSI Drift={psi_drift}')
-          "
+      - name: Validar registro de prompts
+        run: python ia-ops/scripts/register_prompts.py --validar
 
-      - name: Escanear Imagen Docker del Servicio FastAPI con Trivy
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'config'
-          scan-ref: 'ia-ops/fastapi_service/Dockerfile'
-          format: 'table'
-          exit-code: '0'
-          severity: 'CRITICAL,HIGH'
+      - name: Pruebas de la API de inferencia
+        working-directory: ia-ops/fastapi_service
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/urbanpulse
+        run: pytest --junitxml=../../reportes-mlops/pytest-api.xml
 
-  deploy-or-rollback:
-    name: 🚀 Despliegue de Modelo MLOps / Rollback de 1-Clic
-    needs: model-quality-gate
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout del repositorio
-        uses: actions/checkout@v4
+      - name: Pruebas de promocion, rollback y validacion de datos
+        working-directory: ia-ops/scripts
+        run: pytest -rs --junitxml=../../reportes-mlops/pytest-scripts.xml
 
-      - name: Ejecutar Despliegue de Nuevo Champion
-        if: ${{ github.event.inputs.action_mode != 'rollback_to_version' }}
-        run: |
-          echo "🚀 Desplegando nuevo Modelo Champion en Servicio FastAPI MLOps..."
-          echo "Versión Activa: v1.0.0 | Stage: Production | Model: urbanpulse_risk_classifier"
-
-      - name: Ejecutar Rollback de 1-Clic a Versión Anterior
-        if: ${{ github.event.inputs.action_mode == 'rollback_to_version' }}
-        run: |
-          TARGET="${{ github.event.inputs.rollback_version }}"
-          echo "⏪ EJECUTANDO ROLLBACK ATÓMICO DE 1-CLIC"
-          echo "Restaurando servicio MLOps a la versión del modelo: v${TARGET}..."
-          echo "✅ Rollback completado exitosamente en 1.4 segundos. Modelo v${TARGET} activo."
-
-      - name: Generar Tarjeta de Modelo Oficial (Model Card Document)
-        run: |
-          mkdir -p docs
-          cat <<EOF > docs/ACTIVE_MODEL_CARD.md
-          # 🤖 Model Card: UrbanPulse Risk Classifier (v1.0.0)
-
-          - **Nombre del Modelo:** `urbanpulse_risk_classifier`
-          - **Versión Activa:** `v1.0.0`
-          - **Fecha de Despliegue:** $(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          - **Quality Gate:** F1-Score = 0.941 | Data Drift PSI = 0.042 (Aprobado)
-          - **Arquitectura:** FastAPI Multi-stage Container (Non-root user)
-          - **Estado de Rollback:** Habilitado (1-Click Atomic Rollback Ready)
-          EOF
-
-      - name: Publicar Summary Visual MLOps en GitHub Actions
-        if: always()
-        run: |
-          cat <<EOF >> $GITHUB_STEP_SUMMARY
-          ## 📊 MLOps Pipeline & Model Governance Report
-
-          | Parámetro | Valor |
-          |---|---|
-          | **Modelo** | `urbanpulse_risk_classifier` |
-          | **Versión Activa** | `v1.0.0` |
-          | **Quality Gate F1-Score** | 🟢 **0.941** (Threshold >= 0.85) |
-          | **Data Drift (PSI)** | 🟢 **0.042** (Threshold < 0.20) |
-          | **Seguridad Container** | 🛡️ Non-root user (UID 10001) |
-          | **Rollback de 1-Clic** | ⚡ **Disponible vía Workflow Dispatch** |
-          EOF
-
-      - name: Subir Model Card como Artefacto
-        if: always()
+      - name: Subir reportes de pruebas
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
-          name: active-model-card
-          path: docs/ACTIVE_MODEL_CARD.md
+          name: mlops-pruebas-codigo
+          path: reportes-mlops/
           retention-days: 30
+
+  # Quality gate de HT-48 (Fabio). promptfoo consume cuota de Gemini: solo en
+  # la promocion manual, como el propio workflow recomienda.
+  pruebas-mlops:
+    name: Suite de pruebas MLOps (HT-48)
+    if: github.event_name != 'workflow_dispatch' || inputs.action_mode != 'rollback_to_version'
+    uses: ./.github/workflows/mlops-tests.yml
+    with:
+      correr_promptfoo: ${{ github.event_name == 'workflow_dispatch' }}
+    secrets: inherit
+
+  # --------------------------------------------------------------------------
+  # Ciclo completo
+  # --------------------------------------------------------------------------
+  registrar-prompts:
+    name: Versionar prompts en MLflow (HT-47 T01)
+    needs: [ pruebas-codigo, pruebas-mlops ]
+    if: github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.action_mode != 'rollback_to_version')
+    runs-on: ubuntu-latest
+    env:
+      MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+      MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+      MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: pip install mlflow-skinny==2.14.1 setuptools==75.1.0
+      - name: Registrar prompts nuevos o modificados
+        run: python ia-ops/scripts/register_prompts.py
+
+  entrenar-y-evaluar:
+    name: Validar datos, entrenar y evaluar challenger
+    needs: [ pruebas-codigo, pruebas-mlops ]
+    if: github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.action_mode != 'rollback_to_version')
+    runs-on: ubuntu-latest
+    outputs:
+      promover: ${{ steps.evaluar.outputs.promover }}
+      challenger: ${{ steps.evaluar.outputs.challenger }}
+      champion: ${{ steps.evaluar.outputs.champion }}
+    env:
+      MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+      MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+      MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+      DB_HOST: ${{ secrets.DB_HOST }}
+      DB_PORT: ${{ secrets.DB_PORT }}
+      DB_DATABASE: ${{ secrets.DB_DATABASE }}
+      DB_USER: ${{ secrets.DB_USER }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v7
+
+      - name: Verificar el codigo de entrenamiento (HT-46)
+        run: |
+          for f in ml/data/build_dataset.py ml/train/train.py ml/requirements.txt; do
+            if [ ! -f "$f" ]; then
+              echo "::error::Falta $f (HT-46). El pipeline no puede entrenar sin el codigo de Emily en main."
+              exit 1
+            fi
+          done
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: ml/requirements.txt
+
+      - name: Instalar dependencias de entrenamiento
+        # setuptools: mlflow 2.14 importa pkg_resources, que Python 3.12 no trae.
+        run: pip install -r ml/requirements.txt setuptools==75.1.0
+
+      - name: Construir dataset desde Neon (HT-46 T01)
+        run: python ml/data/build_dataset.py --fecha-corte "${FECHA_CORTE}"
+
+      - name: Validar dataset
+        run: python ia-ops/scripts/validar_dataset_riesgo.py --fecha-corte "${FECHA_CORTE}"
+
+      - name: Entrenar y registrar challenger en MLflow (HT-46 T02)
+        run: python ml/train/train.py --fecha-corte "${FECHA_CORTE}"
+
+      - name: Evaluar challenger vs champion
+        id: evaluar
+        run: python ia-ops/scripts/promover_modelo.py evaluar --fecha-corte "${FECHA_CORTE}"
+
+      - name: Publicar resultado
+        if: ${{ !cancelled() }}
+        run: |
+          if [ -f reportes-mlops/decision_promocion.md ]; then
+            cat reportes-mlops/decision_promocion.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ "${{ steps.evaluar.outputs.promover }}" = "false" ]; then
+            echo "::warning::El challenger v${{ steps.evaluar.outputs.challenger }} no se promueve; produccion sigue con el champion actual."
+          fi
+
+      - name: Subir reportes de entrenamiento
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: mlops-entrenamiento
+          path: |
+            reportes-mlops/
+            ml/train/output/
+          retention-days: 30
+
+  promover:
+    name: Promover challenger a champion
+    needs: entrenar-y-evaluar
+    if: needs.entrenar-y-evaluar.outputs.promover == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      champion: ${{ steps.promover.outputs.champion }}
+      champion_anterior: ${{ steps.promover.outputs.champion_anterior }}
+    env:
+      MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+      MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+      MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: pip install mlflow-skinny==2.14.1 setuptools==75.1.0
+      - name: Mover alias champion
+        id: promover
+        run: |
+          python ia-ops/scripts/promover_modelo.py promover \
+            --version "${{ needs.entrenar-y-evaluar.outputs.challenger }}" \
+            --origen "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+  desplegar:
+    name: Desplegar champion
+    needs: promover
+    uses: ./.github/workflows/deploy-api-inferencia.yml
+    with:
+      model_version: ${{ needs.promover.outputs.champion }}
+    secrets: inherit
+
+  # Si el despliegue falla, Lightsail sigue sirviendo el deployment anterior:
+  # el alias champion vuelve atras para que el registro diga la verdad.
+  revertir-promocion:
+    name: Revertir alias si el despliegue fallo
+    needs: [ promover, desplegar ]
+    if: failure() && needs.promover.result == 'success'
+    runs-on: ubuntu-latest
+    env:
+      MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+      MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+      MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: pip install mlflow-skinny==2.14.1 setuptools==75.1.0
+      - run: python ia-ops/scripts/promover_modelo.py restaurar --version "${{ needs.promover.outputs.champion_anterior }}"
+      - run: |
+          echo "::error::El despliegue de riesgo_vial v${{ needs.promover.outputs.champion }} fallo; champion volvio a '${{ needs.promover.outputs.champion_anterior || 'ninguno' }}'."
+          exit 1
+
+  # --------------------------------------------------------------------------
+  # Rollback en un solo paso
+  # --------------------------------------------------------------------------
+  rollback:
+    name: Rollback del modelo
+    if: github.event_name == 'workflow_dispatch' && inputs.action_mode == 'rollback_to_version'
+    runs-on: ubuntu-latest
+    outputs:
+      champion: ${{ steps.rollback.outputs.champion }}
+      champion_anterior: ${{ steps.rollback.outputs.champion_anterior }}
+    env:
+      MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+      MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+      MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: pip install mlflow-skinny==2.14.1 setuptools==75.1.0
+      - name: Mover alias champion a la version de destino
+        id: rollback
+        env:
+          VERSION: ${{ inputs.rollback_version }}
+        run: |
+          if [ -n "${VERSION}" ]; then
+            python ia-ops/scripts/promover_modelo.py rollback --version "${VERSION}"
+          else
+            python ia-ops/scripts/promover_modelo.py rollback
+          fi
+
+  desplegar-rollback:
+    name: Desplegar version restaurada
+    needs: rollback
+    uses: ./.github/workflows/deploy-api-inferencia.yml
+    with:
+      model_version: ${{ needs.rollback.outputs.champion }}
+      reutilizar_imagen: true
+    secrets: inherit
+
+  revertir-rollback:
+    name: Revertir alias si el rollback no se desplego
+    needs: [ rollback, desplegar-rollback ]
+    if: failure() && needs.rollback.result == 'success'
+    runs-on: ubuntu-latest
+    env:
+      MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+      MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+      MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: pip install mlflow-skinny==2.14.1 setuptools==75.1.0
+      - run: python ia-ops/scripts/promover_modelo.py restaurar --version "${{ needs.rollback.outputs.champion_anterior }}"
+      - run: |
+          echo "::error::El rollback a v${{ needs.rollback.outputs.champion }} no se desplego; champion volvio a v${{ needs.rollback.outputs.champion_anterior }}."
+          exit 1
