@@ -1,0 +1,19 @@
+{
+  "api": {
+    "image": "__IMAGEN__",
+    "ports": {
+      "8000": "HTTP"
+    },
+    "environment": {
+      "APP_ENV": "production",
+      "WORKERS": "2",
+      "MODEL_NAME": "riesgo_vial",
+      "MODEL_VERSION": "__MODEL_VERSION__",
+      "MLFLOW_TRACKING_URI": "__MLFLOW_TRACKING_URI__",
+      "MLFLOW_TRACKING_USERNAME": "__MLFLOW_TRACKING_USERNAME__",
+      "MLFLOW_TRACKING_PASSWORD": "__MLFLOW_TRACKING_PASSWORD__",
+      "DATABASE_URL": "__DATABASE_URL__",
+      "INFERENCE_API_KEY": "__INFERENCE_API_KEY__"
+    }
+  }
+}

@@ -1,43 +1,36 @@
-# Multi-stage Hardened Dockerfile para Servicio FastAPI MLOps (HT-47 T02)
-# Autor: Álvaro Tipián (MLOps & DevSecOps Leader)
+# API de inferencia de riesgo vial (HT-47 T02)
+# Multi-stage: las dependencias se instalan en un venv que se copia a una
+# imagen final sin compiladores, y el proceso corre sin root.
 
 FROM python:3.12-slim AS builder
 
-WORKDIR /app
+ENV PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+RUN pip install -r requirements.txt
 
-# --- Etapa Final de Producción (Hardened Container) ---
 FROM python:3.12-slim AS runner
 
-WORKDIR /app
-
 ENV PYTHONUNBUFFERED=1 \
-    PATH="/install/bin:$PATH"
+    PYTHONDONTWRITEBYTECODE=1 \
+    PATH="/opt/venv/bin:$PATH" \
+    WORKERS=2
 
-# Copiar dependencias del builder
-COPY --from=builder /install /install
+RUN groupadd --gid 10001 appgroup && \
+    useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin appuser
 
-# Crear usuario sin privilegios root (Seguridad Container DevSecOps)
-RUN addgroup --gid 10001 appgroup && \
-    adduser --uid 10001 --gid 10001 --disabled-password --gecos "" appuser && \
-    chown -R appuser:appgroup /app
-
-COPY --chown=appuser:appgroup . .
+WORKDIR /app
+COPY --from=builder /opt/venv /opt/venv
+COPY --chown=appuser:appgroup main.py model_engine.py features.py repository.py ./
 
 USER appuser
-
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=4)" || exit 1
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+CMD ["sh", "-c", "exec uvicorn main:app --host 0.0.0.0 --port 8000 --workers ${WORKERS}"]

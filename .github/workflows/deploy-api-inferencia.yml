@@ -1,0 +1,245 @@
+# ==============================================================================
+# Workflow: Despliegue de la API de inferencia en AWS Lightsail (HT-47 T02)
+#
+# Construye la imagen de ia-ops/fastapi_service, la publica en el Container
+# Service "urbanpulse-api" (declarado en infrastructure/terraform/main.tf) y
+# crea un deployment que sirve una version FIJA del modelo riesgo_vial.
+# Termina en verde solo si /health de la nube responde con esa misma version
+# en modo "modelo": un despliegue que cae a la heuristica es un fallo.
+#
+# Lo invoca mlops-pipeline.yml (promocion y rollback). Para el rollback se usa
+# reutilizar_imagen=true: se vuelve a desplegar la imagen que ya esta en
+# produccion cambiando solo MODEL_VERSION, sin reconstruir nada.
+#
+# Secrets requeridos:
+#   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION
+#   MLFLOW_TRACKING_URI, MLFLOW_TRACKING_USERNAME, MLFLOW_TRACKING_PASSWORD (DagsHub)
+#   DB_HOST, DB_PORT, DB_DATABASE, DB_USER, DB_PASSWORD (Neon produccion)
+#   INFERENCE_API_KEY (la misma que usa n8n en la cabecera X-API-Key)
+# ==============================================================================
+
+name: Deploy API de inferencia to AWS Lightsail
+
+on:
+  workflow_call:
+    inputs:
+      model_version:
+        description: 'Version de riesgo_vial en el Model Registry'
+        required: true
+        type: string
+      reutilizar_imagen:
+        description: 'Redesplegar la imagen actual (rollback) en vez de construir una nueva'
+        required: false
+        default: false
+        type: boolean
+    outputs:
+      url:
+        description: 'URL publica de la API'
+        value: ${{ jobs.deploy.outputs.url }}
+  workflow_dispatch:
+    inputs:
+      model_version:
+        description: 'Version de riesgo_vial en el Model Registry'
+        required: true
+        type: string
+      reutilizar_imagen:
+        description: 'Redesplegar la imagen actual en vez de construir una nueva'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lightsail-api-deploy
+  cancel-in-progress: false
+
+env:
+  SERVICIO: urbanpulse-api
+
+jobs:
+  deploy:
+    name: Desplegar API de inferencia (riesgo_vial v${{ inputs.model_version }})
+    runs-on: ubuntu-latest
+    outputs:
+      url: ${{ steps.verificar.outputs.url }}
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v7
+
+      - name: Validar version del modelo
+        env:
+          MODEL_VERSION: ${{ inputs.model_version }}
+        run: |
+          if ! [[ "${MODEL_VERSION}" =~ ^[0-9]+$ ]]; then
+            echo "::error::model_version debe ser el numero de version del Model Registry (recibido: '${MODEL_VERSION}')."
+            exit 1
+          fi
+
+      - name: Configurar credenciales de AWS
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Instalar lightsailctl
+        if: ${{ !inputs.reutilizar_imagen }}
+        run: |
+          sudo curl -fsSL "https://s3.us-west-2.amazonaws.com/lightsailctl/latest/linux-amd64/lightsailctl" \
+            -o /usr/local/bin/lightsailctl
+          sudo chmod +x /usr/local/bin/lightsailctl
+
+      - name: Construir y publicar imagen
+        if: ${{ !inputs.reutilizar_imagen }}
+        id: nueva
+        run: |
+          set -euo pipefail
+          docker build -t "urbanpulse-api:${GITHUB_SHA::12}" ia-ops/fastapi_service
+          salida=$(aws lightsail push-container-image \
+            --service-name "${SERVICIO}" --label api --image "urbanpulse-api:${GITHUB_SHA::12}")
+          echo "${salida}"
+          # La CLI responde: Refer to this image as ":urbanpulse-api.api.N" in deployments.
+          imagen=$(echo "${salida}" | grep -o '":urbanpulse-api\.api\.[0-9]*"' | tr -d '"' | tail -n1)
+          if [ -z "${imagen}" ]; then
+            echo "::error::No se pudo leer la referencia de la imagen publicada."
+            exit 1
+          fi
+          echo "imagen=${imagen}" >> "$GITHUB_OUTPUT"
+
+      - name: Leer imagen desplegada actualmente
+        if: ${{ inputs.reutilizar_imagen }}
+        id: actual
+        run: |
+          set -euo pipefail
+          imagen=$(aws lightsail get-container-services --service-name "${SERVICIO}" \
+            --query 'containerServices[0].currentDeployment.containers.api.image' --output text)
+          if [ -z "${imagen}" ] || [ "${imagen}" = "None" ]; then
+            echo "::error::El servicio no tiene un deployment activo que reutilizar."
+            exit 1
+          fi
+          echo "Reutilizando ${imagen}"
+          echo "imagen=${imagen}" >> "$GITHUB_OUTPUT"
+
+      - name: Generar definicion de contenedor
+        env:
+          IMAGEN: ${{ steps.nueva.outputs.imagen || steps.actual.outputs.imagen }}
+          MODEL_VERSION: ${{ inputs.model_version }}
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+          INFERENCE_API_KEY: ${{ secrets.INFERENCE_API_KEY }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_DATABASE: ${{ secrets.DB_DATABASE }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for v in MLFLOW_TRACKING_URI MLFLOW_TRACKING_USERNAME MLFLOW_TRACKING_PASSWORD INFERENCE_API_KEY DB_HOST DB_DATABASE DB_USER DB_PASSWORD; do
+            if [ -z "${!v}" ]; then
+              echo "::error::Falta el secret ${v}."
+              exit 1
+            fi
+          done
+          # verify-full: la API valida el certificado de Neon (mismo criterio que HT-44 T04).
+          DATABASE_URL=$(python3 -c 'import os, urllib.parse as u; e=os.environ; print("postgresql://%s:%s@%s:%s/%s?sslmode=verify-full&sslrootcert=system" % (u.quote(e["DB_USER"], safe=""), u.quote(e["DB_PASSWORD"], safe=""), e["DB_HOST"], e.get("DB_PORT") or "5432", e["DB_DATABASE"]))')
+          # jq --arg: los valores nunca se interpretan como JSON ni como sed.
+          jq --arg imagen "${IMAGEN}" --arg version "${MODEL_VERSION}" \
+             --arg uri "${MLFLOW_TRACKING_URI}" --arg usuario "${MLFLOW_TRACKING_USERNAME}" \
+             --arg clave_mlflow "${MLFLOW_TRACKING_PASSWORD}" --arg db "${DATABASE_URL}" \
+             --arg api_key "${INFERENCE_API_KEY}" \
+             '.api.image = $imagen
+              | .api.environment.MODEL_VERSION = $version
+              | .api.environment.MLFLOW_TRACKING_URI = $uri
+              | .api.environment.MLFLOW_TRACKING_USERNAME = $usuario
+              | .api.environment.MLFLOW_TRACKING_PASSWORD = $clave_mlflow
+              | .api.environment.DATABASE_URL = $db
+              | .api.environment.INFERENCE_API_KEY = $api_key' \
+             infrastructure/lightsail-api-containers.json.template > infrastructure/lightsail-api-containers.json
+          chmod 600 infrastructure/lightsail-api-containers.json
+          if grep -q '__[A-Z_]*__' infrastructure/lightsail-api-containers.json; then
+            echo "::error::Quedaron placeholders sin reemplazar en la definicion del contenedor."
+            exit 1
+          fi
+
+      - name: Esperar a que el servicio acepte un nuevo deployment
+        run: |
+          set -euo pipefail
+          for intento in $(seq 1 40); do
+            estado=$(aws lightsail get-container-services --service-name "${SERVICIO}" \
+              --query 'containerServices[0].state' --output text)
+            echo "Intento ${intento}: estado del servicio = ${estado}"
+            case "${estado}" in
+              RUNNING|READY) exit 0 ;;
+            esac
+            sleep 15
+          done
+          echo "::error::El servicio sigue ocupado tras 10 minutos de espera."
+          exit 1
+
+      - name: Crear deployment en Lightsail
+        run: |
+          aws lightsail create-container-service-deployment \
+            --service-name "${SERVICIO}" \
+            --containers file://infrastructure/lightsail-api-containers.json \
+            --public-endpoint '{"containerName":"api","containerPort":8000,"healthCheck":{"path":"/health","successCodes":"200","intervalSeconds":30,"healthyThreshold":2,"unhealthyThreshold":3,"timeoutSeconds":5}}' \
+            > /dev/null
+
+      - name: Limpiar archivo con secretos
+        if: always()
+        run: rm -f infrastructure/lightsail-api-containers.json
+
+      - name: Verificar que la nube sirve la version desplegada
+        id: verificar
+        env:
+          MODEL_VERSION: ${{ inputs.model_version }}
+        run: |
+          set -euo pipefail
+          activo_desde=0
+          for intento in $(seq 1 60); do
+            # Estado del deployment recien creado: ACTIVATING, ACTIVE o FAILED.
+            estado=$(aws lightsail get-container-service-deployments --service-name "${SERVICIO}" \
+              --query 'deployments[0].state' --output text)
+            url=$(aws lightsail get-container-services --service-name "${SERVICIO}" \
+              --query 'containerServices[0].url' --output text)
+            salud=$(curl --silent --max-time 10 "${url%/}/health" || true)
+            echo "Intento ${intento}/60: deployment=${estado} health=${salud:-sin respuesta}"
+            if [ "${estado}" = "FAILED" ]; then
+              echo "::error::Lightsail marco el deployment como FAILED (el contenedor no paso /health)."
+              exit 1
+            fi
+            if [ "${estado}" = "ACTIVE" ]; then
+              modo=$(echo "${salud}" | jq -r '.modo // empty' 2>/dev/null || true)
+              version=$(echo "${salud}" | jq -r '.version_modelo // empty' 2>/dev/null || true)
+              if [ "${modo}" = "modelo" ] && [ "${version}" = "${MODEL_VERSION}" ]; then
+                echo "url=${url%/}" >> "$GITHUB_OUTPUT"
+                echo "La API sirve riesgo_vial v${MODEL_VERSION} en ${url}"
+                exit 0
+              fi
+              # Margen para que el balanceador termine de cambiar de deployment.
+              activo_desde=$((activo_desde + 1))
+              if [ "${activo_desde}" -ge 8 ]; then
+                echo "::error::El deployment esta ACTIVE pero la API responde modo=${modo:-?} version=${version:-?}; se esperaba modelo v${MODEL_VERSION}. Revisar que la version exista en MLflow y las credenciales de DagsHub."
+                exit 1
+              fi
+            fi
+            sleep 15
+          done
+          echo "::error::La API no sirvio riesgo_vial v${MODEL_VERSION} tras 15 minutos."
+          exit 1
+
+      - name: Resumen
+        if: always()
+        run: |
+          {
+            echo "## Despliegue de la API de inferencia"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Modelo | riesgo_vial v${{ inputs.model_version }} |"
+            echo "| Imagen | ${{ steps.nueva.outputs.imagen || steps.actual.outputs.imagen }} |"
+            echo "| Rollback (imagen reutilizada) | ${{ inputs.reutilizar_imagen }} |"
+            echo "| URL | ${{ steps.verificar.outputs.url || 'no verificada' }} |"
+          } >> "$GITHUB_STEP_SUMMARY"

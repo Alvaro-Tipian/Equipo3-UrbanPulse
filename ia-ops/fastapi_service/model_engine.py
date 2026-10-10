@@ -1,124 +1,179 @@
 """
-UrbanPulse MLOps Risk Inference Engine (v1.0.0)
-Autor: Álvaro Tipián (MLOps & DevSecOps Leader)
+Motor de inferencia del modelo de riesgo vial (HT-47 T02).
+
+Carga desde el Model Registry de MLflow (DagsHub) el modelo "riesgo_vial" que
+registra ml/train/train.py (HT-46). Que version se sirve lo decide el pipeline
+MLOps (HT-47 T03):
+
+  - MODEL_VERSION=<n>: version fija. Es lo que usa el despliegue del pipeline,
+    para que el servicio desplegado sea reproducible y el rollback sea volver
+    a desplegar el numero anterior.
+  - Sin MODEL_VERSION: la version que tenga el alias MODEL_ALIAS (por defecto
+    "champion"). Sirve para desarrollo local.
+
+Si no hay modelo que cargar (no hay campeon promovido todavia, MLflow no
+responde, etc.) la API sigue respondiendo con la heuristica de Central vr5,
+pero lo dice: `fuente="heuristico"` en cada prediccion y `modo="heuristico"`
+con el motivo en /model/info. Nunca se presenta la heuristica como el modelo.
 """
 
-import os
-import pandas as pd
 import logging
-from typing import Dict, Any
-import mlflow.pyfunc
-from dotenv import load_dotenv
+import os
+import threading
+from dataclasses import dataclass, field
+from typing import Any, Callable, Dict, List, Optional
 
-load_dotenv()
+import numpy as np
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("mlops_engine")
+from features import NIVELES, construir_matriz, score_a_nivel, score_heuristico
+
+logger = logging.getLogger("urbanpulse.model_engine")
+
+NOMBRE_MODELO_DEFECTO = "riesgo_vial"
+VERSION_HEURISTICA = "heuristico-central-vr5"
+
+
+@dataclass
+class ModeloCargado:
+    modelo: Any
+    version: str
+    run_id: Optional[str] = None
+    tags: Dict[str, str] = field(default_factory=dict)
+
+
+def cargar_desde_mlflow(nombre: str, version: Optional[str], alias: str) -> ModeloCargado:
+    """Carga el Pipeline de scikit-learn tal como lo registro train.py.
+
+    Se usa el flavor sklearn (no pyfunc) porque hace falta predict_proba: pyfunc
+    solo expone predict, que devuelve la etiqueta.
+    """
+    import mlflow
+    import mlflow.sklearn
+    from mlflow.tracking import MlflowClient
+
+    tracking_uri = os.getenv("MLFLOW_TRACKING_URI")
+    if not tracking_uri:
+        raise RuntimeError("MLFLOW_TRACKING_URI no esta configurado")
+    mlflow.set_tracking_uri(tracking_uri)
+    cliente = MlflowClient()
+
+    if version:
+        mv = cliente.get_model_version(nombre, version)
+    else:
+        mv = cliente.get_model_version_by_alias(nombre, alias)
+
+    modelo = mlflow.sklearn.load_model(f"models:/{nombre}/{mv.version}")
+    if not hasattr(modelo, "predict_proba"):
+        raise RuntimeError(f"{nombre} v{mv.version} no expone predict_proba")
+    return ModeloCargado(modelo=modelo, version=str(mv.version), run_id=mv.run_id, tags=dict(mv.tags or {}))
+
 
 class RiskModelEngine:
-    def __init__(self, version: str = "1.0.0"):
-        self.version = version
-        self.model_name = "riesgo_vial"
-        self.model_stage = "Production"
-        self.active_champion = False
-        self.model = None
-        self.mlflow_uri = os.getenv("MLFLOW_TRACKING_URI")
-        
-        logger.info(f"MLOps RiskModelEngine inicializado con versión {self.version}")
-        self._load_model()
+    def __init__(
+        self,
+        nombre: str = NOMBRE_MODELO_DEFECTO,
+        version: Optional[str] = None,
+        alias: str = "champion",
+        cargador: Callable[[str, Optional[str], str], ModeloCargado] = cargar_desde_mlflow,
+    ):
+        self.nombre = nombre
+        self.version_solicitada = version
+        self.alias = alias
+        self._cargador = cargador
+        self._lock = threading.Lock()
+        self._cargado: Optional[ModeloCargado] = None
+        self.motivo_heuristico: Optional[str] = None
+        self.ultimo_error_inferencia: Optional[str] = None
 
-    def _load_model(self):
-        """Intenta cargar el modelo desde MLflow (Registro de Modelos)."""
-        if not self.mlflow_uri:
-            logger.warning("MLFLOW_TRACKING_URI no está configurado. Usando modo fallback.")
-            return
+    @classmethod
+    def desde_entorno(cls) -> "RiskModelEngine":
+        return cls(
+            nombre=os.getenv("MODEL_NAME", NOMBRE_MODELO_DEFECTO),
+            version=os.getenv("MODEL_VERSION") or None,
+            alias=os.getenv("MODEL_ALIAS", "champion"),
+        )
 
-        mlflow.set_tracking_uri(self.mlflow_uri)
-        model_uri = f"models:/{self.model_name}/{self.model_stage}"
-        
+    def cargar(self) -> None:
+        objetivo = f"v{self.version_solicitada}" if self.version_solicitada else f"@{self.alias}"
         try:
-            logger.info(f"Intentando cargar modelo desde: {model_uri}")
-            self.model = mlflow.pyfunc.load_model(model_uri)
-            self.active_champion = True
-            logger.info("Modelo de MLflow cargado exitosamente.")
-        except Exception as e:
-            logger.warning(f"No se pudo cargar el modelo desde MLflow: {e}")
-            logger.warning("Usando heurística de fallback temporal.")
-            self.active_champion = False
-            self.model = None
+            cargado = self._cargador(self.nombre, self.version_solicitada, self.alias)
+        except Exception as e:  # el servicio debe arrancar igual, en modo heuristico
+            with self._lock:
+                self._cargado = None
+                self.motivo_heuristico = f"No se pudo cargar {self.nombre} {objetivo}: {e}"
+            logger.warning(self.motivo_heuristico)
+            return
+        with self._lock:
+            self._cargado = cargado
+            self.motivo_heuristico = None
+        logger.info("Modelo %s v%s cargado (%s)", self.nombre, cargado.version, objetivo)
 
-    def predict_risk(self, distrito: str, hora: int, densidad_historica: float, es_hora_pico: bool) -> Dict[str, Any]:
-        """
-        Calcula el nivel de riesgo vial (0.0 a 1.0) usando el modelo de MLflow, o un fallback.
-        """
-        if self.active_champion and self.model:
-            # Preparar los features para el modelo de MLflow (espera un DataFrame o formato soportado)
-            input_data = pd.DataFrame([{
-                "distrito": distrito,
-                "hora": hora,
-                "densidad_historica": densidad_historica,
-                "es_hora_pico": int(es_hora_pico)
-            }])
-            
+    @property
+    def modo(self) -> str:
+        return "modelo" if self._cargado else "heuristico"
+
+    @property
+    def version_activa(self) -> str:
+        return self._cargado.version if self._cargado else VERSION_HEURISTICA
+
+    def info(self) -> Dict[str, Any]:
+        cargado = self._cargado
+        return {
+            "modelo": self.nombre,
+            "modo": self.modo,
+            "version": self.version_activa,
+            "version_solicitada": self.version_solicitada,
+            "alias": None if self.version_solicitada else self.alias,
+            "run_id": cargado.run_id if cargado else None,
+            "supera_heuristico": cargado.tags.get("supera_heuristico") if cargado else None,
+            "motivo_heuristico": self.motivo_heuristico,
+            "ultimo_error_inferencia": self.ultimo_error_inferencia,
+        }
+
+    def predecir(self, filas: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Predice el nivel de riesgo de cada fila (variables base de HT-46)."""
+        X = construir_matriz(filas)
+        cargado = self._cargado
+        if cargado is not None:
             try:
-                prediction_result = self.model.predict(input_data)
-                # Asumir que el modelo devuelve una probabilidad en la primera columna/elemento
-                probabilidad = float(prediction_result[0])
+                return self._predecir_modelo(cargado, X)
             except Exception as e:
-                logger.error(f"Error durante inferencia con modelo MLflow: {e}")
-                return self._fallback_predict(distrito, hora, densidad_historica, es_hora_pico)
-        else:
-            return self._fallback_predict(distrito, hora, densidad_historica, es_hora_pico)
+                # Un fallo del modelo con datos validos es un defecto, no un caso
+                # normal: queda registrado y visible en /model/info.
+                self.ultimo_error_inferencia = f"{type(e).__name__}: {e}"
+                logger.exception("Fallo la inferencia con %s v%s; se usa la heuristica", self.nombre, cargado.version)
+        return self._predecir_heuristico(X)
 
-        # Categorización estandarizada
-        if probabilidad >= 0.70:
-            nivel_riesgo = "ALTO"
-        elif probabilidad >= 0.40:
-            nivel_riesgo = "MEDIO"
-        else:
-            nivel_riesgo = "BAJO"
+    def _predecir_modelo(self, cargado: ModeloCargado, X) -> List[Dict[str, Any]]:
+        probas = cargado.modelo.predict_proba(X)
+        clases = [str(c) for c in cargado.modelo.classes_]
+        resultados = []
+        for fila in probas:
+            por_clase = {nivel: 0.0 for nivel in NIVELES}
+            for clase, p in zip(clases, fila):
+                por_clase[clase] = float(p)
+            nivel = clases[int(np.argmax(fila))]
+            resultados.append({
+                "nivel": nivel,
+                "probabilidad": round(por_clase[nivel], 3),
+                "probabilidades": {k: round(v, 3) for k, v in por_clase.items()},
+                "model_version": cargado.version,
+                "fuente": "modelo",
+            })
+        return resultados
 
-        return {
-            "version_modelo": self.version,
-            "probabilidad_riesgo": round(probabilidad, 4),
-            "nivel_riesgo": nivel_riesgo,
-            "confianza": 0.95, # Placeholder real model confidence
-            "champion_active": self.active_champion,
-            "metricas_drift": {
-                "estado": "Monitoreo externo vía Evidently"
+    def _predecir_heuristico(self, X) -> List[Dict[str, Any]]:
+        scores = score_heuristico(X)
+        niveles = score_a_nivel(scores)
+        # La heuristica no da probabilidades: se informa el score normalizado
+        # (0-1) en "probabilidad" y "probabilidades" queda vacio.
+        return [
+            {
+                "nivel": nivel,
+                "probabilidad": round(float(s) / 10.0, 3),
+                "probabilidades": None,
+                "model_version": VERSION_HEURISTICA,
+                "fuente": "heuristico",
             }
-        }
-
-    def _fallback_predict(self, distrito: str, hora: int, densidad_historica: float, es_hora_pico: bool) -> Dict[str, Any]:
-        import math
-        weight_distrito = 0.35
-        weight_hora_pico = 0.30
-        weight_densidad = 0.35
-
-        distritos_alto_riesgo = ["LIMA", "LA VICTORIA", "SAN JUAN DE LURIGANCHO", "ATE", "CALLAO"]
-        factor_distrito = 0.85 if distrito.upper() in distritos_alto_riesgo else 0.40
-        factor_hora = 0.90 if es_hora_pico or (7 <= hora <= 9 or 18 <= hora <= 21) else 0.30
-        factor_densidad = min(max(densidad_historica / 100.0, 0.0), 1.0)
-
-        raw_score = (factor_distrito * weight_distrito) + (factor_hora * weight_hora_pico) + (factor_densidad * weight_densidad)
-        probabilidad = 1 / (1 + math.exp(- (raw_score - 0.5) * 6))
-
-        if probabilidad >= 0.70:
-            nivel_riesgo = "ALTO"
-        elif probabilidad >= 0.40:
-            nivel_riesgo = "MEDIO"
-        else:
-            nivel_riesgo = "BAJO"
-
-        return {
-            "version_modelo": "fallback-1.0",
-            "probabilidad_riesgo": round(probabilidad, 4),
-            "nivel_riesgo": nivel_riesgo,
-            "confianza": round(0.92 + (probabilidad * 0.06), 4),
-            "champion_active": False,
-            "metricas_drift": {
-                "estado": "Fallback temporal activo"
-            }
-        }
-
-model_engine = RiskModelEngine(version="1.0.0")
+            for s, nivel in zip(scores, niveles)
+        ]
