@@ -5,7 +5,7 @@
 Este directorio contiene la infraestructura como código (Terraform, en `terraform/`) de:
 
 - El servicio de contenedores de **n8n en AWS Lightsail** de producción (`urbanpulse-n8n`, región `us-east-1`).
-- El servicio de contenedores de la **API de inferencia de riesgo vial** (`urbanpulse-api`, HT-47 T02). Sus imágenes las publica `deploy-api-inferencia.yml` con `lightsail-api-containers.json.template`.
+- El servicio de contenedores de la **API de riesgo vial** (`urbanpulse-api`, HT-47 T02), separado del de n8n. Despliega la API de HT-46 T03 (`ml/api`) con `deploy-api-inferencia.yml` y `lightsail-api-containers.json.template`. n8n la encuentra en `URBANPULSE_RIESGO_API_URL`.
 - Los **8 proyectos de Vercel** (host + microfrontends), importados desde la cuenta personal.
 
 También hay archivos de apoyo: `docker-compose.yml`, `postgres.Dockerfile` (entorno local) y `lightsail-containers.json.template` (despliegue de la imagen de n8n, que hace GitHub Actions con `deploy-lightsail-n8n.yml`).
@@ -57,8 +57,8 @@ Nunca se documentan valores. Esta tabla indica dónde vive cada uno (según work
 | `FRONTEND_URL`, `N8N_WEBHOOK_URL`, `N8N_CHAT_WEBHOOK_URL`, `N8N_GEOJSON_ONSV_URL`, `N8N_GEOJSON_SUTRAN_URL` | GitHub Secrets |
 | `GEMINI_API_KEY`, `GEMINI_API_KEY_QA`, `GROQ_API_KEY`, `TOMTOM_API_KEY` | GitHub Secrets (tests) |
 | `JIRA_API_TOKEN`, `JIRA_SERVICE_DESK_TOKEN` | GitHub Secrets |
-| `MLFLOW_TRACKING_URI`, `MLFLOW_TRACKING_USERNAME`, `MLFLOW_TRACKING_PASSWORD` | GitHub Secrets (pipeline MLOps y deploy de la API de inferencia) |
-| `INFERENCE_API_KEY` | GitHub Secrets (deploy de la API) y credencial Header Auth de n8n que llama a la API |
+| `MLFLOW_TRACKING_URI`, `MLFLOW_TRACKING_USERNAME`, `MLFLOW_TRACKING_PASSWORD` | GitHub Secrets (pipeline MLOps y build de la API de riesgo) |
+| `RIESGO_API_KEY` | GitHub Secrets (se inyecta como `API_KEY` en el contenedor de la API) y credencial Header Auth de n8n que llama a la API |
 | `VITE_TOMTOM_API_KEY`, variables `TE_N8N_*` | Vercel (consola, ver `docs/VERCEL_PRODUCTION_KEYS_HARDENING.md`) |
 | `VITE_N8N_BASE_URL` (solo Preview) | Vercel |
 | `VERCEL_API_TOKEN` (provider de Vercel en Terraform) | Variable de entorno local / gestor personal; en CI se agrega en T03 |

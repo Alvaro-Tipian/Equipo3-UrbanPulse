@@ -2,10 +2,10 @@
 # Workflow: Pipeline MLOps del modelo de riesgo vial (HT-47 T03)
 #
 #   validar datos -> entrenar -> evaluar contra el champion -> registrar ->
-#   promover -> desplegar la API, con rollback en un solo paso.
+#   promover -> desplegar la API de HT-46 T03, con rollback en un solo paso.
 #
 # Cuando corre cada parte:
-#   - Pull Request: pruebas de la API y de los scripts, validacion del
+#   - Pull Request: pruebas de los scripts, validacion del
 #     registro de prompts y la suite de HT-48 (mlops-tests.yml, de Fabio).
 #   - Push a main que cambia el modelo o los prompts, workflow_dispatch con
 #     deploy_new_champion, o el disparo de ml-monitoring.yml al detectar
@@ -13,7 +13,7 @@
 #   - workflow_dispatch con rollback_to_version: rollback.
 #
 # Dependencias de otras tareas (deben estar en main):
-#   - ml/data/build_dataset.py y ml/train/train.py (HT-46, Emily).
+#   - ml/data/build_dataset.py, ml/train/train.py y ml/api/ (HT-46, Emily).
 #   - .github/workflows/mlops-tests.yml (HT-48, Fabio): es el quality gate.
 #
 # Quien decide la promocion es ia-ops/scripts/promover_modelo.py: evalua
@@ -34,7 +34,6 @@ on:
     paths:
       - 'ml/**'
       - 'ia-ops/prompts/**'
-      - 'ia-ops/fastapi_service/**'
       - 'ia-ops/scripts/**'
       - '.github/workflows/mlops-pipeline.yml'
       - '.github/workflows/deploy-api-inferencia.yml'
@@ -43,7 +42,6 @@ on:
     paths:
       - 'ml/**'
       - 'ia-ops/prompts/**'
-      - 'ia-ops/fastapi_service/**'
       - 'ia-ops/scripts/**'
       - '.github/workflows/mlops-pipeline.yml'
       - '.github/workflows/deploy-api-inferencia.yml'
@@ -86,18 +84,9 @@ jobs:
   # Pruebas (siempre)
   # --------------------------------------------------------------------------
   pruebas-codigo:
-    name: Pruebas de la API y de los scripts MLOps
+    name: Pruebas de los scripts MLOps
     if: github.event_name != 'workflow_dispatch' || inputs.action_mode != 'rollback_to_version'
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: pgvector/pgvector:pg16
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: urbanpulse
-        ports: [ '5432:5432' ]
-        options: >-
-          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - name: Checkout del repositorio
         uses: actions/checkout@v7
@@ -107,22 +96,18 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
-          cache-dependency-path: ia-ops/fastapi_service/requirements-dev.txt
+          cache-dependency-path: ia-ops/scripts/requirements-dev.txt
 
       - name: Instalar dependencias
-        run: pip install -r ia-ops/fastapi_service/requirements-dev.txt pyarrow==15.0.2 matplotlib==3.9.0
+        run: pip install -r ia-ops/scripts/requirements-dev.txt
 
       - name: Validar registro de prompts
         run: python ia-ops/scripts/register_prompts.py --validar
 
-      - name: Pruebas de la API de inferencia
-        working-directory: ia-ops/fastapi_service
-        env:
-          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/urbanpulse
-        run: pytest --junitxml=../../reportes-mlops/pytest-api.xml
-
       - name: Pruebas de promocion, rollback y validacion de datos
         working-directory: ia-ops/scripts
+        # Con ml/train/train.py (HT-46) en la rama, las pruebas de evaluacion
+        # corren el entrenamiento real de Emily; sin el, se omiten y lo dicen.
         run: pytest -rs --junitxml=../../reportes-mlops/pytest-scripts.xml
 
       - name: Subir reportes de pruebas
@@ -331,7 +316,6 @@ jobs:
     uses: ./.github/workflows/deploy-api-inferencia.yml
     with:
       model_version: ${{ needs.rollback.outputs.champion }}
-      reutilizar_imagen: true
     secrets: inherit
 
   revertir-rollback:

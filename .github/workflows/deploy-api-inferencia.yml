@@ -1,37 +1,35 @@
 # ==============================================================================
-# Workflow: Despliegue de la API de inferencia en AWS Lightsail (HT-47 T02)
+# Workflow: Despliegue de la API de riesgo vial en AWS Lightsail (HT-47 T02)
 #
-# Construye la imagen de ia-ops/fastapi_service, la publica en el Container
-# Service "urbanpulse-api" (declarado en infrastructure/terraform/main.tf) y
-# crea un deployment que sirve una version FIJA del modelo riesgo_vial.
-# Termina en verde solo si /health de la nube responde con esa misma version
-# en modo "modelo": un despliegue que cae a la heuristica es un fallo.
+# Despliega la API de HT-46 T03 (ml/api, Emily) tal como ella la definio: el
+# modelo y la tabla de severidad por zona se hornean en la imagen durante el
+# build, con los secretos de MLflow y Neon montados como build secrets (no
+# quedan en ninguna capa). En ejecucion el contenedor solo recibe API_KEY.
 #
-# Lo invoca mlops-pipeline.yml (promocion y rollback). Para el rollback se usa
-# reutilizar_imagen=true: se vuelve a desplegar la imagen que ya esta en
-# produccion cambiando solo MODEL_VERSION, sin reconstruir nada.
+# Corre en su propio Container Service ("urbanpulse-api", declarado en
+# infrastructure/terraform/main.tf), separado de n8n: no comparte memoria con
+# el servicio micro de n8n y se puede desplegar o revertir sin tocarlo.
+#
+# Termina en verde solo si /health en la nube responde la version pedida
+# (model_version = riesgo_vial@<n>). Lo invoca mlops-pipeline.yml al promover
+# y al hacer rollback; tambien se puede correr a mano.
 #
 # Secrets requeridos:
 #   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION
-#   MLFLOW_TRACKING_URI, MLFLOW_TRACKING_USERNAME, MLFLOW_TRACKING_PASSWORD (DagsHub)
-#   DB_HOST, DB_PORT, DB_DATABASE, DB_USER, DB_PASSWORD (Neon produccion)
-#   INFERENCE_API_KEY (la misma que usa n8n en la cabecera X-API-Key)
+#   MLFLOW_TRACKING_URI, MLFLOW_TRACKING_USERNAME, MLFLOW_TRACKING_PASSWORD
+#   DB_HOST, DB_PORT, DB_DATABASE, DB_USER, DB_PASSWORD (Neon, solo en el build)
+#   RIESGO_API_KEY (la misma clave que usa la credencial Header Auth de n8n)
 # ==============================================================================
 
-name: Deploy API de inferencia to AWS Lightsail
+name: Deploy API de riesgo vial to AWS Lightsail
 
 on:
   workflow_call:
     inputs:
       model_version:
-        description: 'Version de riesgo_vial en el Model Registry'
+        description: 'Version de riesgo_vial que debe quedar sirviendo (la que tiene el alias champion)'
         required: true
         type: string
-      reutilizar_imagen:
-        description: 'Redesplegar la imagen actual (rollback) en vez de construir una nueva'
-        required: false
-        default: false
-        type: boolean
     outputs:
       url:
         description: 'URL publica de la API'
@@ -39,14 +37,9 @@ on:
   workflow_dispatch:
     inputs:
       model_version:
-        description: 'Version de riesgo_vial en el Model Registry'
+        description: 'Version de riesgo_vial que tiene el alias champion'
         required: true
         type: string
-      reutilizar_imagen:
-        description: 'Redesplegar la imagen actual en vez de construir una nueva'
-        required: false
-        default: false
-        type: boolean
 
 permissions:
   contents: read
@@ -57,10 +50,11 @@ concurrency:
 
 env:
   SERVICIO: urbanpulse-api
+  DOCKER_BUILDKIT: '1'
 
 jobs:
   deploy:
-    name: Desplegar API de inferencia (riesgo_vial v${{ inputs.model_version }})
+    name: Desplegar API de riesgo vial (riesgo_vial v${{ inputs.model_version }})
     runs-on: ubuntu-latest
     outputs:
       url: ${{ steps.verificar.outputs.url }}
@@ -68,7 +62,7 @@ jobs:
       - name: Checkout del repositorio
         uses: actions/checkout@v7
 
-      - name: Validar version del modelo
+      - name: Verificar entradas y codigo de la API (HT-46 T03)
         env:
           MODEL_VERSION: ${{ inputs.model_version }}
         run: |
@@ -76,6 +70,53 @@ jobs:
             echo "::error::model_version debe ser el numero de version del Model Registry (recibido: '${MODEL_VERSION}')."
             exit 1
           fi
+          if [ ! -f ml/api/Dockerfile ]; then
+            echo "::error::Falta ml/api/Dockerfile (HT-46 T03). La API de Emily tiene que estar en main antes de desplegar."
+            exit 1
+          fi
+
+      - name: Verificar secrets
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_DATABASE: ${{ secrets.DB_DATABASE }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          RIESGO_API_KEY: ${{ secrets.RIESGO_API_KEY }}
+        run: |
+          for v in MLFLOW_TRACKING_URI MLFLOW_TRACKING_USERNAME MLFLOW_TRACKING_PASSWORD DB_HOST DB_DATABASE DB_USER DB_PASSWORD RIESGO_API_KEY; do
+            if [ -z "${!v}" ]; then
+              echo "::error::Falta el secret ${v}."
+              exit 1
+            fi
+          done
+
+      - name: Construir imagen (modelo horneado desde MLflow)
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT || '5432' }}
+          DB_DATABASE: ${{ secrets.DB_DATABASE }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        # Mismo comando que documenta ml/api/Dockerfile. MODEL_ALIAS=champion
+        # pide la version promovida por el pipeline (ver docs/MLOPS_PIPELINE.md).
+        run: |
+          docker build -f ml/api/Dockerfile \
+            --build-arg MODEL_ALIAS=champion \
+            --secret id=mlflow_uri,env=MLFLOW_TRACKING_URI \
+            --secret id=mlflow_user,env=MLFLOW_TRACKING_USERNAME \
+            --secret id=mlflow_pass,env=MLFLOW_TRACKING_PASSWORD \
+            --secret id=db_host,env=DB_HOST \
+            --secret id=db_port,env=DB_PORT \
+            --secret id=db_name,env=DB_DATABASE \
+            --secret id=db_user,env=DB_USER \
+            --secret id=db_pass,env=DB_PASSWORD \
+            -t "urbanpulse-api:${GITHUB_SHA::12}" .
 
       - name: Configurar credenciales de AWS
         uses: aws-actions/configure-aws-credentials@v6
@@ -85,18 +126,15 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Instalar lightsailctl
-        if: ${{ !inputs.reutilizar_imagen }}
         run: |
           sudo curl -fsSL "https://s3.us-west-2.amazonaws.com/lightsailctl/latest/linux-amd64/lightsailctl" \
             -o /usr/local/bin/lightsailctl
           sudo chmod +x /usr/local/bin/lightsailctl
 
-      - name: Construir y publicar imagen
-        if: ${{ !inputs.reutilizar_imagen }}
-        id: nueva
+      - name: Publicar imagen en Lightsail
+        id: imagen
         run: |
           set -euo pipefail
-          docker build -t "urbanpulse-api:${GITHUB_SHA::12}" ia-ops/fastapi_service
           salida=$(aws lightsail push-container-image \
             --service-name "${SERVICIO}" --label api --image "urbanpulse-api:${GITHUB_SHA::12}")
           echo "${salida}"
@@ -106,57 +144,17 @@ jobs:
             echo "::error::No se pudo leer la referencia de la imagen publicada."
             exit 1
           fi
-          echo "imagen=${imagen}" >> "$GITHUB_OUTPUT"
-
-      - name: Leer imagen desplegada actualmente
-        if: ${{ inputs.reutilizar_imagen }}
-        id: actual
-        run: |
-          set -euo pipefail
-          imagen=$(aws lightsail get-container-services --service-name "${SERVICIO}" \
-            --query 'containerServices[0].currentDeployment.containers.api.image' --output text)
-          if [ -z "${imagen}" ] || [ "${imagen}" = "None" ]; then
-            echo "::error::El servicio no tiene un deployment activo que reutilizar."
-            exit 1
-          fi
-          echo "Reutilizando ${imagen}"
-          echo "imagen=${imagen}" >> "$GITHUB_OUTPUT"
+          echo "ref=${imagen}" >> "$GITHUB_OUTPUT"
 
       - name: Generar definicion de contenedor
         env:
-          IMAGEN: ${{ steps.nueva.outputs.imagen || steps.actual.outputs.imagen }}
-          MODEL_VERSION: ${{ inputs.model_version }}
-          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
-          MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
-          MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
-          INFERENCE_API_KEY: ${{ secrets.INFERENCE_API_KEY }}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT }}
-          DB_DATABASE: ${{ secrets.DB_DATABASE }}
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          IMAGEN: ${{ steps.imagen.outputs.ref }}
+          RIESGO_API_KEY: ${{ secrets.RIESGO_API_KEY }}
         run: |
           set -euo pipefail
-          for v in MLFLOW_TRACKING_URI MLFLOW_TRACKING_USERNAME MLFLOW_TRACKING_PASSWORD INFERENCE_API_KEY DB_HOST DB_DATABASE DB_USER DB_PASSWORD; do
-            if [ -z "${!v}" ]; then
-              echo "::error::Falta el secret ${v}."
-              exit 1
-            fi
-          done
-          # verify-full: la API valida el certificado de Neon (mismo criterio que HT-44 T04).
-          DATABASE_URL=$(python3 -c 'import os, urllib.parse as u; e=os.environ; print("postgresql://%s:%s@%s:%s/%s?sslmode=verify-full&sslrootcert=system" % (u.quote(e["DB_USER"], safe=""), u.quote(e["DB_PASSWORD"], safe=""), e["DB_HOST"], e.get("DB_PORT") or "5432", e["DB_DATABASE"]))')
-          # jq --arg: los valores nunca se interpretan como JSON ni como sed.
-          jq --arg imagen "${IMAGEN}" --arg version "${MODEL_VERSION}" \
-             --arg uri "${MLFLOW_TRACKING_URI}" --arg usuario "${MLFLOW_TRACKING_USERNAME}" \
-             --arg clave_mlflow "${MLFLOW_TRACKING_PASSWORD}" --arg db "${DATABASE_URL}" \
-             --arg api_key "${INFERENCE_API_KEY}" \
-             '.api.image = $imagen
-              | .api.environment.MODEL_VERSION = $version
-              | .api.environment.MLFLOW_TRACKING_URI = $uri
-              | .api.environment.MLFLOW_TRACKING_USERNAME = $usuario
-              | .api.environment.MLFLOW_TRACKING_PASSWORD = $clave_mlflow
-              | .api.environment.DATABASE_URL = $db
-              | .api.environment.INFERENCE_API_KEY = $api_key' \
+          # jq --arg: el valor nunca se interpreta como JSON ni como sed.
+          jq --arg imagen "${IMAGEN}" --arg api_key "${RIESGO_API_KEY}" \
+             '.api.image = $imagen | .api.environment.API_KEY = $api_key' \
              infrastructure/lightsail-api-containers.json.template > infrastructure/lightsail-api-containers.json
           chmod 600 infrastructure/lightsail-api-containers.json
           if grep -q '__[A-Z_]*__' infrastructure/lightsail-api-containers.json; then
@@ -191,10 +189,10 @@ jobs:
         if: always()
         run: rm -f infrastructure/lightsail-api-containers.json
 
-      - name: Verificar que la nube sirve la version desplegada
+      - name: Verificar que la nube sirve la version pedida
         id: verificar
         env:
-          MODEL_VERSION: ${{ inputs.model_version }}
+          ESPERADA: riesgo_vial@${{ inputs.model_version }}
         run: |
           set -euo pipefail
           activo_desde=0
@@ -211,35 +209,33 @@ jobs:
               exit 1
             fi
             if [ "${estado}" = "ACTIVE" ]; then
-              modo=$(echo "${salud}" | jq -r '.modo // empty' 2>/dev/null || true)
-              version=$(echo "${salud}" | jq -r '.version_modelo // empty' 2>/dev/null || true)
-              if [ "${modo}" = "modelo" ] && [ "${version}" = "${MODEL_VERSION}" ]; then
+              version=$(echo "${salud}" | jq -r '.model_version // empty' 2>/dev/null || true)
+              if [ "${version}" = "${ESPERADA}" ]; then
                 echo "url=${url%/}" >> "$GITHUB_OUTPUT"
-                echo "La API sirve riesgo_vial v${MODEL_VERSION} en ${url}"
+                echo "La API sirve ${ESPERADA} en ${url}"
                 exit 0
               fi
               # Margen para que el balanceador termine de cambiar de deployment.
               activo_desde=$((activo_desde + 1))
               if [ "${activo_desde}" -ge 8 ]; then
-                echo "::error::El deployment esta ACTIVE pero la API responde modo=${modo:-?} version=${version:-?}; se esperaba modelo v${MODEL_VERSION}. Revisar que la version exista en MLflow y las credenciales de DagsHub."
+                echo "::error::La API responde ${version:-sin version} y se esperaba ${ESPERADA}. Si responde la version del alias challenger, ml/api/export_model.py todavia no lee MODEL_ALIAS (ver docs/MLOPS_PIPELINE.md)."
                 exit 1
               fi
             fi
             sleep 15
           done
-          echo "::error::La API no sirvio riesgo_vial v${MODEL_VERSION} tras 15 minutos."
+          echo "::error::La API no sirvio ${ESPERADA} tras 15 minutos."
           exit 1
 
       - name: Resumen
         if: always()
         run: |
           {
-            echo "## Despliegue de la API de inferencia"
+            echo "## Despliegue de la API de riesgo vial"
             echo ""
             echo "| | |"
             echo "|---|---|"
-            echo "| Modelo | riesgo_vial v${{ inputs.model_version }} |"
-            echo "| Imagen | ${{ steps.nueva.outputs.imagen || steps.actual.outputs.imagen }} |"
-            echo "| Rollback (imagen reutilizada) | ${{ inputs.reutilizar_imagen }} |"
+            echo "| Modelo esperado | riesgo_vial@${{ inputs.model_version }} |"
+            echo "| Imagen | ${{ steps.imagen.outputs.ref || 'no publicada' }} |"
             echo "| URL | ${{ steps.verificar.outputs.url || 'no verificada' }} |"
           } >> "$GITHUB_STEP_SUMMARY"
