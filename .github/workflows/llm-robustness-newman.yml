@@ -27,7 +27,7 @@ jobs:
 
     steps:
       - name: Checkout del repositorio
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Verificar que el webhook de chat responde (healthcheck)
         id: health
@@ -56,7 +56,7 @@ jobs:
 
       - name: Configurar Node.js
         if: steps.health.outputs.up == 'true'
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
 
@@ -76,7 +76,7 @@ jobs:
 
       - name: Subir reporte HTML
         if: ${{ steps.health.outputs.up == 'true' && !cancelled() }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: llm-robustness-report
           path: newman-report/
