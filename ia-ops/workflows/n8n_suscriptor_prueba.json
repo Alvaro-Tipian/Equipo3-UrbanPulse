@@ -1,0 +1,48 @@
+{
+  "name": "UrbanPulse - Suscriptor de Prueba (HT-51 T02, solo staging)",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "subs-trigger",
+      "name": "Recibir Evento",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Suscriptor de prueba SOLO PARA STAGING, mientras no existan Ingesta RAG (HT-50) ni Service Desk (HT-41).\n// Para simular un suscriptor caido: SUSCRIPTOR_CAIDO = true y enviar un evento con datos.simular_fallo = true.\n// Para \"corregirlo\": cambiar SUSCRIPTOR_CAIDO a false y ejecutar el workflow de reproceso.\nconst SUSCRIPTOR_CAIDO = true;\n\nconst evento = $input.item.json;\nif (SUSCRIPTOR_CAIDO && evento.datos && evento.datos.simular_fallo === true) {\n  throw new Error('Suscriptor de prueba caido (datos.simular_fallo = true)');\n}\nreturn [{ json: { recibido: true, id: evento.id, tipo: evento.tipo } }];"
+      },
+      "id": "subs-code",
+      "name": "Procesar Evento (prueba)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        300,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Recibir Evento": {
+      "main": [
+        [
+          {
+            "node": "Procesar Evento (prueba)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
