@@ -36,6 +36,7 @@ docker-compose.*.local.yml
 # Lightsail: definición de contenedor generada con secretos sustituidos
 # (el .template sí se versiona)
 infrastructure/lightsail-containers.json
+infrastructure/lightsail-api-containers.json
 
 # IDE / editor
 .vscode/

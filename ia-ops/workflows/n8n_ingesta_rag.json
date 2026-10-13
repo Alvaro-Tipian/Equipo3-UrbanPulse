@@ -1,5 +1,5 @@
 {
-  "name": "UrbanPulse - Ingesta RAG Conocimiento Vial (HT-50 T01)",
+  "name": "UrbanPulse - Ingesta RAG conocimiento vial (HT-50 T01)",
   "nodes": [
     {
       "parameters": {
@@ -7,84 +7,232 @@
           "interval": [
             {
               "field": "weeks",
-              "minutesInterval": 10080
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 4
             }
           ]
         }
       },
-      "id": "cron-trigger",
-      "name": "Cron Semanal Ingesta RAG",
-      "type": "n8n-nodes-base.cron",
-      "typeVersion": 1,
-      "position": [ 100, 200 ]
+      "name": "Cada lunes 04:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
     },
     {
       "parameters": {
-        "httpMethod": "POST",
-        "path": "urbanpulse/ingesta-rag",
-        "options": {}
+        "inputSource": "passthrough"
       },
-      "id": "webhook-rag",
-      "name": "Webhook Ingesta RAG (reporte.creado)",
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 1,
-      "position": [ 100, 400 ]
+      "name": "Evento de reporte (Despachar Evento)",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        220
+      ]
     },
     {
       "parameters": {
-        "jsCode": "return [{\n  json: {\n    distrito: $json.body?.datos?.distrito || 'Miraflores',\n    franja: $json.body?.datos?.franja || 'tarde',\n    fuente: $json.body?.datos?.tipo_incidente ? 'reportes_resueltos' : 'ONSV_SUTRAN',\n    contenido: `Ficha de riesgo vial para el distrito de ${$json.body?.datos?.distrito || 'Miraflores'} en la franja ${$json.body?.datos?.franja || 'tarde'}. Registra incidentes de ${$json.body?.datos?.tipo_incidente || 'choque'}.`,\n    vector_simulado_768: Array.from({length: 768}, () => Math.random() * 2 - 1)\n  }\n}];"
+        "jsCode": "// Entrada: el Schedule Trigger semanal o el sobre de evento que entrega\n// \"Despachar Evento\" (HT-51) para reporte.creado y reporte.estado_cambiado.\nconst UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nconst TIPOS = ['reporte.creado', 'reporte.estado_cambiado'];\n\nconst entrada = $input.first().json;\nif (!entrada.tipo) {\n  return [{ json: { modo: 'semanal', distrito: '', reporte_id: '' } }];\n}\nif (!TIPOS.includes(entrada.tipo)) {\n  // El despachador marca el evento como fallido: es un error de enrutamiento.\n  throw new Error(`La ingesta RAG no esta suscrita a ${entrada.tipo}`);\n}\nconst datos = entrada.datos || {};\nconst reporteId = UUID.test(String(datos.reporte_id || '')) ? String(datos.reporte_id) : '';\nconst distrito = typeof datos.distrito === 'string' ? datos.distrito.trim() : '';\nreturn [{ json: { modo: 'evento', evento_id: entrada.id, distrito, reporte_id: reporteId } }];\n"
       },
-      "id": "armar-ficha-rag",
-      "name": "Armar Ficha y Generar Embeddings (768 Dim)",
+      "name": "Definir alcance",
       "type": "n8n-nodes-base.code",
-      "typeVersion": 1,
-      "position": [ 350, 300 ]
+      "typeVersion": 2,
+      "position": [
+        240,
+        110
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO conocimiento_vial (distrito, franja, contenido, fuente, embedding) VALUES ('{{ $json.distrito }}', '{{ $json.franja }}', '{{ $json.contenido }}', '{{ $json.fuente }}', '[{{ $json.vector_simulado_768.join(\",\") }}]') RETURNING id;"
+        "query": "WITH objetivo AS (\n  SELECT CASE\n    WHEN $1 = 'semanal' THEN NULL\n    ELSE COALESCE(\n      normalizar_distrito(NULLIF($2, '')),\n      distrito_de_reporte(NULLIF($3, '')::uuid)\n    )\n  END AS distrito\n)\nSELECT f.clave, f.ambito, f.distrito, f.distrito_nombre, f.franja,\n       f.fuentes, f.metricas, c.contenido_sha256 AS sha256_actual\nFROM objetivo AS o\nCROSS JOIN LATERAL fichas_conocimiento_vial(o.distrito) AS f\nLEFT JOIN conocimiento_vial AS c ON c.clave = f.clave\nWHERE $1 = 'semanal' OR o.distrito IS NOT NULL\nORDER BY f.clave;",
+        "options": {
+          "queryReplacement": "={{ [ $json.modo, $json.distrito, $json.reporte_id ] }}"
+        }
       },
-      "id": "postgres-persist-rag",
-      "name": "Persistir en Neon DB (conocimiento_vial)",
+      "name": "Calcular fichas",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 1,
-      "position": [ 600, 300 ]
+      "typeVersion": 2.5,
+      "position": [
+        480,
+        110
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Redacta el texto de cada ficha a partir de sus metricas. Solo deja pasar\n// las fichas cuyo texto cambio (SHA-256 distinto al guardado): una ficha\n// igual no vuelve a gastar cuota de embeddings.\nconst crypto = require('crypto');\nconst MODELO = 'gemini-embedding-001';\nconst FRANJAS = {\n  manana: 'la mañana (06:00 a 11:59)',\n  tarde: 'la tarde (12:00 a 17:59)',\n  noche: 'la noche (18:00 a 05:59)',\n};\nconst num = (v) => Number(v || 0);\nconst dia = (v) => (v ? String(v).slice(0, 10) : null);\nconst plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;\nconst lista = (v) => (Array.isArray(v) ? v : String(v || '').replace(/[{}]/g, '').split(',').filter(Boolean));\n\nfunction textoDistrito(f, m) {\n  const partes = [`${f.distrito_nombre} (Lima), franja de ${FRANJAS[f.franja]}.`];\n  if (!m.onsv_hasta) {\n    partes.push('No hay datos de siniestros de la ONSV cargados para Lima.');\n  } else if (num(m.siniestros) === 0) {\n    partes.push(`Entre ${dia(m.onsv_desde)} y ${dia(m.onsv_hasta)} la ONSV no registró siniestros con víctimas en este distrito en esta franja.`);\n  } else {\n    partes.push(\n      `Entre ${dia(m.onsv_desde)} y ${dia(m.onsv_hasta)} la ONSV registró ` +\n      `${plural(num(m.siniestros), 'siniestro', 'siniestros')} con víctimas en este distrito en esta franja, ` +\n      `con ${plural(num(m.fallecidos), 'fallecido', 'fallecidos')} y ${plural(num(m.lesionados), 'lesionado', 'lesionados')}.`\n    );\n    const detalle = [\n      m.clase_frecuente && `clase más frecuente: ${m.clase_frecuente}`,\n      m.causa_frecuente && `causa principal más frecuente: ${m.causa_frecuente}`,\n      m.via_frecuente && `tipo de vía más frecuente: ${m.via_frecuente}`,\n    ].filter(Boolean);\n    if (detalle.length) partes.push(`${detalle.join('; ')}.`.replace(/^./, (c) => c.toUpperCase()));\n  }\n  const resueltos = num(m.reportes_resueltos_90d);\n  partes.push(resueltos === 0\n    ? 'En los últimos 90 días no hubo reportes ciudadanos resueltos en UrbanPulse para esta zona y franja.'\n    : `En los últimos 90 días ${resueltos === 1 ? 'se resolvió' : 'se resolvieron'} ${plural(resueltos, 'reporte ciudadano', 'reportes ciudadanos')} en UrbanPulse para esta zona y franja` +\n      (m.tipo_reporte_frecuente ? `; el tipo más frecuente fue ${m.tipo_reporte_frecuente}.` : '.'));\n  partes.push('Fuentes: ONSV (siniestros con víctimas) y reportes ciudadanos resueltos de UrbanPulse.');\n  return partes.join(' ');\n}\n\nfunction textoRedVial(f, m) {\n  const partes = [\n    `Red vial nacional en Lima (carreteras fiscalizadas por SUTRAN), franja de ${FRANJAS[f.franja]}.`,\n    'SUTRAN no indica el distrito de cada siniestro, solo la vía y el kilómetro.',\n  ];\n  const vias = Array.isArray(m.vias) ? m.vias : [];\n  if (!vias.length) {\n    partes.push('No hay siniestros de SUTRAN cargados para esta franja.');\n  } else {\n    const detalle = vias.map((v) =>\n      `${v.codigo_via} (${plural(num(v.siniestros), 'siniestro', 'siniestros')}, ` +\n      `${plural(num(v.fallecidos), 'fallecido', 'fallecidos')}, ${plural(num(v.heridos), 'herido', 'heridos')}` +\n      (v.km_frecuente ? `; kilómetro más frecuente: ${v.km_frecuente})` : ')'));\n    partes.push(`Entre ${dia(m.sutran_desde)} y ${dia(m.sutran_hasta)} las vías con más siniestros fueron: ${detalle.join('; ')}.`);\n  }\n  partes.push('Fuente: SUTRAN.');\n  return partes.join(' ');\n}\n\nconst salida = [];\nfor (const item of $input.all()) {\n  const f = item.json;\n  const m = typeof f.metricas === 'string' ? JSON.parse(f.metricas) : (f.metricas || {});\n  const contenido = f.ambito === 'distrito' ? textoDistrito(f, m) : textoRedVial(f, m);\n  const sha256 = crypto.createHash('sha256').update(`${MODELO}\\n${contenido}`).digest('hex');\n  if (sha256 === f.sha256_actual) continue;\n  salida.push({\n    json: {\n      clave: f.clave,\n      ambito: f.ambito,\n      distrito: f.distrito || '',\n      franja: f.franja,\n      fuentes: lista(f.fuentes),\n      metricas: m,\n      contenido,\n      contenido_sha256: sha256,\n      modelo_embedding: MODELO,\n    },\n  });\n}\nreturn salida;\n"
+      },
+      "name": "Redactar fichas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        110
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// batchEmbedContents acepta hasta 100 textos por llamada.\nconst TAMANO_LOTE = 100;\nconst fichas = $input.all().map((i) => i.json);\nconst lotes = [];\nfor (let i = 0; i < fichas.length; i += TAMANO_LOTE) {\n  const lote = fichas.slice(i, i + TAMANO_LOTE);\n  lotes.push({\n    json: {\n      fichas: lote,\n      requests: lote.map((f) => ({\n        model: `models/${f.modelo_embedding}`,\n        content: { parts: [{ text: f.contenido }] },\n        // El lado de consulta (HT-50 T02) debe usar taskType RETRIEVAL_QUERY\n        // con el mismo modelo y la misma dimension.\n        taskType: 'RETRIEVAL_DOCUMENT',\n        outputDimensionality: 768,\n      })),\n    },\n  });\n}\nreturn lotes;\n"
+      },
+      "name": "Armar lotes de embeddings",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        110
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:batchEmbedContents",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"requests\": $json.requests } }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "name": "Generar embeddings (Gemini)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1200,
+        110
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Empareja cada embedding con su ficha y rechaza respuestas incompletas:\n// guardar una ficha sin su vector correcto romperia la busqueda.\nconst DIMENSION = 768;\nconst lotes = $('Armar lotes de embeddings').all();\nconst respuestas = $input.all();\nif (lotes.length !== respuestas.length) {\n  throw new Error(`Se enviaron ${lotes.length} lotes a Gemini y volvieron ${respuestas.length} respuestas`);\n}\nconst salida = [];\nrespuestas.forEach((respuesta, i) => {\n  const fichas = lotes[i].json.fichas;\n  const embeddings = respuesta.json.embeddings || [];\n  if (embeddings.length !== fichas.length) {\n    throw new Error(`Gemini devolvio ${embeddings.length} embeddings para ${fichas.length} fichas`);\n  }\n  fichas.forEach((ficha, j) => {\n    const valores = embeddings[j] && embeddings[j].values;\n    if (!Array.isArray(valores) || valores.length !== DIMENSION || !valores.every(Number.isFinite)) {\n      throw new Error(`Embedding invalido para ${ficha.clave}`);\n    }\n    salida.push({\n      json: {\n        ...ficha,\n        embedding: `[${valores.join(',')}]`,\n        fuentes_json: JSON.stringify(ficha.fuentes),\n        metricas_json: JSON.stringify(ficha.metricas),\n      },\n    });\n  });\n});\nreturn salida;\n"
+      },
+      "name": "Unir embeddings con fichas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        110
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO conocimiento_vial (\n  clave, ambito, distrito, franja, contenido, fuentes, metricas,\n  contenido_sha256, embedding, modelo_embedding\n)\nVALUES (\n  $1, $2, NULLIF($3, ''), $4, $5,\n  ARRAY(SELECT jsonb_array_elements_text($6::jsonb)), $7::jsonb,\n  $8, $9::vector, $10\n)\nON CONFLICT (clave) DO UPDATE SET\n  contenido = EXCLUDED.contenido,\n  fuentes = EXCLUDED.fuentes,\n  metricas = EXCLUDED.metricas,\n  contenido_sha256 = EXCLUDED.contenido_sha256,\n  embedding = EXCLUDED.embedding,\n  modelo_embedding = EXCLUDED.modelo_embedding,\n  actualizado_en = now()\nRETURNING clave;",
+        "options": {
+          "queryReplacement": "={{ [ $json.clave, $json.ambito, $json.distrito, $json.franja, $json.contenido, $json.fuentes_json, $json.metricas_json, $json.contenido_sha256, $json.embedding, $json.modelo_embedding ] }}"
+        }
+      },
+      "name": "Guardar fichas",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1680,
+        110
+      ]
     }
   ],
   "connections": {
-    "Cron Semanal Ingesta RAG": {
+    "Cada lunes 04:00": {
       "main": [
         [
           {
-            "node": "Armar Ficha y Generar Embeddings (768 Dim)",
+            "node": "Definir alcance",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Webhook Ingesta RAG (reporte.creado)": {
+    "Evento de reporte (Despachar Evento)": {
       "main": [
         [
           {
-            "node": "Armar Ficha y Generar Embeddings (768 Dim)",
+            "node": "Definir alcance",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Armar Ficha y Generar Embeddings (768 Dim)": {
+    "Definir alcance": {
       "main": [
         [
           {
-            "node": "Persistir en Neon DB (conocimiento_vial)",
+            "node": "Calcular fichas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcular fichas": {
+      "main": [
+        [
+          {
+            "node": "Redactar fichas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redactar fichas": {
+      "main": [
+        [
+          {
+            "node": "Armar lotes de embeddings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar lotes de embeddings": {
+      "main": [
+        [
+          {
+            "node": "Generar embeddings (Gemini)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generar embeddings (Gemini)": {
+      "main": [
+        [
+          {
+            "node": "Unir embeddings con fichas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Unir embeddings con fichas": {
+      "main": [
+        [
+          {
+            "node": "Guardar fichas",
             "type": "main",
             "index": 0
           }
         ]
       ]
     }
-  }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
 }

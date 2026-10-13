@@ -123,113 +123,77 @@ jobs:
       - name: Registrar Solicitud de Cambio en Jira Service Desk (HT-41 T03)
         if: success()
         run: |
-          echo "Registrando Solicitud de Cambio (Change Request) en Jira Service Desk..."
-          JIRA_URL="https://urbanpulse-ti.atlassian.net/rest/api/3/issue"
-          JIRA_EMAIL="emily_peralta@usmp.pe"
-          JIRA_TOKEN="${{ secrets.JIRA_SERVICE_DESK_TOKEN || secrets.JIRA_API_TOKEN }}"
+          echo "Llamando a la función Serverless para registrar Solicitud de Cambio en Jira..."
+          WEBHOOK_URL="${{ secrets.SERVERLESS_JIRA_WEBHOOK_URL }}"
+          WEBHOOK_SECRET="${{ secrets.DEPLOY_WEBHOOK_SECRET }}"
           
-          if [ -z "${JIRA_TOKEN}" ]; then
-            echo "⚠️ AVISO: JIRA_SERVICE_DESK_TOKEN no configurado en secrets. Saltando registro en Jira."
+          if [ -z "${WEBHOOK_URL}" ] || [ -z "${WEBHOOK_SECRET}" ]; then
+            echo "⚠️ AVISO: SERVERLESS_JIRA_WEBHOOK_URL o DEPLOY_WEBHOOK_SECRET no configurados. Saltando registro."
             exit 0
           fi
 
-          AUTH=$(echo -n "${JIRA_EMAIL}:${JIRA_TOKEN}" | base64 | tr -d '\n')
-          
           PAYLOAD=$(cat <<EOF
           {
-            "fields": {
-              "project": { "key": "UPTI" },
-              "summary": "Despliegue n8n AWS Lightsail - Commit ${{ github.sha }}",
-              "description": {
-                "type": "doc",
-                "version": 1,
-                "content": [
-                  {
-                    "type": "paragraph",
-                    "content": [
-                      {
-                        "type": "text",
-                        "text": "Despliegue automático de n8n en AWS Lightsail. Commit: ${{ github.sha }} | Workflow Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-                      }
-                    ]
-                  }
-                ]
-              },
-              "issuetype": { "id": "19" }
-            }
+            "eventType": "deployment_success",
+            "projectKey": "UPTI",
+            "commitSha": "${{ github.sha }}",
+            "repository": "${{ github.repository }}",
+            "runId": "${{ github.run_id }}",
+            "message": "Despliegue automático de n8n en AWS Lightsail exitoso."
           }
           EOF
           )
 
           RESPONSE=$(curl --silent --write-out "HTTPSTATUS:%{http_code}" \
             --request POST \
-            --url "${JIRA_URL}" \
-            --header "Authorization: Basic ${AUTH}" \
-            --header "Accept: application/json" \
+            --url "${WEBHOOK_URL}" \
+            --header "Authorization: Bearer ${WEBHOOK_SECRET}" \
             --header "Content-Type: application/json" \
             --data "${PAYLOAD}" || true)
 
           STATUS=$(echo "${RESPONSE}" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
-          echo "Respuesta de la API de Jira (HTTP ${STATUS})"
+          echo "Respuesta del Webhook Serverless (HTTP ${STATUS})"
           if [ "${STATUS}" -eq 201 ] || [ "${STATUS}" -eq 200 ]; then
-            echo "✅ Solicitud de Cambio creada exitosamente en Jira Service Desk."
+            echo "✅ Solicitud de Cambio enviada exitosamente a la función Serverless."
           else
-            echo "⚠️ Registro en Jira omitido o fallido (código HTTP ${STATUS})."
+            echo "⚠️ Registro en Serverless omitido o fallido (código HTTP ${STATUS})."
           fi
 
       - name: Registrar Incidente en Jira Service Desk si falla el despliegue (HT-41 T03)
         if: failure()
         run: |
-          echo "🚨 Registrando Incidente en Jira Service Desk debido a fallo en el despliegue..."
-          JIRA_URL="https://urbanpulse-ti.atlassian.net/rest/api/3/issue"
-          JIRA_EMAIL="emily_peralta@usmp.pe"
-          JIRA_TOKEN="${{ secrets.JIRA_SERVICE_DESK_TOKEN || secrets.JIRA_API_TOKEN }}"
+          echo "🚨 Llamando a la función Serverless para registrar Incidente en Jira..."
+          WEBHOOK_URL="${{ secrets.SERVERLESS_JIRA_WEBHOOK_URL }}"
+          WEBHOOK_SECRET="${{ secrets.DEPLOY_WEBHOOK_SECRET }}"
           
-          if [ -z "${JIRA_TOKEN}" ]; then
-            echo "⚠️ AVISO: JIRA_SERVICE_DESK_TOKEN no configurado en secrets. Saltando registro de incidente."
+          if [ -z "${WEBHOOK_URL}" ] || [ -z "${WEBHOOK_SECRET}" ]; then
+            echo "⚠️ AVISO: SERVERLESS_JIRA_WEBHOOK_URL o DEPLOY_WEBHOOK_SECRET no configurados. Saltando registro de incidente."
             exit 0
           fi
 
-          AUTH=$(echo -n "${JIRA_EMAIL}:${JIRA_TOKEN}" | base64 | tr -d '\n')
-          
           PAYLOAD=$(cat <<EOF
           {
-            "fields": {
-              "project": { "key": "UPTI" },
-              "summary": "INCIDENTE: Fallo en Despliegue n8n AWS Lightsail - Commit ${{ github.sha }}",
-              "description": {
-                "type": "doc",
-                "version": 1,
-                "content": [
-                  {
-                    "type": "paragraph",
-                    "content": [
-                      {
-                        "type": "text",
-                        "text": "ALERTA: El despliegue o la prueba de salud (healthcheck) de n8n en AWS Lightsail falló. Workflow Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-                      }
-                    ]
-                  }
-                ]
-              },
-              "issuetype": { "id": "16" }
-            }
+            "eventType": "deployment_failure",
+            "projectKey": "UPTI",
+            "commitSha": "${{ github.sha }}",
+            "repository": "${{ github.repository }}",
+            "runId": "${{ github.run_id }}",
+            "message": "ALERTA: El despliegue o la prueba de salud de n8n en AWS Lightsail falló."
           }
           EOF
           )
 
           RESPONSE=$(curl --silent --write-out "HTTPSTATUS:%{http_code}" \
             --request POST \
-            --url "${JIRA_URL}" \
-            --header "Authorization: Basic ${AUTH}" \
-            --header "Accept: application/json" \
+            --url "${WEBHOOK_URL}" \
+            --header "Authorization: Bearer ${WEBHOOK_SECRET}" \
             --header "Content-Type: application/json" \
             --data "${PAYLOAD}" || true)
 
           STATUS=$(echo "${RESPONSE}" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
-          echo "Respuesta de la API de Jira para el Incidente (HTTP ${STATUS})"
+          echo "Respuesta del Webhook Serverless para el Incidente (HTTP ${STATUS})"
           if [ "${STATUS}" -eq 201 ] || [ "${STATUS}" -eq 200 ]; then
-            echo "✅ Incidente registrado exitosamente en Jira Service Desk."
+            echo "✅ Incidente enviado exitosamente a la función Serverless."
           else
-            echo "⚠️ Registro de incidente en Jira omitido o fallido (código HTTP ${STATUS})."
+            echo "⚠️ Registro en Serverless omitido o fallido (código HTTP ${STATUS})."
           fi

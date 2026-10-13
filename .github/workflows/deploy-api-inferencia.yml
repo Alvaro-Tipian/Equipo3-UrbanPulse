@@ -1,0 +1,241 @@
+# ==============================================================================
+# Workflow: Despliegue de la API de riesgo vial en AWS Lightsail (HT-47 T02)
+#
+# Despliega la API de HT-46 T03 (ml/api, Emily) tal como ella la definio: el
+# modelo y la tabla de severidad por zona se hornean en la imagen durante el
+# build, con los secretos de MLflow y Neon montados como build secrets (no
+# quedan en ninguna capa). En ejecucion el contenedor solo recibe API_KEY.
+#
+# Corre en su propio Container Service ("urbanpulse-api", declarado en
+# infrastructure/terraform/main.tf), separado de n8n: no comparte memoria con
+# el servicio micro de n8n y se puede desplegar o revertir sin tocarlo.
+#
+# Termina en verde solo si /health en la nube responde la version pedida
+# (model_version = riesgo_vial@<n>). Lo invoca mlops-pipeline.yml al promover
+# y al hacer rollback; tambien se puede correr a mano.
+#
+# Secrets requeridos:
+#   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION
+#   MLFLOW_TRACKING_URI, MLFLOW_TRACKING_USERNAME, MLFLOW_TRACKING_PASSWORD
+#   DB_HOST, DB_PORT, DB_DATABASE, DB_USER, DB_PASSWORD (Neon, solo en el build)
+#   RIESGO_API_KEY (la misma clave que usa la credencial Header Auth de n8n)
+# ==============================================================================
+
+name: Deploy API de riesgo vial to AWS Lightsail
+
+on:
+  workflow_call:
+    inputs:
+      model_version:
+        description: 'Version de riesgo_vial que debe quedar sirviendo (la que tiene el alias champion)'
+        required: true
+        type: string
+    outputs:
+      url:
+        description: 'URL publica de la API'
+        value: ${{ jobs.deploy.outputs.url }}
+  workflow_dispatch:
+    inputs:
+      model_version:
+        description: 'Version de riesgo_vial que tiene el alias champion'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lightsail-api-deploy
+  cancel-in-progress: false
+
+env:
+  SERVICIO: urbanpulse-api
+  DOCKER_BUILDKIT: '1'
+
+jobs:
+  deploy:
+    name: Desplegar API de riesgo vial (riesgo_vial v${{ inputs.model_version }})
+    runs-on: ubuntu-latest
+    outputs:
+      url: ${{ steps.verificar.outputs.url }}
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v7
+
+      - name: Verificar entradas y codigo de la API (HT-46 T03)
+        env:
+          MODEL_VERSION: ${{ inputs.model_version }}
+        run: |
+          if ! [[ "${MODEL_VERSION}" =~ ^[0-9]+$ ]]; then
+            echo "::error::model_version debe ser el numero de version del Model Registry (recibido: '${MODEL_VERSION}')."
+            exit 1
+          fi
+          if [ ! -f ml/api/Dockerfile ]; then
+            echo "::error::Falta ml/api/Dockerfile (HT-46 T03). La API de Emily tiene que estar en main antes de desplegar."
+            exit 1
+          fi
+
+      - name: Verificar secrets
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_DATABASE: ${{ secrets.DB_DATABASE }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          RIESGO_API_KEY: ${{ secrets.RIESGO_API_KEY }}
+        run: |
+          for v in MLFLOW_TRACKING_URI MLFLOW_TRACKING_USERNAME MLFLOW_TRACKING_PASSWORD DB_HOST DB_DATABASE DB_USER DB_PASSWORD RIESGO_API_KEY; do
+            if [ -z "${!v}" ]; then
+              echo "::error::Falta el secret ${v}."
+              exit 1
+            fi
+          done
+
+      - name: Construir imagen (modelo horneado desde MLflow)
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT || '5432' }}
+          DB_DATABASE: ${{ secrets.DB_DATABASE }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        # Mismo comando que documenta ml/api/Dockerfile. MODEL_ALIAS=champion
+        # pide la version promovida por el pipeline (ver docs/MLOPS_PIPELINE.md).
+        run: |
+          docker build -f ml/api/Dockerfile \
+            --build-arg MODEL_ALIAS=champion \
+            --secret id=mlflow_uri,env=MLFLOW_TRACKING_URI \
+            --secret id=mlflow_user,env=MLFLOW_TRACKING_USERNAME \
+            --secret id=mlflow_pass,env=MLFLOW_TRACKING_PASSWORD \
+            --secret id=db_host,env=DB_HOST \
+            --secret id=db_port,env=DB_PORT \
+            --secret id=db_name,env=DB_DATABASE \
+            --secret id=db_user,env=DB_USER \
+            --secret id=db_pass,env=DB_PASSWORD \
+            -t "urbanpulse-api:${GITHUB_SHA::12}" .
+
+      - name: Configurar credenciales de AWS
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Instalar lightsailctl
+        run: |
+          sudo curl -fsSL "https://s3.us-west-2.amazonaws.com/lightsailctl/latest/linux-amd64/lightsailctl" \
+            -o /usr/local/bin/lightsailctl
+          sudo chmod +x /usr/local/bin/lightsailctl
+
+      - name: Publicar imagen en Lightsail
+        id: imagen
+        run: |
+          set -euo pipefail
+          salida=$(aws lightsail push-container-image \
+            --service-name "${SERVICIO}" --label api --image "urbanpulse-api:${GITHUB_SHA::12}")
+          echo "${salida}"
+          # La CLI responde: Refer to this image as ":urbanpulse-api.api.N" in deployments.
+          imagen=$(echo "${salida}" | grep -o '":urbanpulse-api\.api\.[0-9]*"' | tr -d '"' | tail -n1)
+          if [ -z "${imagen}" ]; then
+            echo "::error::No se pudo leer la referencia de la imagen publicada."
+            exit 1
+          fi
+          echo "ref=${imagen}" >> "$GITHUB_OUTPUT"
+
+      - name: Generar definicion de contenedor
+        env:
+          IMAGEN: ${{ steps.imagen.outputs.ref }}
+          RIESGO_API_KEY: ${{ secrets.RIESGO_API_KEY }}
+        run: |
+          set -euo pipefail
+          # jq --arg: el valor nunca se interpreta como JSON ni como sed.
+          jq --arg imagen "${IMAGEN}" --arg api_key "${RIESGO_API_KEY}" \
+             '.api.image = $imagen | .api.environment.API_KEY = $api_key' \
+             infrastructure/lightsail-api-containers.json.template > infrastructure/lightsail-api-containers.json
+          chmod 600 infrastructure/lightsail-api-containers.json
+          if grep -q '__[A-Z_]*__' infrastructure/lightsail-api-containers.json; then
+            echo "::error::Quedaron placeholders sin reemplazar en la definicion del contenedor."
+            exit 1
+          fi
+
+      - name: Esperar a que el servicio acepte un nuevo deployment
+        run: |
+          set -euo pipefail
+          for intento in $(seq 1 40); do
+            estado=$(aws lightsail get-container-services --service-name "${SERVICIO}" \
+              --query 'containerServices[0].state' --output text)
+            echo "Intento ${intento}: estado del servicio = ${estado}"
+            case "${estado}" in
+              RUNNING|READY) exit 0 ;;
+            esac
+            sleep 15
+          done
+          echo "::error::El servicio sigue ocupado tras 10 minutos de espera."
+          exit 1
+
+      - name: Crear deployment en Lightsail
+        run: |
+          aws lightsail create-container-service-deployment \
+            --service-name "${SERVICIO}" \
+            --containers file://infrastructure/lightsail-api-containers.json \
+            --public-endpoint '{"containerName":"api","containerPort":8000,"healthCheck":{"path":"/health","successCodes":"200","intervalSeconds":30,"healthyThreshold":2,"unhealthyThreshold":3,"timeoutSeconds":5}}' \
+            > /dev/null
+
+      - name: Limpiar archivo con secretos
+        if: always()
+        run: rm -f infrastructure/lightsail-api-containers.json
+
+      - name: Verificar que la nube sirve la version pedida
+        id: verificar
+        env:
+          ESPERADA: riesgo_vial@${{ inputs.model_version }}
+        run: |
+          set -euo pipefail
+          activo_desde=0
+          for intento in $(seq 1 60); do
+            # Estado del deployment recien creado: ACTIVATING, ACTIVE o FAILED.
+            estado=$(aws lightsail get-container-service-deployments --service-name "${SERVICIO}" \
+              --query 'deployments[0].state' --output text)
+            url=$(aws lightsail get-container-services --service-name "${SERVICIO}" \
+              --query 'containerServices[0].url' --output text)
+            salud=$(curl --silent --max-time 10 "${url%/}/health" || true)
+            echo "Intento ${intento}/60: deployment=${estado} health=${salud:-sin respuesta}"
+            if [ "${estado}" = "FAILED" ]; then
+              echo "::error::Lightsail marco el deployment como FAILED (el contenedor no paso /health)."
+              exit 1
+            fi
+            if [ "${estado}" = "ACTIVE" ]; then
+              version=$(echo "${salud}" | jq -r '.model_version // empty' 2>/dev/null || true)
+              if [ "${version}" = "${ESPERADA}" ]; then
+                echo "url=${url%/}" >> "$GITHUB_OUTPUT"
+                echo "La API sirve ${ESPERADA} en ${url}"
+                exit 0
+              fi
+              # Margen para que el balanceador termine de cambiar de deployment.
+              activo_desde=$((activo_desde + 1))
+              if [ "${activo_desde}" -ge 8 ]; then
+                echo "::error::La API responde ${version:-sin version} y se esperaba ${ESPERADA}. Si responde la version del alias challenger, ml/api/export_model.py todavia no lee MODEL_ALIAS (ver docs/MLOPS_PIPELINE.md)."
+                exit 1
+              fi
+            fi
+            sleep 15
+          done
+          echo "::error::La API no sirvio ${ESPERADA} tras 15 minutos."
+          exit 1
+
+      - name: Resumen
+        if: always()
+        run: |
+          {
+            echo "## Despliegue de la API de riesgo vial"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Modelo esperado | riesgo_vial@${{ inputs.model_version }} |"
+            echo "| Imagen | ${{ steps.imagen.outputs.ref || 'no publicada' }} |"
+            echo "| URL | ${{ steps.verificar.outputs.url || 'no verificada' }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
