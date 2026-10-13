@@ -200,10 +200,9 @@ frena el merge.
 
 El orden de preferencia para resolverlo, de mejor a peor:
 
-1. **Tomar el parche.** Si la imagen la construimos nosotros, actualizar los
-   paquetes en el Dockerfile (es lo que hace `apt-get upgrade` en
-   `infrastructure/postgres.Dockerfile`). Si la dependencia es de Python,
-   subir la versión en el `requirements.txt` que corresponda.
+1. **Tomar el parche.** Si la imagen la construimos nosotros, actualizar la
+   versión del paquete en el Dockerfile. Si la dependencia es de Python, subir
+   la versión en el `requirements.txt` que corresponda.
 2. **Quitar el componente vulnerable.** Muchas veces la pieza afectada ni
    siquiera se usa en ejecución. La API de riesgo instalaba `mlflow` completo
    —servidor de tracking, AI gateway y *model serving*, que es donde se
@@ -229,8 +228,31 @@ Toda entrada lleva las tres cosas o no entra:
   la excepción y el gate vuelve a bloquear. Es a propósito: obliga a volver a
   mirarlo en vez de acumular deuda silenciosa.
 
-El caso que hay hoy es `gosu` dentro de la imagen de Postgres: lo compilaron
-con Go 1.18 y Trivy le atribuye las CVE de esa biblioteca estándar, pero `gosu`
+Hoy hay dos casos, los dos en la imagen de Postgres de desarrollo.
+
+**`libgnutls30`.** El parche existe (`3.7.1-5+deb11u10`) y aun así no se puede
+tomar: la base `postgis/postgis:16-3.5` está sobre **Debian 11 (bullseye), que
+llegó a fin de vida**. Los índices siguen anunciando los paquetes de
+`bullseye-security`, pero los `.deb` ya no se sirven desde `deb.debian.org`, así
+que un `apt-get upgrade` termina en una pared de 404 y rompe el build entero
+(pasó en la ejecución #56 de esta PR).
+
+Eso convierte el hallazgo en algo más grande que dos CVE: **la imagen local está
+sobre una distribución que ya no recibe parches**, así que de aquí en adelante
+cualquier CVE nueva de esa base va a salir como "sin arreglo disponible" y el
+gate ni siquiera la va a mostrar. La corrección de verdad es mover la imagen a
+una base soportada — `pgvector/pgvector:pg16-bookworm` más PostGIS desde PGDG es
+el camino más corto, porque mantiene PostgreSQL 16 y las dos extensiones.
+
+No va en esta PR porque arrastra un detalle que rompería al equipo:
+`backend-integration-tests.yml` y `rag-ingesta-ci.yml` esperan a que
+`SELECT postgis_version()` responda **antes** de aplicar las migraciones, y eso
+hoy funciona porque la imagen de PostGIS trae un script de `initdb` que activa
+la extensión sola. Al cambiar de base hay que reponer ese script, o los dos
+workflows se quedan esperando para siempre. Es un cambio propio, con su propia
+prueba.
+
+**`gosu`.** Lo compilaron con Go 1.18 y Trivy le atribuye las CVE de esa biblioteca estándar, pero `gosu`
 solo baja de root al usuario `postgres` — no renderiza plantillas HTML, no abre
 TLS y no parsea direcciones de red. No hay versión parchada en Debian bullseye,
 y además esa imagen es solo de desarrollo y CI: en producción la base de datos

@@ -10,15 +10,16 @@
 # historico apt-archive.postgresql.org, que conserva postgresql-16-pgvector.
 FROM postgis/postgis:16-3.5
 
-# El apt-get upgrade aplica los parches de seguridad publicados para
-# la base (HT-44 T01): la imagen tal como viene de postgis/postgis trae
-# libgnutls30 3.7.1-5+deb11u7, con dos CVE criticas ya corregidas en
-# 3.7.1-5+deb11u10 (denegacion de servicio en DTLS y bypass de autenticacion
-# por NUL en el nombre de usuario). Sin esta linea el escaneo de Trivy
-# bloquea el merge, y con razon: el parche existe y no lo estabamos tomando.
+# Aqui NO se hace apt-get upgrade. La base esta sobre Debian 11 (bullseye),
+# que llego a fin de vida: los indices todavia anuncian los parches de
+# seguridad (libgnutls30 3.7.1-5+deb11u10, entre otros) pero los .deb ya no
+# estan en deb.debian.org y toda la actualizacion muere con 404. Las dos CVE
+# criticas de libgnutls30 quedan como excepcion fechada en
+# security/trivy-excepciones.yaml; la correccion de verdad es mover esta
+# imagen a una base soportada, y eso es un cambio aparte porque toca los
+# workflows que esperan postgis ya activo (ver DEVSECOPS_TEAM_GUIDELINES.md).
 RUN sed -i 's|http://apt.postgresql.org/pub/repos/apt|https://apt-archive.postgresql.org/pub/repos/apt|g' /etc/apt/sources.list.d/*.list \
     && apt-get update \
-    && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends postgresql-16-pgvector \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*

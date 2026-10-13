@@ -94,8 +94,12 @@ jobs:
           severity: CRITICAL,HIGH
           exit-code: '0'
 
+      # continue-on-error: si el paso anterior no llego a generar el SARIF
+      # (por ejemplo porque fallo el build de la imagen), este paso no debe
+      # tapar el error de verdad con un "Path does not exist".
       - name: Subir SARIF a GitHub Security
         if: always()
+        continue-on-error: true
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-${{ matrix.nombre }}.sarif
@@ -151,6 +155,7 @@ jobs:
 
       - name: Subir SARIF a GitHub Security
         if: always()
+        continue-on-error: true
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-config.sarif

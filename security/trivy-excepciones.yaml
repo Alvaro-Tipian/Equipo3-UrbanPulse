@@ -16,6 +16,32 @@
 #      proposito, obliga a revisar en vez de acumular deuda silenciosa.
 
 vulnerabilities:
+  # libgnutls30 en la imagen de Postgres. El parche existe (3.7.1-5+deb11u10)
+  # pero no se puede tomar: la base postgis/postgis:16-3.5 esta sobre Debian 11
+  # (bullseye), que llego a fin de vida, y los .deb de bullseye-security ya no
+  # se sirven desde deb.debian.org; el apt-get upgrade termina en una pared de
+  # 404 y rompe el build entero.
+  #
+  # Riesgo real acotado: esta imagen es solo de desarrollo y CI. En produccion
+  # la base de datos es Neon, gestionada, que no corre este contenedor; y el
+  # Postgres de CI solo escucha dentro de la red de docker-compose del runner,
+  # sin exponer DTLS ni autenticacion remota a nadie.
+  #
+  # La correccion de verdad es mover la imagen a una base soportada
+  # (pgvector/pgvector:pg16-bookworm + PostGIS de PGDG). Eso es un cambio
+  # aparte porque backend-integration-tests.yml y rag-ingesta-ci.yml esperan
+  # a que "SELECT postgis_version()" responda antes de migrar, asi que hay que
+  # reponer el script de initdb que hoy aporta la imagen de PostGIS.
+  # Sin "paths": para un paquete del sistema operativo Trivy no reporta ruta
+  # (PkgPath va vacio), asi que acotarla por ruta no filtraria nada. El
+  # identificador ya es especifico de gnutls.
+  - id: CVE-2026-33845
+    statement: "Parche solo en bullseye-security, que ya no se distribuye (Debian 11 EOL). Imagen de desarrollo/CI; produccion usa Neon. Pendiente: migrar a base soportada."
+    expired_at: 2026-12-19
+  - id: CVE-2026-42010
+    statement: "Parche solo en bullseye-security, que ya no se distribuye (Debian 11 EOL). Imagen de desarrollo/CI; produccion usa Neon. Pendiente: migrar a base soportada."
+    expired_at: 2026-12-19
+
   # gosu es el ayudante que usa el entrypoint de Postgres para bajar de root
   # al usuario postgres y nada mas. Lo compilaron con Go 1.18, asi que Trivy
   # le atribuye las CVE de la biblioteca estandar de esa version, pero gosu
