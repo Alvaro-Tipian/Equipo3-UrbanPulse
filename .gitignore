@@ -48,3 +48,12 @@ postman/collections/*.html
 postman/collections/*resultado*.json
 postman/**/*.postman_environment.json
 postman/environments/*.postman_environment.json
+# Reporte generado por ia-ops/scripts/monitor_drift.py (HT-49); el workflow lo
+# sube como artefacto en cada corrida.
+docs/DRIFT_MONITORING_REPORT.json
+
+# Certificado generado por scripts/certificar-sla.mjs (HT-37). Se emite en cada
+# corrida del workflow de certificacion y se publica como artefacto: commitear
+# una copia dejaria en el repositorio un certificado que puede haber caducado.
+docs/CERTIFICACION_SLA.md
+postman/reportes/

@@ -33,8 +33,26 @@ permissions:
   actions: read
 
 jobs:
+  # ---------------------------------------------------------------------------
+  # Quality gate real (HT-48 CA4). Sustituye a las metricas que antes estaban
+  # escritas a mano en este archivo: aquellas aprobaban siempre, pasara lo que
+  # pasara con el modelo. Esta suite valida el dataset antes de entrenar, mide
+  # exactitud y equidad del modelo de priorizacion, comprueba que no haya
+  # regresion frente al campeon en produccion y detecta deriva.
+  #
+  # promptfoo solo en la promocion manual: consume cuota real de Gemini y no
+  # tiene sentido gastarla en cada push a ia-ops/**.
+  # ---------------------------------------------------------------------------
+  pruebas-mlops:
+    name: 🧪 Suite de pruebas MLOps (HT-48)
+    uses: ./.github/workflows/mlops-tests.yml
+    with:
+      correr_promptfoo: ${{ github.event_name == 'workflow_dispatch' }}
+    secrets: inherit
+
   model-quality-gate:
     name: 🛡️ Quality Gate MLOps & Escaneo Trivy (Champion vs Challenger)
+    needs: pruebas-mlops
     runs-on: ubuntu-latest
     steps:
       - name: Checkout del repositorio
@@ -50,16 +68,30 @@ jobs:
           echo "Validando sintaxis y esquemas del registro de prompts MLOps..."
           python -c "import json, sys; data = json.load(open('ia-ops/prompts/prompt_registry.json')); assert 'prompts' in data; print(f'✅ Prompt Registry v{data[\"version_schema\"]} validado con {len(data[\"prompts\"])} prompts.')"
 
-      - name: Ejecutar Evaluación Champion vs Challenger (F1 Score & Data Drift)
+      - name: Evaluar Champion vs Challenger (F1 Score & Data Drift)
+        # Las metricas se calculan sobre los lotes de prediccion reales
+        # (ia-ops/scripts/monitor_drift.py), no se declaran aqui. El umbral de
+        # F1 (0.85) y el de PSI (0.20) son los mismos que ya usaba el equipo.
         run: |
-          echo "Ejecutando suite de pruebas de calidad del modelo de IA..."
-          python -c "
-          f1_score = 0.941
-          psi_drift = 0.042
-          assert f1_score >= 0.85, 'F1-Score por debajo del umbral mínimo'
-          assert psi_drift < 0.20, 'Data Drift (PSI) por encima del umbral de alerta'
-          print(f'✅ Quality Gate Aprobado: F1-Score={f1_score}, PSI Drift={psi_drift}')
-          "
+          python ia-ops/scripts/monitor_drift.py
+          python - <<'PY'
+          import json, sys
+          with open('docs/DRIFT_MONITORING_REPORT.json', encoding='utf-8') as f:
+              reporte = json.load(f)
+
+          f1 = reporte['f1_actual']
+          psi = reporte['psi_score']
+          fallos = []
+          if f1 < 0.85:
+              fallos.append(f'F1-Score {f1} por debajo del umbral minimo 0.85')
+          if psi >= reporte['psi_umbral']:
+              fallos.append(f"Data Drift (PSI) {psi} alcanza el umbral {reporte['psi_umbral']}")
+
+          if fallos:
+              print('::error::Quality Gate rechazado: ' + '; '.join(fallos))
+              sys.exit(1)
+          print(f'Quality Gate aprobado: F1-Score={f1}, PSI Drift={psi}')
+          PY
 
       - name: Escanear Imagen Docker del Servicio FastAPI con Trivy
         uses: aquasecurity/trivy-action@master

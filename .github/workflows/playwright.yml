@@ -31,22 +31,28 @@ jobs:
           cache-dependency-path: |
             ia-ops/tests/package-lock.json
             src/frontend/package-lock.json
-            mf-dashboard/package-lock.json
-            mf-mapa-urbano/package-lock.json
-            mf-chatbot/package-lock.json
+            mf-*/package-lock.json
       - name: Instalar dependencias (ia-ops/tests)
         run: npm ci
       - name: Instalar dependencias del frontend (src/frontend)
+        # Trae tambien @urbanpulse/shared, que el host declara como
+        # "file:../../packages/shared" desde el refactor de HT-39.
         run: npm ci
         working-directory: src/frontend
       - name: Instalar dependencias de los microfrontends
         # Usar github.workspace para resolver rutas desde la raíz del repo,
         # ya que el default working-directory es ia-ops/tests.
+        #
+        # Los siete que el host federa en local (ver
+        # src/frontend/public/remotes.local.json). mf-panel-riesgo queda fuera:
+        # hoy es un scaffold de Vite sin Module Federation (HU-08 en curso) y no
+        # expone remoteEntry.js.
         working-directory: ${{ github.workspace }}
         run: |
-          npm ci --prefix mf-dashboard
-          npm ci --prefix mf-mapa-urbano
-          npm ci --prefix mf-chatbot
+          for mfe in mf-gestion-incidentes mf-mapa-urbano mf-dashboard \
+                     mf-historial-reportes mf-auth mf-ajustes mf-chatbot; do
+            npm ci --prefix "$mfe"
+          done
       - name: Instalar navegador Chromium de Playwright
         run: npx playwright install --with-deps chromium
       - name: Ejecutar pruebas Playwright

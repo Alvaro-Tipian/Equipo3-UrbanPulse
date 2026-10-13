@@ -1,0 +1,57 @@
+id,descripcion_ciudadano,lat,lng,fecha_hora,categoria_esperada,subcategoria_esperada,prioridad_esperada
+1,"Choque frontal entre dos autos en la Av. Javier Prado Este con Aviacion, hay heridos",-12.0864,-77.0019,2026-10-02T19:30:00Z,SINIESTRO_VIAL,CHOQUE,ALTA
+2,"Un bus de transporte publico impacto por detras a una combi en la Panamericana Sur",-12.1890,-76.9780,2026-10-02T07:15:00Z,SINIESTRO_VIAL,CHOQUE,ALTA
+3,"Colision multiple de tres vehiculos en el cruce de Arequipa con Javier Prado",-12.0905,-77.0340,2026-10-01T18:45:00Z,SINIESTRO_VIAL,CHOQUE,ALTA
+4,"Dos taxis chocaron de lado al cruzar sin respetar el semaforo en Brasil",-12.0700,-77.0520,2026-09-30T13:20:00Z,SINIESTRO_VIAL,CHOQUE,ALTA
+5,"Un camion de carga choco contra el muro de contencion de la Via Expresa",-12.1050,-77.0280,2026-09-29T05:40:00Z,SINIESTRO_VIAL,CHOQUE,ALTA
+6,"Atropellaron a una senora mayor cuando cruzaba por el paso peatonal de Angamos",-12.1130,-77.0290,2026-10-02T11:05:00Z,SINIESTRO_VIAL,ATROPELLO,ALTA
+7,"Un motociclista atropello a un nino en la vereda de la Av. Tupac Amaru",-11.9650,-77.0480,2026-10-01T16:30:00Z,SINIESTRO_VIAL,ATROPELLO,ALTA
+8,"Peaton arrollado por una custer que se paso la luz roja en Abancay",-12.0520,-77.0280,2026-09-28T08:10:00Z,SINIESTRO_VIAL,ATROPELLO,ALTA
+9,"Atropello a un ciclista en la ciclovia de la Av. Salaverry, esta inconsciente",-12.0880,-77.0480,2026-10-03T06:50:00Z,SINIESTRO_VIAL,ATROPELLO,ALTA
+10,"Una camioneta se volco al tomar muy rapido la curva de la Costa Verde",-12.1320,-77.0400,2026-10-02T22:15:00Z,SINIESTRO_VIAL,VOLCADURA,ALTA
+11,"Volco un trailer cargado de arena a la altura del kilometro 18 de la Carretera Central",-12.0180,-76.8900,2026-09-27T04:25:00Z,SINIESTRO_VIAL,VOLCADURA,ALTA
+12,"Un auto termino con las llantas hacia arriba tras despistarse en Ramiro Priale",-12.0100,-76.9400,2026-10-01T23:40:00Z,SINIESTRO_VIAL,VOLCADURA,ALTA
+13,"Se volteo una mototaxi en la bajada de Villa El Salvador, el conductor esta herido",-12.2130,-76.9360,2026-09-30T19:55:00Z,SINIESTRO_VIAL,VOLCADURA,ALTA
+14,"Dos motos colisionaron entre si en la Av. Universitaria, ambos conductores en el suelo",-11.9700,-77.0750,2026-10-02T20:10:00Z,SINIESTRO_VIAL,CHOQUE,ALTA
+15,"Un vehiculo se estrello contra el poste de la esquina y quedo destrozado",-12.0770,-77.0840,2026-09-29T02:30:00Z,SINIESTRO_VIAL,CHOQUE,ALTA
+16,"Choque por alcance entre cuatro autos en la bajada de la Marina por la neblina",-12.0790,-77.0960,2026-10-03T07:00:00Z,SINIESTRO_VIAL,CHOQUE,ALTA
+17,"El semaforo de la interseccion de Benavides con Larco lleva tres dias apagado",-12.1250,-77.0280,2026-10-02T09:00:00Z,INFRAESTRUCTURA,SEMAFORO_MALOGRADO,MEDIA
+18,"Semaforo en ambar intermitente desde ayer en la Av. Colonial, nadie lo arregla",-12.0540,-77.0890,2026-10-01T10:30:00Z,INFRAESTRUCTURA,SEMAFORO_MALOGRADO,MEDIA
+19,"El semaforo peatonal de la puerta del colegio no funciona y los ninos cruzan solos",-12.0980,-76.9960,2026-09-30T07:40:00Z,INFRAESTRUCTURA,SEMAFORO_MALOGRADO,ALTA
+20,"Luz verde que dura dos segundos en el cruce de Aviacion, el semaforo esta descalibrado",-12.0850,-77.0010,2026-09-28T17:20:00Z,INFRAESTRUCTURA,SEMAFORO_MALOGRADO,MEDIA
+21,"Semaforo tumbado en el suelo tras el choque de anoche en San Borja",-12.1000,-76.9950,2026-10-03T08:15:00Z,INFRAESTRUCTURA,SEMAFORO_MALOGRADO,ALTA
+22,"Hay un bache enorme en el carril derecho de la Av. Colonial, ya reventaron varias llantas",-12.0560,-77.0920,2026-10-02T14:00:00Z,INFRAESTRUCTURA,BACHE,MEDIA
+23,"La pista de la Av. Universitaria esta llena de huecos desde el ovalo",-11.9800,-77.0800,2026-10-01T12:10:00Z,INFRAESTRUCTURA,BACHE,MEDIA
+24,"Un hueco profundo en plena curva de Chorrillos, de noche no se ve",-12.1700,-77.0150,2026-09-29T21:30:00Z,INFRAESTRUCTURA,BACHE,ALTA
+25,"Se hundio el asfalto en la esquina y quedo un socavon en la calzada",-12.0460,-77.0430,2026-09-27T15:45:00Z,INFRAESTRUCTURA,BACHE,ALTA
+26,"Pista rota a la altura del mercado, los autos esquivan y casi chocan",-11.9400,-77.0600,2026-10-02T16:25:00Z,INFRAESTRUCTURA,BACHE,MEDIA
+27,"La senalizacion horizontal del cruce escolar esta completamente borrada",-12.1450,-76.9930,2026-09-30T08:00:00Z,INFRAESTRUCTURA,,BAJA
+28,"Un poste de alumbrado publico cayo sobre la berma central de la avenida",-12.0260,-76.9180,2026-10-01T03:20:00Z,INFRAESTRUCTURA,,MEDIA
+29,"Falta la tapa de un buzon en plena pista de la Av. Brasil",-12.0690,-77.0530,2026-10-03T11:40:00Z,INFRAESTRUCTURA,,ALTA
+30,"La baranda del puente peatonal esta rota y suelta, da miedo pasar",-12.0770,-77.0840,2026-09-28T18:50:00Z,INFRAESTRUCTURA,,MEDIA
+31,"Trafico totalmente detenido en la Via Expresa desde hace cuarenta minutos",-12.1050,-77.0290,2026-10-02T08:30:00Z,CONGESTION,CONGESTION_ALTA,MEDIA
+32,"Cola de mas de diez cuadras para entrar a la Panamericana Norte",-11.9500,-77.0650,2026-10-01T07:50:00Z,CONGESTION,CONGESTION_ALTA,MEDIA
+33,"Congestion severa en Javier Prado por obras municipales sin senalizar",-12.0880,-77.0100,2026-09-30T18:10:00Z,CONGESTION,CONGESTION_ALTA,MEDIA
+34,"Embotellamiento enorme en el centro por una marcha que cerro Abancay",-12.0520,-77.0290,2026-09-29T12:00:00Z,CONGESTION,CONGESTION_ALTA,MEDIA
+35,"El trafico no avanza en la Av. La Marina, llevo media hora sin moverme",-12.0790,-77.0960,2026-10-03T09:15:00Z,CONGESTION,CONGESTION_ALTA,MEDIA
+36,"Caos vehicular en el ovalo Higuereta por un desvio mal puesto",-12.1380,-76.9980,2026-10-02T17:45:00Z,CONGESTION,CONGESTION_ALTA,MEDIA
+37,"Atasco total en la bajada de Armendariz a la hora punta de la tarde",-12.1380,-77.0280,2026-10-01T19:00:00Z,CONGESTION,CONGESTION_ALTA,MEDIA
+38,"Los carros estan parados en doble fila y nadie puede pasar por la cuadra",-12.1211,-77.0297,2026-09-28T13:30:00Z,CONGESTION,CONGESTION_ALTA,BAJA
+39,"Tranco pesado en la Carretera Central hacia Chosica desde temprano",-12.0180,-76.8900,2026-09-27T06:20:00Z,CONGESTION,CONGESTION_ALTA,MEDIA
+40,"Mucho trafico en la Av. Tupac Amaru por el paradero informal de combis",-11.9650,-77.0480,2026-10-02T07:40:00Z,CONGESTION,CONGESTION_ALTA,BAJA
+41,"Congestionamiento en el ingreso al Callao por el control policial",-12.0560,-77.1180,2026-10-03T10:00:00Z,CONGESTION,CONGESTION_ALTA,BAJA
+42,"La Av. Arequipa esta saturada desde Javier Prado hasta Canaval y Moreyra",-12.0977,-77.0365,2026-09-30T18:40:00Z,CONGESTION,CONGESTION_ALTA,MEDIA
+43,"Trafico lentisimo en Angamos por un camion mal estacionado",-12.1130,-77.0290,2026-09-29T15:10:00Z,CONGESTION,CONGESTION_ALTA,BAJA
+44,"Cola interminable para cruzar el puente Santa Anita",-12.0450,-76.9500,2026-10-01T08:05:00Z,CONGESTION,CONGESTION_ALTA,MEDIA
+45,"Hay un monton de desmonte tirado que ocupa medio carril de la avenida",-12.0260,-76.9180,2026-10-02T10:20:00Z,ANOMALIA_AMBIENTAL,,MEDIA
+46,"Estan quemando basura al costado de la via y el humo no deja ver nada",-11.9700,-77.0100,2026-10-01T17:30:00Z,ANOMALIA_AMBIENTAL,,ALTA
+47,"Se derramo aceite en la pista despues de que se malogro un camion",-12.1450,-76.9930,2026-09-30T11:15:00Z,ANOMALIA_AMBIENTAL,,ALTA
+48,"Acumulacion de basura en la berma central que ya invade la calzada",-11.9400,-77.0600,2026-09-28T09:45:00Z,ANOMALIA_AMBIENTAL,,BAJA
+49,"Un arbol cayo sobre la pista por el viento de anoche",-12.1000,-76.9950,2026-10-03T05:30:00Z,ANOMALIA_AMBIENTAL,,ALTA
+50,"Hay una fuga de agua que inundo toda la esquina y la pista esta resbalosa",-12.0700,-77.0520,2026-10-02T12:50:00Z,ANOMALIA_AMBIENTAL,,ALTA
+51,"Polvareda constante por la obra sin regar, no se ve al manejar",-12.2130,-76.9360,2026-09-29T14:20:00Z,ANOMALIA_AMBIENTAL,,MEDIA
+52,"Olor fuerte a combustible cerca del grifo de la avenida principal",-12.0770,-77.0840,2026-09-27T16:00:00Z,ANOMALIA_AMBIENTAL,,MEDIA
+53,"Maleza altisima en la berma que tapa completamente las senales de transito",-12.0800,-76.9400,2026-10-01T09:30:00Z,ANOMALIA_AMBIENTAL,,MEDIA
+54,"Desague colapsado votando agua sucia en plena via publica",-12.0560,-77.1180,2026-09-30T13:00:00Z,ANOMALIA_AMBIENTAL,,MEDIA
+55,"Montones de escombros de una demolicion bloqueando la vereda y parte de la pista",-12.1490,-77.0210,2026-10-02T15:40:00Z,ANOMALIA_AMBIENTAL,,MEDIA
+56,"Humo negro saliendo de un terreno baldio junto a la carretera",-11.9700,-77.0700,2026-10-03T07:20:00Z,ANOMALIA_AMBIENTAL,,MEDIA
