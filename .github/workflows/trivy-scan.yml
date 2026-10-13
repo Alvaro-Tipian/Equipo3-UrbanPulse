@@ -131,32 +131,6 @@ jobs:
           echo "Imagen de n8n en produccion: $IMAGEN"
           echo "ref=$IMAGEN" >> "$GITHUB_OUTPUT"
 
-      - name: Decidir si este escaneo bloquea
-        id: pin
-        env:
-          EVENTO: ${{ github.event_name }}
-          BASE: ${{ github.base_ref }}
-        run: |
-          set -euo pipefail
-          PLANTILLA=infrastructure/lightsail-containers.json.template
-          if [ "$EVENTO" != "pull_request" ]; then
-            echo "Evento '$EVENTO': el escaneo bloquea."
-            echo "bloquea=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          if ! git fetch --no-tags --depth=1 origin "$BASE"; then
-            echo "::warning::No se pudo traer '$BASE' para comparar; se asume que bloquea."
-            echo "bloquea=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          if git diff --quiet FETCH_HEAD -- "$PLANTILLA"; then
-            echo "Este PR no toca $PLANTILLA: se reporta, no bloquea."
-            echo "bloquea=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "Este PR cambia la version fijada de n8n: el escaneo bloquea."
-            echo "bloquea=true" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Trivy - reporte SARIF
         uses: aquasecurity/trivy-action@master
         with:
@@ -174,9 +148,11 @@ jobs:
           sarif_file: trivy-n8n.sarif
           category: trivy-n8n
 
-      - name: Trivy - gate CRITICAL
+      # Este paso nunca tumba el job: solo deja constancia de si hay CRITICAL
+      # con parche. Quien decide si eso frena el PR es el paso siguiente.
+      - name: Trivy - buscar CRITICAL con parche
         id: gate
-        continue-on-error: ${{ steps.pin.outputs.bloquea == 'false' }}
+        continue-on-error: true
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ steps.n8n.outputs.ref }}
@@ -186,12 +162,38 @@ jobs:
           trivyignores: security/trivy-excepciones.yaml
           exit-code: '1'
 
-      - name: Resumen del hallazgo
-        if: always() && steps.gate.outcome == 'failure'
+      # La decision vive entera en un solo paso, en shell: si depende de dos
+      # pasos distintos, basta con que una salida llegue vacia para que el gate
+      # se comporte al reves de lo que dice su propio resumen.
+      - name: Decidir si el hallazgo bloquea este PR
+        if: always()
         env:
+          EVENTO: ${{ github.event_name }}
+          BASE: ${{ github.base_ref }}
+          RESULTADO: ${{ steps.gate.outcome }}
           IMAGEN: ${{ steps.n8n.outputs.ref }}
-          BLOQUEA: ${{ steps.pin.outputs.bloquea }}
         run: |
+          set -uo pipefail
+          PLANTILLA=infrastructure/lightsail-containers.json.template
+
+          if [ "${RESULTADO}" != "failure" ]; then
+            echo "Sin CRITICAL con parche en ${IMAGEN}."
+            exit 0
+          fi
+
+          # Bloquea si el PR cambia la version fijada (no se puede fijar una
+          # version vulnerable), si no hay con que comparar, o si no es un PR
+          # (push a main, revision semanal, ejecucion manual).
+          bloquea=true
+          if [ "${EVENTO}" = "pull_request" ]; then
+            if ! git fetch --no-tags --depth=1 origin "${BASE}"; then
+              echo "::warning::No se pudo traer '${BASE}' para comparar; se asume que bloquea."
+            elif git diff --quiet FETCH_HEAD -- "${PLANTILLA}"; then
+              bloquea=false
+            fi
+          fi
+          echo "evento=${EVENTO} bloquea=${bloquea}"
+
           {
             echo "## La imagen de n8n fijada tiene CRITICAL con parche disponible"
             echo ""
@@ -199,18 +201,23 @@ jobs:
             echo ""
             echo "Los hallazgos estan en el **Alpine base de n8n**, no en el codigo de n8n"
             echo "ni en nuestros workflows. No se corrigen desde este repositorio: hay que"
-            echo "subir la version fijada en \`infrastructure/lightsail-containers.json.template\`,"
-            echo "que es un cambio de despliegue y se coordina con quien opera Lightsail."
+            echo "subir la version fijada en \`${PLANTILLA}\`, que es un cambio de despliegue"
+            echo "y se coordina con quien opera Lightsail."
             echo ""
             echo "El detalle completo esta en **Security -> Code scanning**, categoria \`trivy-n8n\`."
-            if [ "${BLOQUEA}" = "true" ]; then
-              echo ""
-              echo "Este escaneo **bloquea**: o cambia la version fijada en este PR, o es la revision semanal."
+            echo ""
+            if [ "${bloquea}" = "true" ]; then
+              echo "Este escaneo **bloquea**: o este cambio toca la version fijada, o es la revision semanal."
             else
-              echo ""
               echo "Este escaneo **no bloquea** este PR: el hallazgo no lo introdujo este cambio."
             fi
-          } >> "$GITHUB_STEP_SUMMARY"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+          if [ "${bloquea}" = "true" ]; then
+            echo "::error::La version fijada de n8n tiene CRITICAL con parche disponible. Sube la version en ${PLANTILLA}."
+            exit 1
+          fi
+          echo "Se reporta sin frenar este PR."
 
   # Evidencia del criterio "una imagen vulnerable de prueba bloquea el merge":
   # se ejecuta a mano con workflow_dispatch y una imagen antigua. No usa el
