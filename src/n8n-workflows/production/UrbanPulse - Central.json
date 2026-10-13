@@ -5,7 +5,9 @@
       "parameters": {
         "rule": {
           "interval": [
-            {}
+            {
+              "daysInterval": 15
+            }
           ]
         }
       },
@@ -2101,7 +2103,9 @@
       "parameters": {
         "rule": {
           "interval": [
-            {}
+            {
+              "daysInterval": 15
+            }
           ]
         }
       },
@@ -3124,9 +3128,10 @@
     "timeSavedMode": "fixed",
     "saveDataSuccessExecution": "all",
     "callerPolicy": "workflowsFromSameOwner",
-    "availableInMCP": false
+    "availableInMCP": false,
+    "errorWorkflow": "vPbn1fp5YIuktC25"
   },
-  "versionId": "ee6a62cb-9107-4933-9a56-8a50a238c6d8",
+  "versionId": "9f5ae3e6-f311-4df2-a192-fbb2c2f52c2a",
   "meta": {
     "instanceId": "954822bcb0252493706022c5abd9df94db1655579dfc0586eeeabb7008e50537"
   },
