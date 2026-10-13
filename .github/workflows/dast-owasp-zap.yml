@@ -57,6 +57,10 @@ jobs:
       escanear: ${{ steps.decidir.outputs.escanear }}
       url: ${{ steps.decidir.outputs.url }}
       api: ${{ steps.decidir.outputs.api }}
+      # Code Scanning necesita saber a que commit colgar los hallazgos, y en un
+      # evento deployment_status no hay GITHUB_REF del que deducirlo.
+      ref: ${{ steps.decidir.outputs.ref }}
+      sha: ${{ steps.decidir.outputs.sha }}
     steps:
       - name: Decidir objetivo
         id: decidir
@@ -68,8 +72,26 @@ jobs:
           URL_MANUAL: ${{ inputs.target_url }}
           URL_SECRET: ${{ secrets.DAST_BASELINE_URL }}
           API_MANUAL: ${{ inputs.correr_api_scan }}
+          REF_DESPLIEGUE: ${{ github.event.deployment.ref }}
+          SHA_DESPLIEGUE: ${{ github.event.deployment.sha }}
+          REF_ACTUAL: ${{ github.ref }}
+          SHA_ACTUAL: ${{ github.sha }}
         run: |
           set -euo pipefail
+
+          # Commit al que se cuelgan los hallazgos en Code Scanning. En un
+          # despliegue es el del propio deploy (el codigo que se escanea);
+          # en una corrida manual, el de la rama desde la que se lanzo.
+          if [ "$EVENTO" = "deployment_status" ] && [ -n "$SHA_DESPLIEGUE" ]; then
+            case "$REF_DESPLIEGUE" in
+              refs/*) echo "ref=$REF_DESPLIEGUE" >> "$GITHUB_OUTPUT" ;;
+              *)      echo "ref=refs/heads/$REF_DESPLIEGUE" >> "$GITHUB_OUTPUT" ;;
+            esac
+            echo "sha=$SHA_DESPLIEGUE" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=$REF_ACTUAL" >> "$GITHUB_OUTPUT"
+            echo "sha=$SHA_ACTUAL" >> "$GITHUB_OUTPUT"
+          fi
 
           if [ "$EVENTO" = "deployment_status" ]; then
             # Solo despliegues que terminaron bien. Los de produccion se saltan
@@ -150,6 +172,12 @@ jobs:
         with:
           sarif_file: zap-sarif/baseline.sarif
           category: dast-zap-baseline
+          # En un evento deployment_status no hay GITHUB_REF, y sin el la accion
+          # aborta con "GITHUB_REF environment variable must be set": no sabe a
+          # que commit colgar los hallazgos. Se los pasamos desde el propio
+          # despliegue, que es exactamente el codigo que se acaba de escanear.
+          ref: ${{ needs.preparar.outputs.ref }}
+          sha: ${{ needs.preparar.outputs.sha }}
 
       - name: Generar informe y aplicar el gate de riesgo alto
         if: ${{ !cancelled() && hashFiles('zap-sarif/baseline.sarif') != '' }}
@@ -225,6 +253,8 @@ jobs:
         with:
           sarif_file: zap-sarif/api.sarif
           category: dast-zap-api
+          ref: ${{ needs.preparar.outputs.ref }}
+          sha: ${{ needs.preparar.outputs.sha }}
 
       - name: Generar informe y aplicar el gate de riesgo alto
         if: ${{ !cancelled() && hashFiles('zap-sarif/api.sarif') != '' }}
