@@ -48,11 +48,17 @@ jobs:
       # el analisis de IaC usa el mismo motor y las mismas reglas que el
       # escaneo de imagenes de HT-44 T01, en vez de dos herramientas distintas.
       #
+      # Se usa @master, igual que trivy-scan.yml: es la unica referencia de
+      # esta accion que el repositorio ya tiene probada. Lo correcto seria
+      # fijar una version exacta, pero hay que comprobar antes que el tag
+      # exista (un tag inventado hace fallar el job entero en "Set up job",
+      # antes de ejecutar nada).
+      #
       # Informe completo (CRITICAL, HIGH y MEDIUM) a la pestana Security, sin
       # bloquear: sirve para ver el inventario de hallazgos.
       - name: Analisis de seguridad de IaC - informe (Trivy/tfsec)
         if: ${{ !cancelled() }}
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@master
         with:
           scan-type: config
           scan-ref: ${{ env.TF_DIR }}
@@ -82,7 +88,7 @@ jobs:
       # ejecucion, revisar el inventario en la pestana Security y subir este
       # umbral a CRITICAL,HIGH (ver docs/DEVSECOPS_TEAM_GUIDELINES.md).
       - name: Analisis de seguridad de IaC - gate (Trivy/tfsec)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@master
         with:
           scan-type: config
           scan-ref: ${{ env.TF_DIR }}
