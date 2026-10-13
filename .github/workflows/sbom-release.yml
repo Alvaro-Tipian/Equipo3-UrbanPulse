@@ -38,15 +38,15 @@ jobs:
           upload-artifact: false
           upload-release-assets: false
 
-      - name: Construir imagen de la API de inferencia
-        run: docker build -t urbanpulse/api-inferencia:${{ steps.ver.outputs.tag }} ia-ops/fastapi_service
-
-      - name: SBOM de la imagen de la API (Syft)
+      # No se construye la imagen de la API: su Dockerfile hornea el modelo
+      # desde MLflow y exige 9 secretos de build. El SBOM se genera del arbol
+      # de ml/api, que es donde estan declaradas sus dependencias.
+      - name: SBOM de la API de riesgo (Syft)
         uses: anchore/sbom-action@v0
         with:
-          image: urbanpulse/api-inferencia:${{ steps.ver.outputs.tag }}
+          path: ml/api
           format: cyclonedx-json
-          output-file: sbom-api-inferencia-${{ steps.ver.outputs.tag }}.cdx.json
+          output-file: sbom-api-riesgo-${{ steps.ver.outputs.tag }}.cdx.json
           upload-artifact: false
           upload-release-assets: false
 

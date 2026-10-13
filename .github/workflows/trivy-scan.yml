@@ -14,13 +14,13 @@ on:
     branches: [ main ]
     paths:
       - 'infrastructure/**'
-      - 'ia-ops/fastapi_service/**'
+      - 'ml/api/**'
       - '.github/workflows/trivy-scan.yml'
   push:
     branches: [ main ]
     paths:
       - 'infrastructure/**'
-      - 'ia-ops/fastapi_service/**'
+      - 'ml/api/**'
       - '.github/workflows/trivy-scan.yml'
   workflow_dispatch:
     inputs:
@@ -48,10 +48,6 @@ jobs:
             origen: build
             contexto: infrastructure
             dockerfile: infrastructure/postgres.Dockerfile
-          - nombre: api-inferencia
-            origen: build
-            contexto: ia-ops/fastapi_service
-            dockerfile: ia-ops/fastapi_service/Dockerfile
     steps:
       - name: Checkout del repositorio
         uses: actions/checkout@v4
@@ -85,7 +81,7 @@ jobs:
 
       # Reporte completo (CRITICAL y HIGH) a la pestana Security. No bloquea.
       - name: Trivy - reporte SARIF
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ steps.img.outputs.ref }}
           format: sarif
@@ -102,7 +98,7 @@ jobs:
 
       # Gate: falla si hay una CRITICAL con parche disponible.
       - name: Trivy - gate CRITICAL (bloquea)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ steps.img.outputs.ref }}
           format: table
@@ -118,7 +114,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Trivy - gate CRITICAL sobre imagen de prueba
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ inputs.imagen_prueba }}
           format: table
@@ -136,7 +132,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Trivy config
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@master
         with:
           scan-type: config
           scan-ref: infrastructure
@@ -151,3 +147,49 @@ jobs:
         with:
           sarif_file: trivy-config.sarif
           category: trivy-config
+
+  # La imagen de la API de riesgo NO se construye aqui: su Dockerfile hornea el
+  # modelo desde MLflow y exige 9 secretos de build (MLflow y Neon). Meterlos en
+  # un gate de Pull Request ataria el merge a que DagsHub y Neon esten arriba, y
+  # un PR desde un fork no recibe secrets: el gate fallaria por infraestructura,
+  # no por seguridad.
+  #
+  # El reparto queda asi:
+  #   - aqui, en cada PR: escaneo del arbol de ml/api, que es donde viven las
+  #     CVE que importan de este servicio (requirements.txt);
+  #   - en deploy-api-inferencia.yml: escaneo de la imagen ya construida, con
+  #     gate CRITICAL antes de publicarla en Lightsail.
+  api-dependencias:
+    name: Trivy dependencias de la API de riesgo (ml/api)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Trivy - reporte SARIF
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: ml/api
+          format: sarif
+          output: trivy-ml-api.sarif
+          severity: CRITICAL,HIGH
+          exit-code: '0'
+
+      - name: Subir SARIF a GitHub Security
+        if: always()
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-ml-api.sarif
+          category: trivy-ml-api
+
+      - name: Trivy - gate CRITICAL (bloquea)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: ml/api
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
