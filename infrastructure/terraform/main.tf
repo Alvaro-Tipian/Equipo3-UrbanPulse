@@ -11,7 +11,7 @@ resource "aws_lightsail_container_service" "n8n" {
 # desde la consola cuando no hay pruebas en curso.
 resource "aws_lightsail_container_service" "n8n_staging" {
   name  = "urbanpulse-n8n-staging"
-  power = "nano"
+  power = "micro"
   scale = 1
 }
 

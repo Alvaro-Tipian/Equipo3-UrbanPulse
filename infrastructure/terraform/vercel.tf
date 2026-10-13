@@ -69,7 +69,8 @@ resource "vercel_project" "mf" {
   name           = each.value.name
   framework      = each.value.framework
   root_directory = each.value.root_directory
-  ignore_command = local.vercel_ignore_command
+  # panel-riesgo se creó sin Ignored Build Step; se declara igual que en Vercel.
+  ignore_command = each.key == "panel-riesgo" ? null : local.vercel_ignore_command
 
   # El host no tiene skew protection en Vercel; solo los microfrontends.
   skew_protection = each.key == "host" ? null : "12 hours"
