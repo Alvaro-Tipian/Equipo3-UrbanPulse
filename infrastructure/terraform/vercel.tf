@@ -49,7 +49,18 @@ locals {
       framework      = "vite"
       root_directory = "mf-dashboard"
     }
+    panel-riesgo = {
+      name           = "equipo3-urbanpulse-panel-riesgo"
+      framework      = "vite"
+      root_directory = "mf-panel-riesgo"
+    }
   }
+}
+
+# mf-panel-riesgo (HU-08) se creó a mano en Vercel; se importa en el apply.
+import {
+  to = vercel_project.mf["panel-riesgo"]
+  id = "prj_qwELVvFArP3QM34zzL4MiSqHtMgI"
 }
 
 resource "vercel_project" "mf" {
@@ -58,7 +69,8 @@ resource "vercel_project" "mf" {
   name           = each.value.name
   framework      = each.value.framework
   root_directory = each.value.root_directory
-  ignore_command = local.vercel_ignore_command
+  # panel-riesgo se creó sin Ignored Build Step; se declara igual que en Vercel.
+  ignore_command = each.key == "panel-riesgo" ? null : local.vercel_ignore_command
 
   # El host no tiene skew protection en Vercel; solo los microfrontends.
   skew_protection = each.key == "host" ? null : "12 hours"
