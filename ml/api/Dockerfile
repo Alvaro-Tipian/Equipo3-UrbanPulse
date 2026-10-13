@@ -36,6 +36,10 @@ RUN pip install --no-cache-dir --break-system-packages -r requirements.txt
 
 COPY ml/api/export_model.py ml/api/build_lookup.py ./
 
+# Alias del Model Registry que se hornea en la imagen (HT-47 T03).
+ARG MODEL_ALIAS=challenger
+ENV MODEL_ALIAS=${MODEL_ALIAS}
+
 # Los secretos se montan como archivos en /run/secrets/<id> SOLO durante
 # este RUN; no quedan en la imagen final. Se exportan como variables de
 # entorno unicamente para este comando (mismos nombres que tu .env, para

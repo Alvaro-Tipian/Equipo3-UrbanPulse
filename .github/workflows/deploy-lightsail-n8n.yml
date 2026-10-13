@@ -95,25 +95,43 @@ jobs:
             --public-endpoint '{"containerName":"n8n","containerPort":5678,"healthCheck":{}}'
 
       - name: Validar endpoint público de n8n después del deployment
+        # Lightsail devuelve la URL del servicio CON barra final
+        # ("https://urbanpulse-n8n....cs.amazonlightsail.com/"), asi que
+        # "${url}/healthz" construia ".../\/healthz" con doble barra. Express
+        # (el router de n8n) no colapsa la doble barra: no empareja la ruta
+        # /healthz y responde 404, aunque n8n este sano. Por eso los ultimos
+        # deployments salian en rojo con n8n funcionando. Se quita la barra
+        # final con "${url%/}" y se registra el codigo HTTP en cada intento,
+        # para que la proxima vez el log diga que respondio y no haya que
+        # adivinar.
         run: |
           set -euo pipefail
           for intento in $(seq 1 60); do
+            estado_deploy=$(aws lightsail get-container-service-deployments \
+              --service-name urbanpulse-n8n \
+              --query 'deployments[0].state' --output text)
             url=$(aws lightsail get-container-services \
               --service-name urbanpulse-n8n \
               --query 'containerServices[0].url' \
               --output text)
-            estado=$(aws lightsail get-container-services \
-              --service-name urbanpulse-n8n \
-              --query 'containerServices[0].state' \
-              --output text)
-            echo "Intento ${intento}/60: estado=${estado}, url=${url}"
-            if [ "${url}" != "None" ] && curl --fail --silent --show-error --max-time 10 "${url}/healthz" > /dev/null; then
+            base="${url%/}"
+            codigo=0
+            if [ "${url}" != "None" ]; then
+              codigo=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+                --max-time 10 "${base}/healthz" || echo 0)
+            fi
+            echo "Intento ${intento}/60: deployment=${estado_deploy}, url=${base}, GET /healthz -> ${codigo}"
+            if [ "${codigo}" = "200" ]; then
               echo "Health check público de n8n exitoso."
               exit 0
             fi
+            if [ "${estado_deploy}" = "FAILED" ]; then
+              echo "::error::Lightsail marcó el deployment como FAILED: el contenedor de n8n no arrancó. Revisa los logs del contenedor en la consola de Lightsail."
+              exit 1
+            fi
             sleep 15
           done
-          echo "::error::El endpoint público de n8n no respondió al health check tras 15 minutos."
+          echo "::error::El endpoint público de n8n no respondió 200 en /healthz tras 15 minutos (último código: ${codigo})."
           exit 1
 
       - name: Limpiar archivo con secretos
