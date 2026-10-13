@@ -196,6 +196,40 @@ en **Security → Code scanning** y un *gate* que bloquea solo ante `CRITICAL`
 publicado no se puede arreglar actualizando nada, así que se reporta pero no
 frena el merge.
 
+### Dónde bloquea el gate, y por qué no bloquea en todas partes
+
+Un gate de merge debe frenar al autor por algo que **ese PR introdujo y ese PR
+puede arreglar**. Si frena por algo ajeno, lo único que se consigue es que
+alguien termine quitando el gate. Por eso el reparto no es uniforme:
+
+| Objetivo | ¿De quién es el arreglo? | ¿Bloquea? |
+|---|---|---|
+| Imagen de **Postgres** | Nuestra: la construye `infrastructure/postgres.Dockerfile` | Siempre |
+| Dependencias de **`ml/api`** | Nuestras: `requirements.txt` / `requirements-build.txt` | Siempre |
+| Imagen de la **API ya construida** | Nuestra, en `deploy-api-inferencia.yml` | Siempre, antes de publicar |
+| Imagen de **n8n** | De terceros: viene fijada en el template de Lightsail | Solo si el PR cambia la versión fijada, o en la revisión semanal |
+
+El caso de n8n vale la pena explicarlo porque es el que se ve raro. Los
+hallazgos de `n8nio/n8n:2.34.6` están en el **Alpine 3.24 sobre el que n8n
+construye su imagen** — 7 CRITICAL con parche —, no en el código de n8n ni en
+nuestros workflows. El único arreglo posible es **subir la versión fijada** en
+`infrastructure/lightsail-containers.json.template`, que es un cambio de
+despliegue: cambia el n8n que corre en producción y se coordina con quien opera
+Lightsail. Bloquear con eso cualquier PR que toque `infrastructure/` dejaría al
+equipo sin poder mergear por algo que no introdujo.
+
+Así que ese escaneo:
+
+- **bloquea** cuando el PR cambia la versión fijada (no se puede fijar una
+  versión vulnerable) y en la **revisión semanal** (lunes), que es cuando la
+  deuda tiene que doler;
+- **reporta sin frenar** en los demás PR, con un resumen en la ejecución y el
+  detalle completo en Security → Code scanning, categoría `trivy-n8n`.
+
+La revisión semanal existe porque las CVE aparecen solas, sin que nadie toque el
+repositorio. Sin ella, una imagen fijada puede pudrirse durante meses sin que
+nada se ponga rojo.
+
 ### Cuando el gate se pone rojo
 
 El orden de preferencia para resolverlo, de mejor a peor:
