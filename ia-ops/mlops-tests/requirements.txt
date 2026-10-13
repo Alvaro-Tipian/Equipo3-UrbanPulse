@@ -1,0 +1,13 @@
+# Dependencias del banco de pruebas MLOps (HT-48).
+#
+# IMPORTANTE: requiere Python 3.12. Great Expectations 1.x restringe
+# `numpy<2.0.0`, y numpy 1.26 no publica wheels para Python 3.13/3.14, asi que
+# en interpretes mas nuevos pip intenta compilar numpy desde el codigo fuente y
+# la instalacion falla. El workflow .github/workflows/mlops-tests.yml fija 3.12
+# por ese motivo.
+
+# pandas queda en 2.1.4 porque great_expectations 1.3.11 declara `pandas<2.2`:
+# pedir una version mas nueva hace que pip no pueda resolver el entorno.
+great_expectations==1.3.11
+pandas==2.1.4
+pytest==8.3.4

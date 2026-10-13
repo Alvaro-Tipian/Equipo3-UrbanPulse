@@ -1,0 +1,601 @@
+id,created_at,description,incident_type,severity,priority,status,latitude,longitude,distrito
+114,2026-04-08,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,MEDIA,3,en_proceso,-12.101992,-77.038953,San Isidro
+201,2026-04-08,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,ALTA,5,en_proceso,-11.956434,-77.024972,San Juan de Lurigancho
+427,2026-04-08,Poste de alumbrado publico caido sobre la berma,INFRAESTRUCTURA,MEDIA,3,en_proceso,-12.062618,-77.075307,San Miguel
+263,2026-04-09,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,BAJA,1,en_proceso,-12.214161,-76.947778,Villa El Salvador
+374,2026-04-09,Trafico detenido por desvio mal senalizado,CONGESTION,BAJA,1,en_proceso,-12.013169,-76.909617,Ate
+191,2026-04-10,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,BAJA,1,en_proceso,-12.097537,-76.955682,La Molina
+299,2026-04-10,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,MEDIA,3,en_proceso,-11.955467,-77.069424,Comas
+23,2026-04-11,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,BAJA,1,en_proceso,-12.044953,-77.032186,Cercado de Lima
+271,2026-04-11,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,BAJA,1,pending,-12.204804,-76.942749,Villa El Salvador
+28,2026-04-12,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,BAJA,1,resolved,-12.061793,-77.025597,Cercado de Lima
+235,2026-04-12,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,MEDIA,3,resolved,-11.956271,-77.013357,San Juan de Lurigancho
+353,2026-04-12,Colision por alcance entre tres vehiculos en hora punta,SINIESTRO_VIAL,ALTA,5,en_proceso,-12.040358,-77.110323,Callao
+497,2026-04-12,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,ALTA,5,resolved,-12.159684,-77.023919,Chorrillos
+580,2026-04-12,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,BAJA,1,pending,-12.117999,-76.981325,San Borja
+587,2026-04-12,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,MEDIA,3,en_proceso,-12.100789,-76.991749,San Borja
+415,2026-04-13,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,BAJA,1,resolved,-12.085969,-77.07636,San Miguel
+157,2026-04-15,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,MEDIA,3,resolved,-12.161332,-76.998419,Santiago de Surco
+431,2026-04-15,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,BAJA,1,en_proceso,-12.092927,-77.09093,San Miguel
+480,2026-04-15,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,MEDIA,3,en_proceso,-12.152145,-77.038415,Barranco
+492,2026-04-15,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,BAJA,1,resolved,-12.162729,-77.011327,Chorrillos
+37,2026-04-16,Trafico detenido por desvio mal senalizado,CONGESTION,MEDIA,3,pending,-12.046641,-77.046919,Cercado de Lima
+554,2026-04-16,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,MEDIA,3,resolved,-11.968735,-77.061321,Los Olivos
+54,2026-04-18,Trafico detenido por desvio mal senalizado,CONGESTION,BAJA,1,en_proceso,-12.137587,-77.040891,Miraflores
+105,2026-04-18,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,ALTA,5,en_proceso,-12.101166,-77.036867,San Isidro
+107,2026-04-18,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,MEDIA,3,pending,-12.099072,-77.03244,San Isidro
+310,2026-04-18,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,BAJA,1,resolved,-11.935943,-77.063205,Comas
+259,2026-04-19,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,MEDIA,3,resolved,-12.226145,-76.940532,Villa El Salvador
+366,2026-04-19,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,BAJA,1,resolved,-12.010903,-76.907117,Ate
+389,2026-04-19,Trafico detenido por desvio mal senalizado,CONGESTION,MEDIA,3,pending,-12.033511,-76.934651,Ate
+600,2026-04-19,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,MEDIA,3,resolved,-12.109561,-77.011051,San Borja
+87,2026-04-20,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,BAJA,1,resolved,-12.102416,-77.042318,San Isidro
+152,2026-04-20,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,MEDIA,3,pending,-12.136648,-76.975372,Santiago de Surco
+158,2026-04-21,Congestion vehicular severa por obra municipal en curso,CONGESTION,BAJA,1,en_proceso,-12.13205,-76.978922,Santiago de Surco
+248,2026-04-21,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,MEDIA,3,resolved,-12.212263,-76.935458,Villa El Salvador
+40,2026-04-22,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,MEDIA,3,en_proceso,-12.050002,-77.031035,Cercado de Lima
+296,2026-04-22,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,MEDIA,3,pending,-11.952161,-77.055693,Comas
+352,2026-04-22,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,MEDIA,3,en_proceso,-12.058801,-77.134107,Callao
+473,2026-04-22,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,ALTA,5,en_proceso,-12.162427,-77.033673,Barranco
+46,2026-04-23,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,BAJA,1,pending,-12.124438,-77.019296,Miraflores
+86,2026-04-23,Trafico detenido por desvio mal senalizado,CONGESTION,BAJA,1,pending,-12.100861,-77.037134,San Isidro
+181,2026-04-23,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,MEDIA,3,pending,-12.087359,-76.957502,La Molina
+383,2026-04-23,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,BAJA,1,resolved,-12.043606,-76.924396,Ate
+204,2026-04-24,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,BAJA,1,pending,-11.956794,-77.009981,San Juan de Lurigancho
+363,2026-04-24,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,MEDIA,3,en_proceso,-12.037843,-76.932045,Ate
+567,2026-04-24,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,BAJA,1,en_proceso,-12.095345,-77.004886,San Borja
+10,2026-04-25,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,MEDIA,3,en_proceso,-12.062085,-77.038826,Cercado de Lima
+227,2026-04-25,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,MEDIA,3,en_proceso,-11.960656,-77.020153,San Juan de Lurigancho
+332,2026-04-25,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,BAJA,1,pending,-12.054288,-77.120582,Callao
+409,2026-04-25,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,ALTA,5,pending,-12.070819,-77.072334,San Miguel
+22,2026-04-26,Trafico detenido por desvio mal senalizado,CONGESTION,BAJA,1,resolved,-12.043627,-77.038479,Cercado de Lima
+120,2026-04-26,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,MEDIA,3,pending,-12.109095,-77.024964,San Isidro
+297,2026-04-26,Colision por alcance entre tres vehiculos en hora punta,SINIESTRO_VIAL,ALTA,5,en_proceso,-11.937203,-77.053769,Comas
+368,2026-04-26,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,MEDIA,3,en_proceso,-12.043632,-76.926176,Ate
+416,2026-04-26,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,MEDIA,3,en_proceso,-12.059945,-77.080042,San Miguel
+422,2026-04-26,Trafico detenido por desvio mal senalizado,CONGESTION,BAJA,1,pending,-12.064302,-77.074024,San Miguel
+337,2026-04-27,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,ALTA,5,en_proceso,-12.042679,-77.11594,Callao
+453,2026-04-27,Congestion vehicular severa por obra municipal en curso,CONGESTION,MEDIA,3,resolved,-12.163802,-77.019961,Barranco
+505,2026-04-27,Colision por alcance entre tres vehiculos en hora punta,SINIESTRO_VIAL,ALTA,5,resolved,-12.171536,-76.998484,Chorrillos
+583,2026-04-27,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,BAJA,1,resolved,-12.085311,-77.007287,San Borja
+121,2026-04-28,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,ALTA,5,resolved,-12.142288,-76.988868,Santiago de Surco
+66,2026-04-29,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,MEDIA,3,en_proceso,-12.116778,-77.040273,Miraflores
+68,2026-04-29,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,BAJA,1,en_proceso,-12.132466,-77.034095,Miraflores
+206,2026-04-29,Congestion vehicular severa por obra municipal en curso,CONGESTION,BAJA,1,resolved,-11.964828,-77.022231,San Juan de Lurigancho
+493,2026-04-29,Congestion vehicular severa por obra municipal en curso,CONGESTION,MEDIA,3,en_proceso,-12.155274,-77.008686,Chorrillos
+19,2026-04-30,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,MEDIA,3,resolved,-12.035758,-77.040211,Cercado de Lima
+330,2026-04-30,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,MEDIA,3,pending,-12.053123,-77.101098,Callao
+444,2026-04-30,Poste de alumbrado publico caido sobre la berma,INFRAESTRUCTURA,BAJA,1,en_proceso,-12.144723,-77.023229,Barranco
+220,2026-05-01,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,BAJA,1,pending,-11.977814,-77.002145,San Juan de Lurigancho
+273,2026-05-02,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,ALTA,5,resolved,-12.22422,-76.925379,Villa El Salvador
+307,2026-05-02,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,MEDIA,3,resolved,-11.947332,-77.043856,Comas
+348,2026-05-03,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,BAJA,1,pending,-12.042589,-77.109523,Callao
+18,2026-05-04,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,MEDIA,3,resolved,-12.053539,-77.037044,Cercado de Lima
+184,2026-05-04,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,MEDIA,3,en_proceso,-12.075991,-76.932798,La Molina
+210,2026-05-04,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,MEDIA,3,en_proceso,-11.968208,-77.020736,San Juan de Lurigancho
+266,2026-05-04,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,MEDIA,3,pending,-12.196386,-76.925051,Villa El Salvador
+140,2026-05-05,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,BAJA,1,pending,-12.140942,-76.994099,Santiago de Surco
+359,2026-05-05,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,BAJA,1,resolved,-12.066148,-77.119651,Callao
+545,2026-05-05,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,ALTA,5,resolved,-11.968863,-77.064789,Los Olivos
+566,2026-05-05,Trafico detenido por desvio mal senalizado,CONGESTION,BAJA,1,pending,-12.110192,-76.993977,San Borja
+576,2026-05-05,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,MEDIA,3,en_proceso,-12.113736,-76.991935,San Borja
+579,2026-05-05,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,MEDIA,3,pending,-12.091693,-76.979101,San Borja
+396,2026-05-06,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,BAJA,1,resolved,-12.017942,-76.925015,Ate
+556,2026-05-06,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,BAJA,1,pending,-11.959313,-77.063889,Los Olivos
+573,2026-05-06,Congestion vehicular severa por obra municipal en curso,CONGESTION,MEDIA,3,resolved,-12.096466,-77.007875,San Borja
+3,2026-05-07,Poste de alumbrado publico caido sobre la berma,INFRAESTRUCTURA,MEDIA,3,pending,-12.03259,-77.037731,Cercado de Lima
+402,2026-05-07,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,MEDIA,3,pending,-12.073131,-77.099041,San Miguel
+423,2026-05-07,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,BAJA,1,pending,-12.077107,-77.077748,San Miguel
+520,2026-05-08,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,MEDIA,3,pending,-12.172306,-77.029447,Chorrillos
+101,2026-05-09,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,MEDIA,3,resolved,-12.107681,-77.021837,San Isidro
+144,2026-05-09,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,MEDIA,3,en_proceso,-12.13834,-76.984455,Santiago de Surco
+196,2026-05-09,Poste de alumbrado publico caido sobre la berma,INFRAESTRUCTURA,BAJA,1,en_proceso,-12.079282,-76.937525,La Molina
+449,2026-05-09,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,ALTA,5,en_proceso,-12.152438,-77.009452,Barranco
+58,2026-05-10,Colision por alcance entre tres vehiculos en hora punta,SINIESTRO_VIAL,MEDIA,3,en_proceso,-12.10963,-77.045411,Miraflores
+410,2026-05-10,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,MEDIA,3,resolved,-12.063704,-77.083599,San Miguel
+597,2026-05-10,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,MEDIA,3,pending,-12.11364,-76.978287,San Borja
+13,2026-05-11,Trafico detenido por desvio mal senalizado,CONGESTION,MEDIA,3,en_proceso,-12.038073,-77.031725,Cercado de Lima
+24,2026-05-11,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,MEDIA,3,pending,-12.03323,-77.03295,Cercado de Lima
+56,2026-05-11,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,MEDIA,3,pending,-12.121833,-77.01566,Miraflores
+238,2026-05-11,Trafico detenido por desvio mal senalizado,CONGESTION,BAJA,1,resolved,-11.98142,-77.006294,San Juan de Lurigancho
+508,2026-05-11,Poste de alumbrado publico caido sobre la berma,INFRAESTRUCTURA,BAJA,1,en_proceso,-12.176052,-77.01007,Chorrillos
+200,2026-05-12,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,MEDIA,3,resolved,-12.06666,-76.929353,La Molina
+320,2026-05-12,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,MEDIA,3,en_proceso,-11.93603,-77.043359,Comas
+379,2026-05-12,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,MEDIA,3,pending,-12.013892,-76.929458,Ate
+137,2026-05-13,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,ALTA,5,en_proceso,-12.157313,-76.985456,Santiago de Surco
+187,2026-05-13,Poste de alumbrado publico caido sobre la berma,INFRAESTRUCTURA,MEDIA,3,pending,-12.066779,-76.950902,La Molina
+525,2026-05-13,Congestion vehicular severa por obra municipal en curso,CONGESTION,MEDIA,3,pending,-11.966017,-77.053921,Los Olivos
+295,2026-05-14,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,BAJA,1,en_proceso,-11.95777,-77.057186,Comas
+424,2026-05-14,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,MEDIA,3,en_proceso,-12.082632,-77.074402,San Miguel
+507,2026-05-14,Poste de alumbrado publico caido sobre la berma,INFRAESTRUCTURA,MEDIA,3,pending,-12.182815,-77.001755,Chorrillos
+538,2026-05-14,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,MEDIA,3,en_proceso,-11.970027,-77.069659,Los Olivos
+588,2026-05-14,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,BAJA,1,en_proceso,-12.095772,-76.978641,San Borja
+546,2026-05-15,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,MEDIA,3,pending,-11.957574,-77.056376,Los Olivos
+550,2026-05-15,Congestion vehicular severa por obra municipal en curso,CONGESTION,BAJA,1,en_proceso,-11.968038,-77.084957,Los Olivos
+539,2026-05-17,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,MEDIA,3,en_proceso,-11.985459,-77.058664,Los Olivos
+130,2026-05-18,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,MEDIA,3,pending,-12.156336,-77.000814,Santiago de Surco
+264,2026-05-18,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,MEDIA,3,pending,-12.23057,-76.9204,Villa El Salvador
+593,2026-05-18,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,ALTA,5,pending,-12.113783,-76.985865,San Borja
+370,2026-05-19,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,MEDIA,3,pending,-12.039821,-76.932556,Ate
+463,2026-05-19,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,BAJA,1,pending,-12.13973,-77.035426,Barranco
+471,2026-05-19,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,BAJA,1,resolved,-12.142857,-77.029886,Barranco
+169,2026-05-20,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,ALTA,5,pending,-12.079434,-76.935509,La Molina
+231,2026-05-20,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,BAJA,1,en_proceso,-11.967356,-77.011467,San Juan de Lurigancho
+371,2026-05-20,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,MEDIA,3,pending,-12.017389,-76.924833,Ate
+393,2026-05-20,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,ALTA,5,resolved,-12.008842,-76.905462,Ate
+448,2026-05-20,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,MEDIA,3,resolved,-12.15872,-77.022061,Barranco
+571,2026-05-20,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,MEDIA,3,resolved,-12.105311,-77.003986,San Borja
+581,2026-05-20,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,MEDIA,3,resolved,-12.114075,-77.010211,San Borja
+12,2026-05-21,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,BAJA,1,pending,-12.057792,-77.033612,Cercado de Lima
+420,2026-05-21,Poste de alumbrado publico caido sobre la berma,INFRAESTRUCTURA,BAJA,1,pending,-12.084889,-77.074794,San Miguel
+452,2026-05-21,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,BAJA,1,pending,-12.132085,-77.036711,Barranco
+589,2026-05-21,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,MEDIA,3,resolved,-12.114308,-76.983272,San Borja
+84,2026-05-22,Poste de alumbrado publico caido sobre la berma,INFRAESTRUCTURA,BAJA,1,pending,-12.089363,-77.032369,San Isidro
+139,2026-05-22,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,MEDIA,3,en_proceso,-12.127741,-76.994753,Santiago de Surco
+283,2026-05-22,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,MEDIA,3,en_proceso,-11.945518,-77.076004,Comas
+430,2026-05-22,Trafico detenido por desvio mal senalizado,CONGESTION,BAJA,1,pending,-12.094798,-77.066829,San Miguel
+458,2026-05-22,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,MEDIA,3,resolved,-12.156502,-77.01125,Barranco
+116,2026-05-23,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,BAJA,1,pending,-12.110523,-77.048715,San Isidro
+256,2026-05-23,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,MEDIA,3,resolved,-12.204223,-76.945018,Villa El Salvador
+284,2026-05-23,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,BAJA,1,resolved,-11.928086,-77.059074,Comas
+349,2026-05-23,Trafico detenido por desvio mal senalizado,CONGESTION,MEDIA,3,resolved,-12.071852,-77.105716,Callao
+376,2026-05-23,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,MEDIA,3,resolved,-12.025789,-76.910185,Ate
+119,2026-05-24,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,BAJA,1,pending,-12.096616,-77.026255,San Isidro
+334,2026-05-24,Trafico detenido por desvio mal senalizado,CONGESTION,BAJA,1,pending,-12.057785,-77.100387,Callao
+60,2026-05-25,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,BAJA,1,pending,-12.119007,-77.042546,Miraflores
+156,2026-05-25,Poste de alumbrado publico caido sobre la berma,INFRAESTRUCTURA,BAJA,1,resolved,-12.161341,-76.987738,Santiago de Surco
+185,2026-05-25,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,ALTA,5,resolved,-12.069992,-76.930643,La Molina
+237,2026-05-25,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,MEDIA,3,pending,-11.960718,-77.016656,San Juan de Lurigancho
+261,2026-05-25,Congestion vehicular severa por obra municipal en curso,CONGESTION,MEDIA,3,resolved,-12.22464,-76.935673,Villa El Salvador
+382,2026-05-25,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,BAJA,1,resolved,-12.028771,-76.935194,Ate
+83,2026-05-26,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,MEDIA,3,resolved,-12.098787,-77.022592,San Isidro
+275,2026-05-26,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,MEDIA,3,en_proceso,-12.221833,-76.946262,Villa El Salvador
+188,2026-05-27,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,BAJA,1,resolved,-12.068051,-76.957059,La Molina
+369,2026-05-27,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,ALTA,5,pending,-12.009761,-76.918126,Ate
+560,2026-05-27,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,MEDIA,3,resolved,-11.98178,-77.078558,Los Olivos
+73,2026-05-28,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,ALTA,5,pending,-12.126036,-77.040426,Miraflores
+199,2026-05-28,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,BAJA,1,pending,-12.092915,-76.954185,La Molina
+228,2026-05-28,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,BAJA,1,en_proceso,-11.986527,-77.015824,San Juan de Lurigancho
+535,2026-05-29,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,BAJA,1,en_proceso,-11.982313,-77.059909,Los Olivos
+7,2026-05-30,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,BAJA,1,pending,-12.0387,-77.042017,Cercado de Lima
+45,2026-05-30,Trafico detenido por desvio mal senalizado,CONGESTION,MEDIA,3,pending,-12.131446,-77.03825,Miraflores
+92,2026-05-30,Poste de alumbrado publico caido sobre la berma,INFRAESTRUCTURA,BAJA,1,resolved,-12.088813,-77.03798,San Isidro
+192,2026-05-30,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,MEDIA,3,resolved,-12.086795,-76.941079,La Molina
+375,2026-05-30,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,BAJA,1,pending,-12.038951,-76.920093,Ate
+586,2026-05-30,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,MEDIA,3,en_proceso,-12.111678,-76.986012,San Borja
+526,2026-05-31,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,BAJA,1,resolved,-11.956714,-77.078307,Los Olivos
+98,2026-06-01,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,MEDIA,3,resolved,-12.109411,-77.031051,San Isidro
+394,2026-06-01,Colision por alcance entre tres vehiculos en hora punta,SINIESTRO_VIAL,MEDIA,3,en_proceso,-12.02086,-76.930294,Ate
+251,2026-06-02,Poste de alumbrado publico caido sobre la berma,INFRAESTRUCTURA,MEDIA,3,resolved,-12.195355,-76.945664,Villa El Salvador
+347,2026-06-02,Poste de alumbrado publico caido sobre la berma,INFRAESTRUCTURA,MEDIA,3,pending,-12.046107,-77.111304,Callao
+55,2026-06-03,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,BAJA,1,resolved,-12.119904,-77.036008,Miraflores
+373,2026-06-03,Congestion vehicular severa por obra municipal en curso,CONGESTION,MEDIA,3,resolved,-12.020654,-76.914619,Ate
+522,2026-06-04,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,MEDIA,3,en_proceso,-11.967478,-77.078339,Los Olivos
+8,2026-06-05,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,MEDIA,3,pending,-12.03724,-77.054612,Cercado de Lima
+318,2026-06-05,Congestion vehicular severa por obra municipal en curso,CONGESTION,BAJA,1,pending,-11.942473,-77.045712,Comas
+325,2026-06-05,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,MEDIA,3,en_proceso,-12.055757,-77.124066,Callao
+406,2026-06-05,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,BAJA,1,en_proceso,-12.081082,-77.075661,San Miguel
+350,2026-06-06,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,BAJA,1,en_proceso,-12.066591,-77.114649,Callao
+351,2026-06-06,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,BAJA,1,pending,-12.053354,-77.12882,Callao
+381,2026-06-06,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,MEDIA,3,pending,-12.01626,-76.906149,Ate
+485,2026-06-06,Trafico detenido por desvio mal senalizado,CONGESTION,MEDIA,3,resolved,-12.168686,-77.017035,Chorrillos
+90,2026-06-07,Colision por alcance entre tres vehiculos en hora punta,SINIESTRO_VIAL,MEDIA,3,resolved,-12.111583,-77.028229,San Isidro
+117,2026-06-07,Congestion vehicular severa por obra municipal en curso,CONGESTION,MEDIA,3,en_proceso,-12.094612,-77.050747,San Isidro
+159,2026-06-07,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,BAJA,1,en_proceso,-12.162593,-76.983281,Santiago de Surco
+216,2026-06-07,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,MEDIA,3,en_proceso,-11.976409,-77.025728,San Juan de Lurigancho
+384,2026-06-07,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,MEDIA,3,resolved,-12.016145,-76.908133,Ate
+515,2026-06-07,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,MEDIA,3,pending,-12.157474,-77.013462,Chorrillos
+232,2026-06-08,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,MEDIA,3,resolved,-11.982174,-77.0231,San Juan de Lurigancho
+321,2026-06-08,Colision por alcance entre tres vehiculos en hora punta,SINIESTRO_VIAL,ALTA,5,pending,-12.067687,-77.129178,Callao
+558,2026-06-08,Congestion vehicular severa por obra municipal en curso,CONGESTION,BAJA,1,pending,-11.959026,-77.082726,Los Olivos
+461,2026-06-09,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,MEDIA,3,en_proceso,-12.162199,-77.034361,Barranco
+512,2026-06-09,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,MEDIA,3,resolved,-12.152389,-77.023733,Chorrillos
+124,2026-06-10,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,BAJA,1,pending,-12.148714,-76.976427,Santiago de Surco
+186,2026-06-10,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,MEDIA,3,pending,-12.089252,-76.925544,La Molina
+287,2026-06-10,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,BAJA,1,resolved,-11.950651,-77.073148,Comas
+413,2026-06-10,Congestion vehicular severa por obra municipal en curso,CONGESTION,MEDIA,3,resolved,-12.083893,-77.06659,San Miguel
+446,2026-06-10,Congestion vehicular severa por obra municipal en curso,CONGESTION,BAJA,1,resolved,-12.145135,-77.009561,Barranco
+309,2026-06-11,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,MEDIA,3,en_proceso,-11.955608,-77.062904,Comas
+372,2026-06-11,Poste de alumbrado publico caido sobre la berma,INFRAESTRUCTURA,BAJA,1,en_proceso,-12.035435,-76.93094,Ate
+575,2026-06-11,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,BAJA,1,en_proceso,-12.097391,-76.993937,San Borja
+133,2026-06-12,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,MEDIA,3,en_proceso,-12.132144,-76.994486,Santiago de Surco
+411,2026-06-12,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,MEDIA,3,en_proceso,-12.072429,-77.087549,San Miguel
+445,2026-06-12,Congestion vehicular severa por obra municipal en curso,CONGESTION,MEDIA,3,pending,-12.155468,-77.03423,Barranco
+270,2026-06-13,Congestion vehicular severa por obra municipal en curso,CONGESTION,BAJA,1,pending,-12.213349,-76.948185,Villa El Salvador
+531,2026-06-13,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,MEDIA,3,en_proceso,-11.984215,-77.079056,Los Olivos
+563,2026-06-13,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,MEDIA,3,en_proceso,-12.082232,-76.99343,San Borja
+514,2026-06-14,Colision por alcance entre tres vehiculos en hora punta,SINIESTRO_VIAL,MEDIA,3,en_proceso,-12.173359,-76.998249,Chorrillos
+67,2026-06-15,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,MEDIA,3,en_proceso,-12.11478,-77.043184,Miraflores
+195,2026-06-15,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,MEDIA,3,resolved,-12.065002,-76.930407,La Molina
+286,2026-06-15,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,BAJA,1,resolved,-11.927763,-77.076189,Comas
+418,2026-06-15,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,MEDIA,3,en_proceso,-12.089759,-77.093361,San Miguel
+468,2026-06-15,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,BAJA,1,en_proceso,-12.141785,-77.037204,Barranco
+491,2026-06-15,Poste de alumbrado publico caido sobre la berma,INFRAESTRUCTURA,MEDIA,3,en_proceso,-12.162035,-77.009446,Chorrillos
+509,2026-06-15,Trafico detenido por desvio mal senalizado,CONGESTION,MEDIA,3,resolved,-12.1594,-77.027952,Chorrillos
+519,2026-06-15,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,BAJA,1,pending,-12.186336,-77.021861,Chorrillos
+112,2026-06-16,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,MEDIA,3,pending,-12.08367,-77.0403,San Isidro
+127,2026-06-16,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,BAJA,1,resolved,-12.144667,-76.982221,Santiago de Surco
+435,2026-06-16,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,MEDIA,3,pending,-12.08469,-77.085701,San Miguel
+11,2026-06-17,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,MEDIA,3,resolved,-12.061948,-77.031162,Cercado de Lima
+277,2026-06-17,Trafico detenido por desvio mal senalizado,CONGESTION,MEDIA,3,en_proceso,-12.195962,-76.932709,Villa El Salvador
+308,2026-06-17,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,BAJA,1,en_proceso,-11.940663,-77.047744,Comas
+354,2026-06-17,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,MEDIA,3,en_proceso,-12.063251,-77.115156,Callao
+355,2026-06-17,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,MEDIA,3,en_proceso,-12.04378,-77.135615,Callao
+455,2026-06-17,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,BAJA,1,pending,-12.141583,-77.025564,Barranco
+543,2026-06-17,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,BAJA,1,pending,-11.966991,-77.075195,Los Olivos
+20,2026-06-18,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,BAJA,1,en_proceso,-12.060436,-77.029064,Cercado de Lima
+434,2026-06-18,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,MEDIA,3,resolved,-12.092247,-77.099969,San Miguel
+454,2026-06-18,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,BAJA,1,resolved,-12.151692,-77.01303,Barranco
+178,2026-06-19,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,MEDIA,3,resolved,-12.086297,-76.940804,La Molina
+223,2026-06-19,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,BAJA,1,en_proceso,-11.955038,-77.014639,San Juan de Lurigancho
+391,2026-06-19,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,BAJA,1,resolved,-12.019593,-76.921815,Ate
+478,2026-06-19,Congestion vehicular severa por obra municipal en curso,CONGESTION,BAJA,1,resolved,-12.166629,-77.026179,Barranco
+506,2026-06-19,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,MEDIA,3,resolved,-12.167858,-77.016443,Chorrillos
+311,2026-06-20,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,BAJA,1,en_proceso,-11.941547,-77.048964,Comas
+343,2026-06-20,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,BAJA,1,en_proceso,-12.039259,-77.101377,Callao
+534,2026-06-20,Trafico detenido por desvio mal senalizado,CONGESTION,BAJA,1,en_proceso,-11.972441,-77.05865,Los Olivos
+82,2026-06-21,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,MEDIA,3,resolved,-12.102485,-77.022191,San Isidro
+211,2026-06-21,Poste de alumbrado publico caido sobre la berma,INFRAESTRUCTURA,MEDIA,3,pending,-11.972848,-77.027494,San Juan de Lurigancho
+323,2026-06-21,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,MEDIA,3,resolved,-12.071299,-77.131938,Callao
+417,2026-06-21,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,ALTA,5,pending,-12.08965,-77.074069,San Miguel
+254,2026-06-22,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,BAJA,1,pending,-12.200438,-76.951366,Villa El Salvador
+282,2026-06-22,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,MEDIA,3,en_proceso,-11.940316,-77.050643,Comas
+346,2026-06-22,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,MEDIA,3,resolved,-12.065608,-77.126772,Callao
+357,2026-06-22,Trafico detenido por desvio mal senalizado,CONGESTION,MEDIA,3,resolved,-12.06012,-77.125145,Callao
+469,2026-06-22,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,MEDIA,3,pending,-12.148418,-77.021857,Barranco
+488,2026-06-22,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,MEDIA,3,resolved,-12.166696,-77.032995,Chorrillos
+544,2026-06-22,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,MEDIA,3,resolved,-11.958233,-77.060085,Los Olivos
+594,2026-06-22,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,MEDIA,3,en_proceso,-12.08545,-76.991136,San Borja
+104,2026-06-23,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,MEDIA,3,resolved,-12.083933,-77.028305,San Isidro
+360,2026-06-23,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,MEDIA,3,resolved,-12.065988,-77.114036,Callao
+59,2026-06-24,Poste de alumbrado publico caido sobre la berma,INFRAESTRUCTURA,MEDIA,3,resolved,-12.138061,-77.030843,Miraflores
+128,2026-06-24,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,MEDIA,3,pending,-12.156481,-76.981874,Santiago de Surco
+151,2026-06-24,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,BAJA,1,en_proceso,-12.1382,-76.977843,Santiago de Surco
+224,2026-06-24,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,MEDIA,3,pending,-11.958795,-76.996004,San Juan de Lurigancho
+425,2026-06-25,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,ALTA,5,resolved,-12.080238,-77.071494,San Miguel
+102,2026-06-26,Congestion vehicular severa por obra municipal en curso,CONGESTION,BAJA,1,en_proceso,-12.113533,-77.03304,San Isidro
+293,2026-06-26,Trafico detenido por desvio mal senalizado,CONGESTION,MEDIA,3,pending,-11.945962,-77.04729,Comas
+71,2026-06-27,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,BAJA,1,pending,-12.107343,-77.031317,Miraflores
+303,2026-06-27,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,BAJA,1,resolved,-11.937808,-77.05935,Comas
+397,2026-06-27,Trafico detenido por desvio mal senalizado,CONGESTION,MEDIA,3,resolved,-12.043308,-76.929231,Ate
+429,2026-06-27,Trafico detenido por desvio mal senalizado,CONGESTION,MEDIA,3,pending,-12.06524,-77.08899,San Miguel
+438,2026-06-27,Trafico detenido por desvio mal senalizado,CONGESTION,BAJA,1,resolved,-12.062918,-77.088184,San Miguel
+441,2026-06-27,Colision por alcance entre tres vehiculos en hora punta,SINIESTRO_VIAL,ALTA,5,resolved,-12.135767,-77.021539,Barranco
+578,2026-06-27,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,MEDIA,3,pending,-12.098059,-77.001493,San Borja
+33,2026-06-28,Colision por alcance entre tres vehiculos en hora punta,SINIESTRO_VIAL,ALTA,5,en_proceso,-12.033104,-77.036839,Cercado de Lima
+149,2026-06-28,Congestion vehicular severa por obra municipal en curso,CONGESTION,MEDIA,3,pending,-12.157364,-77.00998,Santiago de Surco
+166,2026-06-28,Trafico detenido por desvio mal senalizado,CONGESTION,BAJA,1,en_proceso,-12.065906,-76.940924,La Molina
+392,2026-06-28,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,MEDIA,3,resolved,-12.039112,-76.929623,Ate
+584,2026-06-28,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,MEDIA,3,resolved,-12.092587,-76.989583,San Borja
+88,2026-06-29,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,MEDIA,3,pending,-12.110701,-77.052546,San Isidro
+153,2026-06-29,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,ALTA,5,pending,-12.133605,-76.976908,Santiago de Surco
+335,2026-06-29,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,BAJA,1,resolved,-12.061979,-77.11812,Callao
+484,2026-06-29,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,BAJA,1,resolved,-12.177308,-77.004905,Chorrillos
+165,2026-06-30,Congestion vehicular severa por obra municipal en curso,CONGESTION,MEDIA,3,resolved,-12.078798,-76.95491,La Molina
+483,2026-06-30,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,MEDIA,3,resolved,-12.162947,-77.017649,Chorrillos
+294,2026-07-01,Trafico detenido por desvio mal senalizado,CONGESTION,BAJA,1,pending,-11.929794,-77.075238,Comas
+552,2026-07-01,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,MEDIA,3,resolved,-11.96663,-77.053037,Los Olivos
+596,2026-07-01,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,BAJA,1,resolved,-12.111635,-76.987488,San Borja
+123,2026-07-02,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,MEDIA,3,resolved,-12.136228,-77.010813,Santiago de Surco
+549,2026-07-02,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,MEDIA,3,pending,-11.955786,-77.052861,Los Olivos
+570,2026-07-02,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,MEDIA,3,pending,-12.083168,-76.978974,San Borja
+4,2026-07-03,Poste de alumbrado publico caido sobre la berma,INFRAESTRUCTURA,BAJA,1,en_proceso,-12.032549,-77.028739,Cercado de Lima
+285,2026-07-03,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,MEDIA,3,pending,-11.946855,-77.070752,Comas
+547,2026-07-03,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,MEDIA,3,resolved,-11.968597,-77.068362,Los Olivos
+9,2026-07-04,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,ALTA,5,en_proceso,-12.049154,-77.040355,Cercado de Lima
+217,2026-07-04,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,ALTA,5,en_proceso,-11.977868,-77.006177,San Juan de Lurigancho
+378,2026-07-04,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,MEDIA,3,resolved,-12.035608,-76.919323,Ate
+451,2026-07-04,Poste de alumbrado publico caido sobre la berma,INFRAESTRUCTURA,MEDIA,3,pending,-12.159762,-77.004597,Barranco
+16,2026-07-05,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,MEDIA,3,pending,-12.063895,-77.054433,Cercado de Lima
+218,2026-07-05,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,MEDIA,3,resolved,-11.962753,-77.026317,San Juan de Lurigancho
+450,2026-07-06,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,MEDIA,3,en_proceso,-12.159484,-77.032698,Barranco
+269,2026-07-07,Trafico detenido por desvio mal senalizado,CONGESTION,MEDIA,3,en_proceso,-12.216921,-76.942312,Villa El Salvador
+380,2026-07-07,Poste de alumbrado publico caido sobre la berma,INFRAESTRUCTURA,BAJA,1,pending,-12.028001,-76.930546,Ate
+490,2026-07-07,Colision por alcance entre tres vehiculos en hora punta,SINIESTRO_VIAL,MEDIA,3,en_proceso,-12.155224,-77.018476,Chorrillos
+125,2026-07-08,Trafico detenido por desvio mal senalizado,CONGESTION,MEDIA,3,resolved,-12.14226,-77.007817,Santiago de Surco
+432,2026-07-08,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,MEDIA,3,pending,-12.06141,-77.088291,San Miguel
+27,2026-07-09,Poste de alumbrado publico caido sobre la berma,INFRAESTRUCTURA,MEDIA,3,en_proceso,-12.036976,-77.027374,Cercado de Lima
+65,2026-07-09,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,ALTA,5,en_proceso,-12.138885,-77.016345,Miraflores
+70,2026-07-09,Congestion vehicular severa por obra municipal en curso,CONGESTION,BAJA,1,en_proceso,-12.127073,-77.018708,Miraflores
+242,2026-07-09,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,MEDIA,3,en_proceso,-12.21919,-76.932263,Villa El Salvador
+403,2026-07-09,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,MEDIA,3,pending,-12.073103,-77.081438,San Miguel
+48,2026-07-10,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,MEDIA,3,en_proceso,-12.10747,-77.012091,Miraflores
+247,2026-07-10,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,BAJA,1,en_proceso,-12.219744,-76.941465,Villa El Salvador
+362,2026-07-10,Colision por alcance entre tres vehiculos en hora punta,SINIESTRO_VIAL,MEDIA,3,resolved,-12.021863,-76.901465,Ate
+577,2026-07-10,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,ALTA,5,en_proceso,-12.114361,-77.004022,San Borja
+30,2026-07-11,Trafico detenido por desvio mal senalizado,CONGESTION,BAJA,1,resolved,-12.032765,-77.040706,Cercado de Lima
+80,2026-07-11,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,MEDIA,3,en_proceso,-12.106144,-77.021353,Miraflores
+134,2026-07-11,Trafico detenido por desvio mal senalizado,CONGESTION,BAJA,1,en_proceso,-12.129289,-77.002754,Santiago de Surco
+143,2026-07-11,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,BAJA,1,resolved,-12.136527,-76.984123,Santiago de Surco
+164,2026-07-11,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,BAJA,1,resolved,-12.090685,-76.944461,La Molina
+482,2026-07-12,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,MEDIA,3,resolved,-12.184514,-77.02943,Chorrillos
+51,2026-07-13,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,MEDIA,3,en_proceso,-12.13529,-77.036793,Miraflores
+442,2026-07-13,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,MEDIA,3,pending,-12.148903,-77.035588,Barranco
+564,2026-07-13,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,BAJA,1,resolved,-12.094486,-76.984563,San Borja
+138,2026-07-14,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,MEDIA,3,resolved,-12.1284,-76.991075,Santiago de Surco
+222,2026-07-14,Congestion vehicular severa por obra municipal en curso,CONGESTION,BAJA,1,resolved,-11.972498,-77.005361,San Juan de Lurigancho
+315,2026-07-14,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,MEDIA,3,resolved,-11.938189,-77.073279,Comas
+340,2026-07-14,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,BAJA,1,resolved,-12.053347,-77.107934,Callao
+108,2026-07-15,Poste de alumbrado publico caido sobre la berma,INFRAESTRUCTURA,BAJA,1,resolved,-12.114823,-77.048293,San Isidro
+230,2026-07-15,Trafico detenido por desvio mal senalizado,CONGESTION,BAJA,1,resolved,-11.979387,-76.99532,San Juan de Lurigancho
+428,2026-07-15,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,BAJA,1,resolved,-12.081353,-77.07991,San Miguel
+281,2026-07-16,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,ALTA,5,resolved,-11.950533,-77.067064,Comas
+336,2026-07-16,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,MEDIA,3,pending,-12.067674,-77.103296,Callao
+106,2026-07-17,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,MEDIA,3,en_proceso,-12.113065,-77.053403,San Isidro
+233,2026-07-17,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,ALTA,5,resolved,-11.958913,-77.003791,San Juan de Lurigancho
+326,2026-07-17,Trafico detenido por desvio mal senalizado,CONGESTION,BAJA,1,resolved,-12.07004,-77.127219,Callao
+412,2026-07-17,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,BAJA,1,pending,-12.085539,-77.084602,San Miguel
+541,2026-07-17,Congestion vehicular severa por obra municipal en curso,CONGESTION,MEDIA,3,en_proceso,-11.981521,-77.081673,Los Olivos
+197,2026-07-19,Trafico detenido por desvio mal senalizado,CONGESTION,MEDIA,3,resolved,-12.086082,-76.943822,La Molina
+215,2026-07-19,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,BAJA,1,en_proceso,-11.974461,-76.994547,San Juan de Lurigancho
+267,2026-07-19,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,MEDIA,3,resolved,-12.214786,-76.922627,Villa El Salvador
+465,2026-07-19,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,ALTA,5,resolved,-12.16249,-77.013747,Barranco
+572,2026-07-19,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,BAJA,1,en_proceso,-12.088612,-76.997753,San Borja
+193,2026-07-20,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,ALTA,5,pending,-12.066242,-76.948663,La Molina
+499,2026-07-20,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,MEDIA,3,resolved,-12.180985,-76.997929,Chorrillos
+301,2026-07-21,Congestion vehicular severa por obra municipal en curso,CONGESTION,MEDIA,3,resolved,-11.957138,-77.052764,Comas
+523,2026-07-21,Poste de alumbrado publico caido sobre la berma,INFRAESTRUCTURA,MEDIA,3,pending,-11.962401,-77.062201,Los Olivos
+278,2026-07-22,Congestion vehicular severa por obra municipal en curso,CONGESTION,BAJA,1,resolved,-12.227038,-76.925426,Villa El Salvador
+2,2026-07-23,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,MEDIA,3,resolved,-12.045612,-77.057506,Cercado de Lima
+443,2026-07-23,Poste de alumbrado publico caido sobre la berma,INFRAESTRUCTURA,MEDIA,3,resolved,-12.141549,-77.0146,Barranco
+565,2026-07-23,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,MEDIA,3,resolved,-12.11274,-76.990897,San Borja
+171,2026-07-24,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,MEDIA,3,pending,-12.084741,-76.928578,La Molina
+475,2026-07-24,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,MEDIA,3,pending,-12.1351,-77.011053,Barranco
+190,2026-07-25,Congestion vehicular severa por obra municipal en curso,CONGESTION,BAJA,1,resolved,-12.064139,-76.950569,La Molina
+262,2026-07-25,Trafico detenido por desvio mal senalizado,CONGESTION,BAJA,1,en_proceso,-12.219442,-76.944165,Villa El Salvador
+467,2026-07-25,Poste de alumbrado publico caido sobre la berma,INFRAESTRUCTURA,MEDIA,3,resolved,-12.134604,-77.023218,Barranco
+516,2026-07-25,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,BAJA,1,en_proceso,-12.159254,-77.000369,Chorrillos
+15,2026-07-26,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,BAJA,1,en_proceso,-12.058387,-77.059874,Cercado de Lima
+189,2026-07-26,Trafico detenido por desvio mal senalizado,CONGESTION,MEDIA,3,resolved,-12.093222,-76.929642,La Molina
+25,2026-07-27,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,ALTA,5,pending,-12.048567,-77.047566,Cercado de Lima
+226,2026-07-27,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,MEDIA,3,pending,-11.962746,-77.014225,San Juan de Lurigancho
+253,2026-07-27,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,MEDIA,3,resolved,-12.229531,-76.918266,Villa El Salvador
+14,2026-07-28,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,BAJA,1,en_proceso,-12.043509,-77.026745,Cercado de Lima
+62,2026-07-28,Congestion vehicular severa por obra municipal en curso,CONGESTION,BAJA,1,resolved,-12.122195,-77.036596,Miraflores
+89,2026-07-28,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,ALTA,5,en_proceso,-12.09592,-77.020809,San Isidro
+161,2026-07-28,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,ALTA,5,pending,-12.069842,-76.929719,La Molina
+272,2026-07-28,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,MEDIA,3,resolved,-12.214063,-76.922549,Villa El Salvador
+292,2026-07-28,Poste de alumbrado publico caido sobre la berma,INFRAESTRUCTURA,BAJA,1,en_proceso,-11.934332,-77.0451,Comas
+50,2026-07-29,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,MEDIA,3,en_proceso,-12.135463,-77.024346,Miraflores
+122,2026-07-29,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,MEDIA,3,pending,-12.145517,-76.992473,Santiago de Surco
+245,2026-07-29,Congestion vehicular severa por obra municipal en curso,CONGESTION,MEDIA,3,pending,-12.216404,-76.935162,Villa El Salvador
+365,2026-07-29,Trafico detenido por desvio mal senalizado,CONGESTION,MEDIA,3,resolved,-12.012486,-76.913921,Ate
+537,2026-07-29,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,ALTA,5,resolved,-11.952469,-77.078445,Los Olivos
+590,2026-07-29,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,BAJA,1,pending,-12.116861,-77.002766,San Borja
+6,2026-07-30,Trafico detenido por desvio mal senalizado,CONGESTION,BAJA,1,resolved,-12.029859,-77.055168,Cercado de Lima
+61,2026-07-30,Congestion vehicular severa por obra municipal en curso,CONGESTION,MEDIA,3,pending,-12.112096,-77.044953,Miraflores
+64,2026-07-30,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,MEDIA,3,resolved,-12.135436,-77.04011,Miraflores
+436,2026-07-30,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,BAJA,1,resolved,-12.066682,-77.099171,San Miguel
+562,2026-07-31,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,MEDIA,3,en_proceso,-12.112123,-77.003615,San Borja
+592,2026-07-31,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,MEDIA,3,resolved,-12.083886,-77.005319,San Borja
+162,2026-08-01,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,MEDIA,3,resolved,-12.094028,-76.955179,La Molina
+236,2026-08-01,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,BAJA,1,en_proceso,-11.966395,-77.017697,San Juan de Lurigancho
+96,2026-08-02,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,MEDIA,3,resolved,-12.082247,-77.053678,San Isidro
+239,2026-08-02,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,BAJA,1,resolved,-11.958247,-76.995852,San Juan de Lurigancho
+364,2026-08-02,Poste de alumbrado publico caido sobre la berma,INFRAESTRUCTURA,BAJA,1,resolved,-12.028682,-76.935702,Ate
+599,2026-08-02,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,BAJA,1,resolved,-12.110522,-77.01263,San Borja
+52,2026-08-03,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,BAJA,1,en_proceso,-12.104148,-77.019937,Miraflores
+274,2026-08-03,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,MEDIA,3,pending,-12.226554,-76.953729,Villa El Salvador
+317,2026-08-03,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,MEDIA,3,en_proceso,-11.947959,-77.061184,Comas
+439,2026-08-03,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,BAJA,1,resolved,-12.061161,-77.097184,San Miguel
+109,2026-08-04,Congestion vehicular severa por obra municipal en curso,CONGESTION,MEDIA,3,en_proceso,-12.105963,-77.044038,San Isidro
+160,2026-08-04,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,MEDIA,3,pending,-12.157889,-76.990203,Santiago de Surco
+172,2026-08-04,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,BAJA,1,resolved,-12.092928,-76.951943,La Molina
+414,2026-08-04,Trafico detenido por desvio mal senalizado,CONGESTION,BAJA,1,pending,-12.066577,-77.081093,San Miguel
+305,2026-08-05,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,ALTA,5,pending,-11.95475,-77.066015,Comas
+78,2026-08-06,Trafico detenido por desvio mal senalizado,CONGESTION,BAJA,1,pending,-12.108068,-77.040623,Miraflores
+148,2026-08-06,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,BAJA,1,en_proceso,-12.139376,-77.010553,Santiago de Surco
+327,2026-08-06,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,BAJA,1,resolved,-12.055657,-77.103407,Callao
+388,2026-08-06,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,BAJA,1,pending,-12.02239,-76.92694,Ate
+404,2026-08-06,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,BAJA,1,en_proceso,-12.064144,-77.074825,San Miguel
+487,2026-08-06,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,BAJA,1,resolved,-12.17078,-77.015898,Chorrillos
+57,2026-08-07,Colision por alcance entre tres vehiculos en hora punta,SINIESTRO_VIAL,ALTA,5,resolved,-12.122519,-77.015459,Miraflores
+150,2026-08-07,Trafico detenido por desvio mal senalizado,CONGESTION,BAJA,1,pending,-12.137973,-76.981311,Santiago de Surco
+518,2026-08-07,Congestion vehicular severa por obra municipal en curso,CONGESTION,BAJA,1,pending,-12.174495,-77.022975,Chorrillos
+249,2026-08-08,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,ALTA,5,pending,-12.204094,-76.929006,Villa El Salvador
+386,2026-08-08,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,MEDIA,3,resolved,-12.031306,-76.932686,Ate
+474,2026-08-08,Colision por alcance entre tres vehiculos en hora punta,SINIESTRO_VIAL,MEDIA,3,en_proceso,-12.161202,-77.007767,Barranco
+180,2026-08-09,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,BAJA,1,resolved,-12.07729,-76.927994,La Molina
+405,2026-08-09,Trafico detenido por desvio mal senalizado,CONGESTION,MEDIA,3,en_proceso,-12.090013,-77.066889,San Miguel
+328,2026-08-10,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,MEDIA,3,pending,-12.061067,-77.115716,Callao
+356,2026-08-10,Poste de alumbrado publico caido sobre la berma,INFRAESTRUCTURA,BAJA,1,en_proceso,-12.059304,-77.121384,Callao
+437,2026-08-10,Congestion vehicular severa por obra municipal en curso,CONGESTION,MEDIA,3,en_proceso,-12.088279,-77.097751,San Miguel
+496,2026-08-10,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,MEDIA,3,pending,-12.165031,-77.006987,Chorrillos
+568,2026-08-10,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,MEDIA,3,resolved,-12.108324,-77.000212,San Borja
+598,2026-08-10,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,BAJA,1,pending,-12.09734,-77.012188,San Borja
+94,2026-08-11,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,BAJA,1,resolved,-12.085562,-77.022703,San Isidro
+279,2026-08-11,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,BAJA,1,en_proceso,-12.207532,-76.940615,Villa El Salvador
+314,2026-08-11,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,MEDIA,3,resolved,-11.935694,-77.06627,Comas
+447,2026-08-11,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,BAJA,1,pending,-12.131172,-77.010868,Barranco
+548,2026-08-11,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,BAJA,1,en_proceso,-11.971824,-77.084138,Los Olivos
+17,2026-08-12,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,ALTA,5,en_proceso,-12.038286,-77.052096,Cercado de Lima
+75,2026-08-12,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,MEDIA,3,resolved,-12.129381,-77.019535,Miraflores
+246,2026-08-12,Trafico detenido por desvio mal senalizado,CONGESTION,BAJA,1,en_proceso,-12.205286,-76.945148,Villa El Salvador
+77,2026-08-13,Congestion vehicular severa por obra municipal en curso,CONGESTION,MEDIA,3,resolved,-12.119332,-77.046823,Miraflores
+146,2026-08-13,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,MEDIA,3,en_proceso,-12.141418,-76.991802,Santiago de Surco
+212,2026-08-13,Poste de alumbrado publico caido sobre la berma,INFRAESTRUCTURA,BAJA,1,en_proceso,-11.980845,-76.996658,San Juan de Lurigancho
+243,2026-08-13,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,MEDIA,3,resolved,-12.223167,-76.940841,Villa El Salvador
+289,2026-08-13,Colision por alcance entre tres vehiculos en hora punta,SINIESTRO_VIAL,ALTA,5,pending,-11.957793,-77.063244,Comas
+324,2026-08-14,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,BAJA,1,en_proceso,-12.060172,-77.106995,Callao
+21,2026-08-15,Congestion vehicular severa por obra municipal en curso,CONGESTION,MEDIA,3,resolved,-12.054051,-77.039321,Cercado de Lima
+81,2026-08-15,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,ALTA,5,en_proceso,-12.080837,-77.032165,San Isidro
+240,2026-08-15,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,MEDIA,3,resolved,-11.967988,-77.027044,San Juan de Lurigancho
+426,2026-08-15,Colision por alcance entre tres vehiculos en hora punta,SINIESTRO_VIAL,MEDIA,3,pending,-12.091402,-77.082316,San Miguel
+479,2026-08-15,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,BAJA,1,pending,-12.154198,-77.030704,Barranco
+38,2026-08-16,Congestion vehicular severa por obra municipal en curso,CONGESTION,BAJA,1,en_proceso,-12.054577,-77.048194,Cercado de Lima
+74,2026-08-16,Colision por alcance entre tres vehiculos en hora punta,SINIESTRO_VIAL,MEDIA,3,en_proceso,-12.116311,-77.028961,Miraflores
+177,2026-08-16,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,ALTA,5,pending,-12.096839,-76.953771,La Molina
+76,2026-08-17,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,BAJA,1,en_proceso,-12.127631,-77.027798,Miraflores
+95,2026-08-17,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,BAJA,1,en_proceso,-12.101012,-77.051114,San Isidro
+103,2026-08-17,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,BAJA,1,pending,-12.105818,-77.019095,San Isidro
+111,2026-08-17,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,BAJA,1,en_proceso,-12.112703,-77.053648,San Isidro
+129,2026-08-17,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,ALTA,5,en_proceso,-12.157013,-77.008367,Santiago de Surco
+142,2026-08-17,Congestion vehicular severa por obra municipal en curso,CONGESTION,BAJA,1,pending,-12.154407,-76.985164,Santiago de Surco
+183,2026-08-17,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,BAJA,1,en_proceso,-12.094714,-76.93908,La Molina
+553,2026-08-17,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,ALTA,5,en_proceso,-11.984717,-77.069104,Los Olivos
+41,2026-08-18,Colision por alcance entre tres vehiculos en hora punta,SINIESTRO_VIAL,ALTA,5,resolved,-12.130235,-77.038114,Miraflores
+175,2026-08-18,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,BAJA,1,en_proceso,-12.091431,-76.94569,La Molina
+302,2026-08-18,Congestion vehicular severa por obra municipal en curso,CONGESTION,BAJA,1,pending,-11.944508,-77.054529,Comas
+433,2026-08-18,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,ALTA,5,pending,-12.062458,-77.07859,San Miguel
+208,2026-08-19,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,MEDIA,3,en_proceso,-11.976283,-77.025169,San Juan de Lurigancho
+252,2026-08-19,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,BAJA,1,en_proceso,-12.213258,-76.945526,Villa El Salvador
+291,2026-08-19,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,MEDIA,3,pending,-11.930825,-77.042686,Comas
+339,2026-08-19,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,MEDIA,3,pending,-12.042084,-77.118017,Callao
+361,2026-08-19,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,ALTA,5,en_proceso,-12.009521,-76.915325,Ate
+470,2026-08-19,Congestion vehicular severa por obra municipal en curso,CONGESTION,BAJA,1,pending,-12.133669,-77.035723,Barranco
+97,2026-08-20,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,ALTA,5,en_proceso,-12.101812,-77.025977,San Isidro
+167,2026-08-20,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,BAJA,1,en_proceso,-12.074815,-76.93155,La Molina
+174,2026-08-20,Congestion vehicular severa por obra municipal en curso,CONGESTION,BAJA,1,resolved,-12.071544,-76.932847,La Molina
+213,2026-08-20,Congestion vehicular severa por obra municipal en curso,CONGESTION,MEDIA,3,resolved,-11.962905,-77.003696,San Juan de Lurigancho
+342,2026-08-20,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,BAJA,1,pending,-12.055036,-77.11259,Callao
+401,2026-08-20,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,ALTA,5,pending,-12.080774,-77.067187,San Miguel
+408,2026-08-21,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,MEDIA,3,pending,-12.06793,-77.078328,San Miguel
+333,2026-08-22,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,MEDIA,3,en_proceso,-12.062492,-77.109961,Callao
+207,2026-08-23,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,BAJA,1,resolved,-11.953498,-76.999117,San Juan de Lurigancho
+91,2026-08-24,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,MEDIA,3,pending,-12.095443,-77.029042,San Isidro
+163,2026-08-24,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,MEDIA,3,en_proceso,-12.075263,-76.949468,La Molina
+203,2026-08-24,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,MEDIA,3,pending,-11.969773,-77.026362,San Juan de Lurigancho
+322,2026-08-24,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,MEDIA,3,pending,-12.0419,-77.124221,Callao
+385,2026-08-24,Colision por alcance entre tres vehiculos en hora punta,SINIESTRO_VIAL,ALTA,5,en_proceso,-12.031434,-76.912406,Ate
+555,2026-08-24,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,MEDIA,3,en_proceso,-11.970567,-77.085491,Los Olivos
+561,2026-08-24,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,ALTA,5,resolved,-12.111152,-77.001655,San Borja
+344,2026-08-25,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,MEDIA,3,en_proceso,-12.058737,-77.113602,Callao
+390,2026-08-25,Congestion vehicular severa por obra municipal en curso,CONGESTION,BAJA,1,pending,-12.016552,-76.911984,Ate
+456,2026-08-25,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,MEDIA,3,pending,-12.155744,-77.005092,Barranco
+1,2026-08-26,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,ALTA,5,resolved,-12.054434,-77.050132,Cercado de Lima
+387,2026-08-26,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,MEDIA,3,en_proceso,-12.034782,-76.911351,Ate
+5,2026-08-27,Congestion vehicular severa por obra municipal en curso,CONGESTION,MEDIA,3,pending,-12.053835,-77.05094,Cercado de Lima
+338,2026-08-27,Colision por alcance entre tres vehiculos en hora punta,SINIESTRO_VIAL,MEDIA,3,pending,-12.067622,-77.127675,Callao
+477,2026-08-27,Trafico detenido por desvio mal senalizado,CONGESTION,MEDIA,3,en_proceso,-12.143702,-77.008179,Barranco
+569,2026-08-27,Colision por alcance entre tres vehiculos en hora punta,SINIESTRO_VIAL,ALTA,5,resolved,-12.102886,-76.979687,San Borja
+34,2026-08-28,Colision por alcance entre tres vehiculos en hora punta,SINIESTRO_VIAL,MEDIA,3,en_proceso,-12.04517,-77.026854,Cercado de Lima
+79,2026-08-28,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,BAJA,1,pending,-12.126113,-77.036034,Miraflores
+460,2026-08-28,Poste de alumbrado publico caido sobre la berma,INFRAESTRUCTURA,BAJA,1,pending,-12.161288,-77.031975,Barranco
+495,2026-08-28,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,BAJA,1,pending,-12.159462,-77.003788,Chorrillos
+502,2026-08-28,Trafico detenido por desvio mal senalizado,CONGESTION,BAJA,1,pending,-12.169809,-76.999237,Chorrillos
+147,2026-08-29,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,MEDIA,3,resolved,-12.139833,-76.997798,Santiago de Surco
+258,2026-08-29,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,MEDIA,3,pending,-12.21447,-76.918816,Villa El Salvador
+395,2026-08-29,Poste de alumbrado publico caido sobre la berma,INFRAESTRUCTURA,MEDIA,3,pending,-12.011036,-76.923942,Ate
+527,2026-08-29,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,BAJA,1,en_proceso,-11.962601,-77.081462,Los Olivos
+288,2026-08-30,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,MEDIA,3,en_proceso,-11.93978,-77.07687,Comas
+319,2026-08-30,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,BAJA,1,pending,-11.92877,-77.073099,Comas
+494,2026-08-30,Trafico detenido por desvio mal senalizado,CONGESTION,BAJA,1,en_proceso,-12.175476,-77.020731,Chorrillos
+53,2026-08-31,Congestion vehicular severa por obra municipal en curso,CONGESTION,MEDIA,3,pending,-12.129679,-77.043357,Miraflores
+69,2026-08-31,Congestion vehicular severa por obra municipal en curso,CONGESTION,MEDIA,3,pending,-12.121012,-77.033993,Miraflores
+100,2026-08-31,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,BAJA,1,pending,-12.113349,-77.021049,San Isidro
+503,2026-08-31,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,BAJA,1,pending,-12.179957,-77.028697,Chorrillos
+47,2026-09-01,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,BAJA,1,pending,-12.120075,-77.021447,Miraflores
+234,2026-09-01,Colision por alcance entre tres vehiculos en hora punta,SINIESTRO_VIAL,MEDIA,3,pending,-11.976732,-77.006455,San Juan de Lurigancho
+250,2026-09-01,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,MEDIA,3,resolved,-12.227215,-76.95177,Villa El Salvador
+457,2026-09-01,Colision por alcance entre tres vehiculos en hora punta,SINIESTRO_VIAL,ALTA,5,pending,-12.138421,-77.021903,Barranco
+481,2026-09-01,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,ALTA,5,en_proceso,-12.15714,-77.021797,Chorrillos
+26,2026-09-02,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,MEDIA,3,en_proceso,-12.055815,-77.051679,Cercado de Lima
+421,2026-09-02,Congestion vehicular severa por obra municipal en curso,CONGESTION,MEDIA,3,en_proceso,-12.091356,-77.101598,San Miguel
+500,2026-09-02,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,BAJA,1,pending,-12.163907,-77.010333,Chorrillos
+524,2026-09-02,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,BAJA,1,pending,-11.977708,-77.08047,Los Olivos
+557,2026-09-02,Trafico detenido por desvio mal senalizado,CONGESTION,MEDIA,3,en_proceso,-11.980272,-77.058093,Los Olivos
+39,2026-09-03,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,BAJA,1,en_proceso,-12.035644,-77.026476,Cercado de Lima
+194,2026-09-03,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,MEDIA,3,pending,-12.08004,-76.954129,La Molina
+260,2026-09-03,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,BAJA,1,pending,-12.225098,-76.922659,Villa El Salvador
+268,2026-09-03,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,BAJA,1,pending,-12.19619,-76.946998,Villa El Salvador
+466,2026-09-03,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,MEDIA,3,resolved,-12.148393,-77.031426,Barranco
+542,2026-09-03,Trafico detenido por desvio mal senalizado,CONGESTION,BAJA,1,en_proceso,-11.969384,-77.081552,Los Olivos
+595,2026-09-03,Poste de alumbrado publico caido sobre la berma,INFRAESTRUCTURA,MEDIA,3,en_proceso,-12.088845,-77.001698,San Borja
+504,2026-09-04,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,MEDIA,3,resolved,-12.157379,-77.032518,Chorrillos
+49,2026-09-05,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,ALTA,5,resolved,-12.121709,-77.045411,Miraflores
+179,2026-09-05,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,MEDIA,3,pending,-12.096181,-76.923379,La Molina
+229,2026-09-05,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,MEDIA,3,en_proceso,-11.975785,-77.001872,San Juan de Lurigancho
+255,2026-09-05,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,BAJA,1,resolved,-12.224648,-76.93791,Villa El Salvador
+532,2026-09-05,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,BAJA,1,en_proceso,-11.974945,-77.077481,Los Olivos
+85,2026-09-06,Trafico detenido por desvio mal senalizado,CONGESTION,MEDIA,3,resolved,-12.088004,-77.023274,San Isidro
+170,2026-09-06,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,MEDIA,3,resolved,-12.088602,-76.946252,La Molina
+280,2026-09-06,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,MEDIA,3,en_proceso,-12.205843,-76.948973,Villa El Salvador
+221,2026-09-07,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,MEDIA,3,resolved,-11.953729,-77.023718,San Juan de Lurigancho
+276,2026-09-07,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,BAJA,1,en_proceso,-12.210642,-76.927302,Villa El Salvador
+306,2026-09-07,Colision por alcance entre tres vehiculos en hora punta,SINIESTRO_VIAL,MEDIA,3,pending,-11.927511,-77.071945,Comas
+99,2026-09-08,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,MEDIA,3,pending,-12.100636,-77.047059,San Isidro
+265,2026-09-08,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,ALTA,5,pending,-12.203609,-76.953234,Villa El Salvador
+290,2026-09-08,Colision por alcance entre tres vehiculos en hora punta,SINIESTRO_VIAL,MEDIA,3,pending,-11.932063,-77.0548,Comas
+419,2026-09-09,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,MEDIA,3,pending,-12.083711,-77.091141,San Miguel
+154,2026-09-10,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,MEDIA,3,resolved,-12.13205,-76.98114,Santiago de Surco
+182,2026-09-10,Congestion vehicular severa por obra municipal en curso,CONGESTION,BAJA,1,en_proceso,-12.074352,-76.953129,La Molina
+574,2026-09-10,Congestion vehicular severa por obra municipal en curso,CONGESTION,BAJA,1,pending,-12.098465,-77.004576,San Borja
+44,2026-09-11,Poste de alumbrado publico caido sobre la berma,INFRAESTRUCTURA,BAJA,1,pending,-12.138133,-77.029724,Miraflores
+257,2026-09-11,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,ALTA,5,pending,-12.197152,-76.91935,Villa El Salvador
+358,2026-09-11,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,BAJA,1,pending,-12.059175,-77.107864,Callao
+464,2026-09-11,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,MEDIA,3,en_proceso,-12.163457,-77.022722,Barranco
+511,2026-09-11,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,BAJA,1,pending,-12.162389,-77.020051,Chorrillos
+530,2026-09-11,Colision por alcance entre tres vehiculos en hora punta,SINIESTRO_VIAL,MEDIA,3,resolved,-11.968718,-77.067374,Los Olivos
+31,2026-09-12,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,BAJA,1,en_proceso,-12.064041,-77.058535,Cercado de Lima
+176,2026-09-12,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,MEDIA,3,en_proceso,-12.093049,-76.944679,La Molina
+32,2026-09-13,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,MEDIA,3,resolved,-12.050873,-77.048444,Cercado de Lima
+345,2026-09-13,Colision por alcance entre tres vehiculos en hora punta,SINIESTRO_VIAL,ALTA,5,resolved,-12.042661,-77.102882,Callao
+540,2026-09-13,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,BAJA,1,en_proceso,-11.968215,-77.076277,Los Olivos
+241,2026-09-14,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,ALTA,5,pending,-12.206844,-76.918843,Villa El Salvador
+329,2026-09-14,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,ALTA,5,resolved,-12.043403,-77.124253,Callao
+521,2026-09-14,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,ALTA,5,pending,-11.98352,-77.056256,Los Olivos
+110,2026-09-15,Trafico detenido por desvio mal senalizado,CONGESTION,BAJA,1,resolved,-12.084277,-77.023734,San Isidro
+205,2026-09-15,Trafico detenido por desvio mal senalizado,CONGESTION,MEDIA,3,en_proceso,-11.974382,-77.00131,San Juan de Lurigancho
+472,2026-09-15,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,MEDIA,3,pending,-12.139945,-77.038957,Barranco
+486,2026-09-15,Congestion vehicular severa por obra municipal en curso,CONGESTION,BAJA,1,pending,-12.158426,-77.009935,Chorrillos
+113,2026-09-16,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,ALTA,5,en_proceso,-12.09348,-77.030339,San Isidro
+536,2026-09-16,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,MEDIA,3,resolved,-11.970925,-77.052382,Los Olivos
+131,2026-09-17,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,MEDIA,3,en_proceso,-12.131501,-77.010527,Santiago de Surco
+529,2026-09-17,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,ALTA,5,en_proceso,-11.976199,-77.067628,Los Olivos
+582,2026-09-17,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,BAJA,1,pending,-12.115346,-76.978463,San Borja
+36,2026-09-18,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,BAJA,1,resolved,-12.064226,-77.030819,Cercado de Lima
+209,2026-09-18,Atropello de un peaton en el cruce peatonal,SINIESTRO_VIAL,ALTA,5,resolved,-11.981362,-77.010317,San Juan de Lurigancho
+501,2026-09-19,Trafico detenido por desvio mal senalizado,CONGESTION,MEDIA,3,en_proceso,-12.178774,-77.015918,Chorrillos
+136,2026-09-20,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,MEDIA,3,pending,-12.133712,-76.990947,Santiago de Surco
+141,2026-09-20,Trafico detenido por desvio mal senalizado,CONGESTION,MEDIA,3,pending,-12.13492,-76.998446,Santiago de Surco
+517,2026-09-20,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,MEDIA,3,en_proceso,-12.171725,-77.020173,Chorrillos
+115,2026-09-21,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,MEDIA,3,en_proceso,-12.092448,-77.048797,San Isidro
+219,2026-09-22,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,MEDIA,3,resolved,-11.9685,-77.025134,San Juan de Lurigancho
+304,2026-09-22,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,MEDIA,3,pending,-11.943699,-77.050134,Comas
+341,2026-09-22,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,MEDIA,3,resolved,-12.043018,-77.105008,Callao
+462,2026-09-22,Trafico detenido por desvio mal senalizado,CONGESTION,BAJA,1,pending,-12.155636,-77.009562,Barranco
+559,2026-09-22,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,BAJA,1,en_proceso,-11.972403,-77.057742,Los Olivos
+29,2026-09-24,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,MEDIA,3,en_proceso,-12.047846,-77.041751,Cercado de Lima
+93,2026-09-24,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,MEDIA,3,resolved,-12.106849,-77.028193,San Isidro
+132,2026-09-24,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,BAJA,1,pending,-12.138207,-76.976483,Santiago de Surco
+400,2026-09-24,Acumulacion de desmonte invadiendo media calzada,ANOMALIA_AMBIENTAL,MEDIA,3,pending,-12.03258,-76.935478,Ate
+43,2026-09-25,Bache profundo en el carril derecho de la avenida,INFRAESTRUCTURA,MEDIA,3,pending,-12.1318,-77.028142,Miraflores
+72,2026-09-25,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,MEDIA,3,resolved,-12.108994,-77.022544,Miraflores
+244,2026-09-25,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,BAJA,1,resolved,-12.228267,-76.938602,Villa El Salvador
+298,2026-09-25,Colision por alcance entre tres vehiculos en hora punta,SINIESTRO_VIAL,MEDIA,3,resolved,-11.95402,-77.049934,Comas
+528,2026-09-25,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,MEDIA,3,en_proceso,-11.970953,-77.058643,Los Olivos
+585,2026-09-25,Colision por alcance entre tres vehiculos en hora punta,SINIESTRO_VIAL,ALTA,5,resolved,-12.088243,-76.993096,San Borja
+300,2026-09-26,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,BAJA,1,resolved,-11.94234,-77.070087,Comas
+313,2026-09-26,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,ALTA,5,resolved,-11.952239,-77.049303,Comas
+316,2026-09-26,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,BAJA,1,resolved,-11.949847,-77.063832,Comas
+377,2026-09-26,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,ALTA,5,en_proceso,-12.008175,-76.901189,Ate
+399,2026-09-26,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,BAJA,1,resolved,-12.028035,-76.93062,Ate
+440,2026-09-26,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,MEDIA,3,pending,-12.088789,-77.069582,San Miguel
+489,2026-09-26,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,ALTA,5,resolved,-12.184298,-77.000519,Chorrillos
+510,2026-09-26,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,BAJA,1,resolved,-12.154038,-77.028984,Chorrillos
+513,2026-09-27,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,ALTA,5,resolved,-12.174229,-77.002511,Chorrillos
+551,2026-09-27,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,BAJA,1,resolved,-11.982128,-77.073306,Los Olivos
+35,2026-09-28,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,MEDIA,3,pending,-12.038331,-77.049147,Cercado de Lima
+407,2026-09-28,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,BAJA,1,pending,-12.064399,-77.068004,San Miguel
+135,2026-09-29,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,BAJA,1,en_proceso,-12.14595,-77.004658,Santiago de Surco
+155,2026-09-29,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,MEDIA,3,pending,-12.156957,-77.00466,Santiago de Surco
+498,2026-09-29,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,MEDIA,3,en_proceso,-12.183793,-77.009367,Chorrillos
+168,2026-09-30,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,MEDIA,3,resolved,-12.078193,-76.923207,La Molina
+225,2026-09-30,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,ALTA,5,en_proceso,-11.977665,-77.006458,San Juan de Lurigancho
+533,2026-09-30,Trafico detenido por desvio mal senalizado,CONGESTION,MEDIA,3,en_proceso,-11.984018,-77.074527,Los Olivos
+591,2026-09-30,Humo denso proveniente de quema informal junto a la via,ANOMALIA_AMBIENTAL,BAJA,1,pending,-12.092467,-77.003347,San Borja
+118,2026-10-01,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,BAJA,1,pending,-12.115345,-77.022704,San Isidro
+126,2026-10-01,Trafico detenido por desvio mal senalizado,CONGESTION,BAJA,1,en_proceso,-12.141065,-76.981019,Santiago de Surco
+145,2026-10-01,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,ALTA,5,pending,-12.127917,-76.997669,Santiago de Surco
+198,2026-10-01,Congestion vehicular severa por obra municipal en curso,CONGESTION,BAJA,1,en_proceso,-12.065955,-76.952161,La Molina
+331,2026-10-01,Semaforo apagado desde hace dos dias en la interseccion,INFRAESTRUCTURA,MEDIA,3,en_proceso,-12.073407,-77.106178,Callao
+367,2026-10-01,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,BAJA,1,resolved,-12.021974,-76.914659,Ate
+42,2026-10-02,Volcadura de una camioneta a la altura del kilometro 4,SINIESTRO_VIAL,MEDIA,3,pending,-12.113015,-77.0131,Miraflores
+202,2026-10-02,Choque entre un bus y un auto particular en la via principal,SINIESTRO_VIAL,MEDIA,3,resolved,-11.958887,-77.00189,San Juan de Lurigancho
+459,2026-10-02,Senalizacion horizontal borrada en el cruce escolar,INFRAESTRUCTURA,MEDIA,3,en_proceso,-12.135811,-77.011813,Barranco
+63,2026-10-03,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,BAJA,1,pending,-12.135098,-77.030542,Miraflores
+476,2026-10-03,Poste de alumbrado publico caido sobre la berma,INFRAESTRUCTURA,BAJA,1,en_proceso,-12.143057,-77.021498,Barranco
+173,2026-10-04,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,MEDIA,3,pending,-12.063585,-76.94627,La Molina
+214,2026-10-04,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,BAJA,1,pending,-11.9712,-76.994238,San Juan de Lurigancho
+312,2026-10-04,Derrame de aceite en la pista tras una averia mecanica,ANOMALIA_AMBIENTAL,MEDIA,3,resolved,-11.928502,-77.049347,Comas
+398,2026-10-04,Cola de mas de diez cuadras en el ingreso a la via expresa,CONGESTION,BAJA,1,resolved,-12.034497,-76.931476,Ate

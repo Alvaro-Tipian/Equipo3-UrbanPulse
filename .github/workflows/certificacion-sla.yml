@@ -1,0 +1,140 @@
+# ==============================================================================
+# Workflow: Certificacion de calidad y cumplimiento de SLA (HT-37)
+#
+# Ejecuta TODAS las suites de regresion y emite el certificado a partir de sus
+# resultados reales:
+#
+#   CA1  Playwright (E2E) + Newman (API) pasan al 100% sin errores.
+#   CA2  Se entrega un reporte que certifica la calidad y el SLA.
+#
+# Existe aparte de playwright.yml y de los workflows Newman porque esos corren
+# cada suite por su cuenta y ninguno puede afirmar nada sobre el conjunto. La
+# certificacion necesita verlas todas en la misma corrida: scripts/certificar-sla.mjs
+# se niega a certificar si le falta alguna, porque un veredicto que aprueba
+# porque falta un archivo no certifica nada.
+#
+# Disparo MANUAL: las suites Newman atacan los webhooks de produccion y consumen
+# cuota de TomTom y Gemini, igual que sus workflows individuales. Se lanza
+# cuando se quiere cerrar un sprint o sustentar una entrega.
+# ==============================================================================
+
+name: QA - Certificacion de calidad y SLA (HT-37)
+
+on:
+  workflow_dispatch:
+    inputs:
+      incluir_newman:
+        description: 'Incluir las suites Newman (atacan produccion y gastan cuota)'
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  certificar:
+    name: Ejecutar suites de regresion y certificar
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v7
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+
+      # --- Playwright (E2E) --------------------------------------------------
+      - name: Instalar dependencias de las pruebas
+        run: npm ci
+        working-directory: ia-ops/tests
+
+      - name: Instalar dependencias del host
+        run: npm ci
+        working-directory: src/frontend
+
+      - name: Instalar dependencias de los microfrontends
+        run: |
+          for mfe in mf-gestion-incidentes mf-mapa-urbano mf-dashboard \
+                     mf-historial-reportes mf-auth mf-ajustes mf-chatbot; do
+            npm ci --prefix "$mfe"
+          done
+
+      - name: Instalar el navegador Chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: ia-ops/tests
+
+      - name: Ejecutar la suite E2E
+        # continue-on-error para que un fallo aqui no impida generar el
+        # certificado: el informe tiene que poder decir QUE fallo, y el propio
+        # certificador es quien rompe el build al final.
+        continue-on-error: true
+        run: npx playwright test
+        working-directory: ia-ops/tests
+
+      # --- Newman (API) ------------------------------------------------------
+      - name: Instalar Newman
+        if: ${{ inputs.incluir_newman }}
+        run: npm install -g newman newman-reporter-htmlextra
+
+      - name: Ejecutar la suite de regresion de APIs
+        if: ${{ inputs.incluir_newman }}
+        continue-on-error: true
+        env:
+          TOMTOM_API_KEY: ${{ secrets.TOMTOM_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          mkdir -p postman/reportes
+          newman run "postman/collections/urbanpulse-regresion.postman_collection.json" \
+            --env-var "tomtom_api_key=$TOMTOM_API_KEY" \
+            --env-var "gemini_api_key=$GEMINI_API_KEY" \
+            --reporters cli,json \
+            --reporter-json-export postman/reportes/regresion.json
+
+      - name: Ejecutar la suite de robustez del LLM
+        if: ${{ inputs.incluir_newman }}
+        continue-on-error: true
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          newman run "postman/collections/urbanpulse-llm-robustness.postman_collection.json" \
+            --env-var "gemini_api_key=$GEMINI_API_KEY" \
+            --reporters cli,json \
+            --reporter-json-export postman/reportes/llm-robustness.json
+
+      - name: Ejecutar la suite adversarial de GeoJSON
+        if: ${{ inputs.incluir_newman }}
+        continue-on-error: true
+        env:
+          N8N_GEOJSON_ONSV_URL: ${{ secrets.N8N_GEOJSON_ONSV_URL }}
+          N8N_GEOJSON_SUTRAN_URL: ${{ secrets.N8N_GEOJSON_SUTRAN_URL }}
+        run: |
+          newman run "postman/collections/urbanpulse-geojson-adversarial.postman_collection.json" \
+            --folder "1. Casos adversariales (data-driven via payloads.csv)" \
+            -d postman/data/payloads.csv \
+            --env-var "n8n_geojson_onsv_url=$N8N_GEOJSON_ONSV_URL" \
+            --env-var "n8n_geojson_sutran_url=$N8N_GEOJSON_SUTRAN_URL" \
+            --reporters cli,json \
+            --reporter-json-export postman/reportes/geojson-adversarial.json
+
+      # --- Veredicto ---------------------------------------------------------
+      - name: Emitir la certificacion
+        # Sin Newman no se puede hablar de SLA de respuesta, asi que en ese modo
+        # se permite la ausencia y el informe lo deja dicho explicitamente.
+        run: |
+          node scripts/certificar-sla.mjs docs/CERTIFICACION_SLA.md \
+            ${{ inputs.incluir_newman && ' ' || '--permitir-ausentes' }}
+          cat docs/CERTIFICACION_SLA.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Subir el certificado y los reportes
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: certificacion-sla
+          path: |
+            docs/CERTIFICACION_SLA.md
+            ia-ops/tests/reportes/
+            ia-ops/tests/playwright-report/
+            postman/reportes/
+          if-no-files-found: warn
+          retention-days: 90

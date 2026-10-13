@@ -1,0 +1,11 @@
+{
+  "api": {
+    "image": "__IMAGEN__",
+    "ports": {
+      "8000": "HTTP"
+    },
+    "environment": {
+      "API_KEY": "__API_KEY__"
+    }
+  }
+}

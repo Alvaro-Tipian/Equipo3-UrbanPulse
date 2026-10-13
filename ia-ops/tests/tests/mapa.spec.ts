@@ -92,7 +92,11 @@ test('muestra la leyenda con los 7 tipos de incidente', async ({ page }) => {
 
   await page.getByRole('button', { name: 'MAPA', exact: true }).click();
 
-  await expect(page.getByText('Tipo de incidente')).toBeVisible();
+  // La leyenda pasó a ser un panel con pestañas (Tipo · Prioridad · Calor ·
+  // Tráfico) bajo la cabecera "Leyenda y Guía"; antes era una lista plana
+  // titulada "Tipo de incidente". Los 7 tipos viven ahora en la pestaña
+  // "Tipo", que es la que abre por defecto.
+  await expect(page.getByText('Leyenda y Guía')).toBeVisible();
   for (const label of INCIDENT_TYPE_LABELS) {
     await expect(page.getByText(label, { exact: true })).toBeVisible();
   }
@@ -130,6 +134,6 @@ test('si el listado de reportes falla, el mapa y la leyenda se mantienen visible
   await page.getByRole('button', { name: 'MAPA', exact: true }).click();
   await page.waitForTimeout(500);
 
-  await expect(page.getByText('Tipo de incidente')).toBeVisible();
+  await expect(page.getByText('Leyenda y Guía')).toBeVisible();
   expect(pageErrors).toEqual([]);
 });

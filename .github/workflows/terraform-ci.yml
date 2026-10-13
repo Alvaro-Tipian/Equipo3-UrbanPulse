@@ -1,0 +1,219 @@
+name: Terraform CI
+
+# HT-42 T03: fmt, validate y plan en cada Pull Request que toca infrastructure/terraform.
+# El apply es solo manual (workflow_dispatch) y pasa por el entorno "production",
+# que en GitHub se configura con revisores obligatorios.
+
+on:
+  pull_request:
+    paths:
+      - "infrastructure/terraform/**"
+      - ".github/workflows/terraform-ci.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: terraform-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  TF_VERSION: "1.10.5"
+  TF_DIR: infrastructure/terraform
+  AWS_DEFAULT_REGION: us-east-1
+
+jobs:
+  plan:
+    name: fmt, validate y plan
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      security-events: write   # subir el SARIF de IaC (HT-44 T02)
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.TF_AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.TF_AWS_SECRET_ACCESS_KEY }}
+      VERCEL_API_TOKEN: ${{ secrets.TF_VERCEL_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # HT-44 T02: analisis de seguridad del codigo Terraform ANTES del plan.
+      #
+      # Va antes de "terraform init" a proposito: Trivy lee los .tf del disco y
+      # no necesita credenciales de AWS ni de Vercel. Si estuviera despues del
+      # init, un PR desde un fork (donde GitHub no entrega los secrets) moriria
+      # en el init y el analisis de seguridad no llegaria a ejecutarse nunca.
+      #
+      # Se usa Trivy en modo config, que es donde Aqua Security fusiono tfsec
+      # (tfsec quedo en mantenimiento y su propio README remite a Trivy). Asi
+      # el analisis de IaC usa el mismo motor y las mismas reglas que el
+      # escaneo de imagenes de HT-44 T01, en vez de dos herramientas distintas.
+      #
+      # Se usa @master, igual que trivy-scan.yml: es la unica referencia de
+      # esta accion que el repositorio ya tiene probada. Lo correcto seria
+      # fijar una version exacta, pero hay que comprobar antes que el tag
+      # exista (un tag inventado hace fallar el job entero en "Set up job",
+      # antes de ejecutar nada).
+      #
+      # Informe completo (CRITICAL, HIGH y MEDIUM) a la pestana Security, sin
+      # bloquear: sirve para ver el inventario de hallazgos.
+      - name: Analisis de seguridad de IaC - informe (Trivy/tfsec)
+        if: ${{ !cancelled() }}
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: config
+          scan-ref: ${{ env.TF_DIR }}
+          format: sarif
+          output: trivy-iac.sarif
+          severity: CRITICAL,HIGH,MEDIUM
+          exit-code: '0'
+
+      # En un PR que viene de un fork, GitHub entrega un GITHUB_TOKEN de solo
+      # lectura y la subida del SARIF falla con "Resource not accessible by
+      # integration". Es un problema de publicacion del informe, no un hallazgo
+      # de seguridad: no debe tumbar el job. El gate de abajo si bloquea.
+      - name: Subir SARIF de IaC a GitHub Security
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-iac.sarif
+          category: trivy-iac
+
+      # Gate que corre ANTES del plan: un hallazgo CRITICAL falla el job y el
+      # plan de abajo no llega a ejecutarse.
+      #
+      # Arranca solo en CRITICAL a proposito. El umbral correcto es HIGH, pero
+      # subirlo a ciegas podria dejar en rojo los PR de todo el equipo por
+      # hallazgos preexistentes que nadie ha triado todavia. Tras la primera
+      # ejecucion, revisar el inventario en la pestana Security y subir este
+      # umbral a CRITICAL,HIGH (ver docs/DEVSECOPS_TEAM_GUIDELINES.md).
+      - name: Analisis de seguridad de IaC - gate (Trivy/tfsec)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: config
+          scan-ref: ${{ env.TF_DIR }}
+          format: table
+          severity: CRITICAL
+          exit-code: '1'
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: true
+
+      - name: terraform fmt
+        id: fmt
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform fmt -check -recursive -diff
+        continue-on-error: true
+
+      - name: terraform init
+        id: init
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform init -input=false
+
+      - name: terraform validate
+        id: validate
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform validate -no-color
+
+      # -lock=false: el plan de un PR solo lee, asi el usuario de CI no necesita escribir
+      # el archivo de bloqueo (use_lockfile) en el bucket de estado. El apply si bloquea.
+      - name: terraform plan
+        id: plan
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform plan -input=false -no-color -lock=false
+        continue-on-error: true
+
+      - name: Comentar el plan en el Pull Request
+        uses: actions/github-script@v7
+        env:
+          PLAN: ${{ steps.plan.outputs.stdout }}
+          PLAN_ERR: ${{ steps.plan.outputs.stderr }}
+          FMT_OUTCOME: ${{ steps.fmt.outcome }}
+          INIT_OUTCOME: ${{ steps.init.outcome }}
+          VALIDATE_OUTCOME: ${{ steps.validate.outcome }}
+          PLAN_OUTCOME: ${{ steps.plan.outcome }}
+        with:
+          script: |
+            const marker = '<!-- terraform-plan -->';
+            const ok = (o) => (o === 'success' ? 'OK' : 'FALLO');
+            const raw = (process.env.PLAN_OUTCOME === 'success' ? process.env.PLAN : (process.env.PLAN_ERR || process.env.PLAN)) || '(sin salida)';
+            const max = 60000; // limite de un comentario de GitHub: 65536 caracteres
+            const salida = raw.length > max ? raw.slice(0, max) + '\n... (salida truncada)' : raw;
+
+            const body = [
+              marker,
+              '### Terraform: resultado del Pull Request',
+              '',
+              `| fmt | init | validate | plan |`,
+              `|---|---|---|---|`,
+              `| ${ok(process.env.FMT_OUTCOME)} | ${ok(process.env.INIT_OUTCOME)} | ${ok(process.env.VALIDATE_OUTCOME)} | ${ok(process.env.PLAN_OUTCOME)} |`,
+              '',
+              '<details><summary>Ver el plan</summary>',
+              '',
+              '```',
+              salida,
+              '```',
+              '',
+              '</details>',
+              '',
+              `Ejecucion: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            ].join('\n');
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const previo = comments.find((c) => c.body && c.body.includes(marker));
+            if (previo) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: previo.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+      - name: Fallar si fmt o plan fallaron
+        if: steps.fmt.outcome == 'failure' || steps.plan.outcome == 'failure'
+        run: exit 1
+
+  apply:
+    name: apply (manual, con aprobacion)
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    # Configurar en Settings > Environments > production: revisores obligatorios.
+    environment: production
+    permissions:
+      contents: read
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.TF_AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.TF_AWS_SECRET_ACCESS_KEY }}
+      VERCEL_API_TOKEN: ${{ secrets.TF_VERCEL_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: terraform init
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform init -input=false
+
+      - name: terraform plan
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform plan -input=false -no-color -out=tfplan
+
+      - name: terraform apply
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform apply -input=false tfplan

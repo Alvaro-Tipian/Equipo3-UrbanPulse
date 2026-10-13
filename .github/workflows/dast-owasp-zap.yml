@@ -1,0 +1,278 @@
+# ==============================================================================
+# Workflow: DevSecOps - Pruebas DAST con OWASP ZAP (HT-45)
+#
+# Dos escaneos complementarios contra el entorno de staging:
+#
+#   1. Baseline scan (HT-45 T01): spider + analisis PASIVO del host React. No
+#      envia payloads de ataque, solo observa el trafico que genera el crawler;
+#      detecta cabeceras ausentes, cookies inseguras y fugas de informacion.
+#
+#   2. API scan (HT-45 T02): escaneo ACTIVO de los webhooks /urbanpulse/* de
+#      n8n, guiado por .zap/urbanpulse-api.openapi.yaml.
+#
+# DISPARO AUTOMATICO EN CADA DESPLIEGUE DE STAGING. Vercel publica un
+# deployment_status por cada deploy; este workflow reacciona a los que terminan
+# en success y NO son de produccion, y escanea exactamente la URL recien
+# desplegada (environment_url del evento), no una URL fija.
+#
+# GATE DE PROMOCION: scripts/zap-reporte-hallazgos.mjs termina con codigo 1 si
+# aparece un hallazgo de riesgo ALTO, lo que tumba el job. Para que eso frene de
+# verdad la promocion a produccion, este workflow tiene que estar marcado como
+# check requerido en la proteccion de rama de main (ver docs/DAST_OWASP_ZAP.md).
+#
+# Secrets requeridos:
+#   DAST_API_BASE_URL  Base de los webhooks n8n de STAGING (no produccion: el
+#                      API scan es activo y escribe datos reales)
+#   DAST_BASELINE_URL  Solo para corridas manuales sin target_url
+# ==============================================================================
+
+name: DevSecOps - Pruebas DAST (OWASP ZAP)
+
+on:
+  deployment_status:
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: 'URL a escanear en el baseline (vacio = secret DAST_BASELINE_URL)'
+        required: false
+        type: string
+      correr_api_scan:
+        description: 'Correr tambien el API scan ACTIVO contra los webhooks n8n'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Decide si este evento merece un escaneo y contra que URL
+  # ---------------------------------------------------------------------------
+  preparar:
+    name: Resolver objetivo del escaneo
+    runs-on: ubuntu-latest
+    outputs:
+      escanear: ${{ steps.decidir.outputs.escanear }}
+      url: ${{ steps.decidir.outputs.url }}
+      api: ${{ steps.decidir.outputs.api }}
+      # Code Scanning necesita saber a que commit colgar los hallazgos, y en un
+      # evento deployment_status no hay GITHUB_REF del que deducirlo.
+      ref: ${{ steps.decidir.outputs.ref }}
+      sha: ${{ steps.decidir.outputs.sha }}
+    steps:
+      - name: Decidir objetivo
+        id: decidir
+        env:
+          EVENTO: ${{ github.event_name }}
+          ESTADO: ${{ github.event.deployment_status.state }}
+          ENTORNO: ${{ github.event.deployment_status.environment }}
+          URL_DESPLIEGUE: ${{ github.event.deployment_status.environment_url }}
+          URL_MANUAL: ${{ inputs.target_url }}
+          URL_SECRET: ${{ secrets.DAST_BASELINE_URL }}
+          API_MANUAL: ${{ inputs.correr_api_scan }}
+          REF_DESPLIEGUE: ${{ github.event.deployment.ref }}
+          SHA_DESPLIEGUE: ${{ github.event.deployment.sha }}
+          REF_ACTUAL: ${{ github.ref }}
+          SHA_ACTUAL: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          # Commit al que se cuelgan los hallazgos en Code Scanning. En un
+          # despliegue es el del propio deploy (el codigo que se escanea);
+          # en una corrida manual, el de la rama desde la que se lanzo.
+          if [ "$EVENTO" = "deployment_status" ] && [ -n "$SHA_DESPLIEGUE" ]; then
+            case "$REF_DESPLIEGUE" in
+              refs/*) echo "ref=$REF_DESPLIEGUE" >> "$GITHUB_OUTPUT" ;;
+              *)      echo "ref=refs/heads/$REF_DESPLIEGUE" >> "$GITHUB_OUTPUT" ;;
+            esac
+            echo "sha=$SHA_DESPLIEGUE" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=$REF_ACTUAL" >> "$GITHUB_OUTPUT"
+            echo "sha=$SHA_ACTUAL" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [ "$EVENTO" = "deployment_status" ]; then
+            # Solo despliegues que terminaron bien. Los de produccion se saltan
+            # a proposito: produccion es lo que este gate protege, y el escaneo
+            # activo no debe correr contra datos reales de ciudadanos.
+            if [ "$ESTADO" != "success" ]; then
+              echo "Despliegue en estado '$ESTADO'; no se escanea."
+              echo "escanear=false" >> "$GITHUB_OUTPUT"; exit 0
+            fi
+            case "$(echo "$ENTORNO" | tr '[:upper:]' '[:lower:]')" in
+              *production*|*produccion*)
+                echo "Entorno '$ENTORNO' es produccion; no se escanea."
+                echo "escanear=false" >> "$GITHUB_OUTPUT"; exit 0 ;;
+            esac
+            if [ -z "$URL_DESPLIEGUE" ]; then
+              echo "::warning::El despliegue no publico environment_url; no hay que escanear."
+              echo "escanear=false" >> "$GITHUB_OUTPUT"; exit 0
+            fi
+            echo "escanear=true" >> "$GITHUB_OUTPUT"
+            echo "url=$URL_DESPLIEGUE" >> "$GITHUB_OUTPUT"
+            # En despliegues, el API scan acompana siempre al baseline (CA1).
+            echo "api=true" >> "$GITHUB_OUTPUT"
+            echo "Escaneando el despliegue de '$ENTORNO': $URL_DESPLIEGUE"
+            exit 0
+          fi
+
+          URL="${URL_MANUAL:-$URL_SECRET}"
+          if [ -z "$URL" ]; then
+            echo "::error::No hay URL objetivo. Define DAST_BASELINE_URL o pasa target_url."
+            exit 1
+          fi
+          echo "escanear=true" >> "$GITHUB_OUTPUT"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "api=$API_MANUAL" >> "$GITHUB_OUTPUT"
+          echo "Escaneo manual contra: $URL"
+
+  # ---------------------------------------------------------------------------
+  # HT-45 T01 - Escaneo pasivo del frontend de staging
+  # ---------------------------------------------------------------------------
+  baseline-scan:
+    name: ZAP Baseline - Host React (HT-45 T01)
+    needs: preparar
+    if: ${{ needs.preparar.outputs.escanear == 'true' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v7
+
+      - name: Ejecutar ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.15.0
+        with:
+          target: ${{ needs.preparar.outputs.url }}
+          rules_file_name: '.zap/rules.tsv'
+          # -a incluye las alertas informativas (el SARIF las marca como "note");
+          # -j usa el spider AJAX, necesario porque el host es una SPA de React
+          # con Module Federation y el spider clasico no ve las rutas montadas
+          # por el cliente.
+          cmd_options: '-a -j'
+          allow_issue_writing: false
+          # El veredicto lo da el gate de riesgo alto mas abajo, no el codigo de
+          # salida de ZAP, que tambien falla con alertas de bajo riesgo.
+          fail_action: false
+          artifact_name: zap-baseline
+
+      - name: Convertir el reporte de ZAP a SARIF
+        if: ${{ !cancelled() }}
+        run: |
+          if [ ! -f report_json.json ]; then
+            echo "::warning::ZAP no genero report_json.json; se omite la conversion a SARIF."
+            exit 0
+          fi
+          node scripts/zap-json-to-sarif.mjs report_json.json zap-sarif/baseline.sarif baseline
+
+      - name: Publicar hallazgos del baseline en Code Scanning
+        if: ${{ !cancelled() && hashFiles('zap-sarif/baseline.sarif') != '' }}
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: zap-sarif/baseline.sarif
+          category: dast-zap-baseline
+          # En un evento deployment_status no hay GITHUB_REF, y sin el la accion
+          # aborta con "GITHUB_REF environment variable must be set": no sabe a
+          # que commit colgar los hallazgos. Se los pasamos desde el propio
+          # despliegue, que es exactamente el codigo que se acaba de escanear.
+          ref: ${{ needs.preparar.outputs.ref }}
+          sha: ${{ needs.preparar.outputs.sha }}
+
+      - name: Generar informe y aplicar el gate de riesgo alto
+        if: ${{ !cancelled() && hashFiles('zap-sarif/baseline.sarif') != '' }}
+        run: |
+          node scripts/zap-reporte-hallazgos.mjs \
+            zap-sarif/baseline.sarif informes-dast/baseline.md
+          cat informes-dast/baseline.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Subir reportes del baseline
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: zap-baseline-reportes
+          path: |
+            report_html.html
+            report_json.json
+            report_md.md
+            zap-sarif/baseline.sarif
+            informes-dast/baseline.md
+          if-no-files-found: warn
+          retention-days: 30
+
+  # ---------------------------------------------------------------------------
+  # HT-45 T02 - Escaneo activo de los webhooks /urbanpulse/* de n8n
+  # ---------------------------------------------------------------------------
+  api-scan:
+    name: ZAP API Scan - Webhooks n8n (HT-45 T02)
+    needs: preparar
+    if: ${{ needs.preparar.outputs.escanear == 'true' && needs.preparar.outputs.api == 'true' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v7
+
+      - name: Apuntar la spec OpenAPI al entorno real
+        env:
+          API_BASE_URL: ${{ secrets.DAST_API_BASE_URL }}
+        run: |
+          if [ -z "$API_BASE_URL" ]; then
+            echo "::error::Falta el secret DAST_API_BASE_URL (base de los webhooks n8n de staging)."
+            exit 1
+          fi
+          # La spec versionada lleva un marcador para no exponer la URL de n8n
+          # en el repositorio; aqui se sustituye en la copia de CI.
+          BASE="${API_BASE_URL%/}"
+          sed -i "s#__ZAP_API_BASE_URL__#$BASE#" .zap/urbanpulse-api.openapi.yaml
+          echo "Servidor de la spec fijado en $BASE"
+
+      - name: Ejecutar ZAP API Scan
+        uses: zaproxy/action-api-scan@v0.10.0
+        with:
+          target: '.zap/urbanpulse-api.openapi.yaml'
+          format: openapi
+          rules_file_name: '.zap/rules.tsv'
+          cmd_options: '-a'
+          allow_issue_writing: false
+          fail_action: false
+          artifact_name: zap-api
+
+      - name: Convertir el reporte de ZAP a SARIF
+        if: ${{ !cancelled() }}
+        run: |
+          if [ ! -f report_json.json ]; then
+            echo "::warning::ZAP no genero report_json.json; se omite la conversion a SARIF."
+            exit 0
+          fi
+          node scripts/zap-json-to-sarif.mjs report_json.json zap-sarif/api.sarif api-scan
+
+      - name: Publicar hallazgos del API scan en Code Scanning
+        if: ${{ !cancelled() && hashFiles('zap-sarif/api.sarif') != '' }}
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: zap-sarif/api.sarif
+          category: dast-zap-api
+          ref: ${{ needs.preparar.outputs.ref }}
+          sha: ${{ needs.preparar.outputs.sha }}
+
+      - name: Generar informe y aplicar el gate de riesgo alto
+        if: ${{ !cancelled() && hashFiles('zap-sarif/api.sarif') != '' }}
+        run: |
+          node scripts/zap-reporte-hallazgos.mjs \
+            zap-sarif/api.sarif informes-dast/api.md
+          cat informes-dast/api.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Subir reportes del API scan
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: zap-api-reportes
+          path: |
+            report_html.html
+            report_json.json
+            report_md.md
+            zap-sarif/api.sarif
+            informes-dast/api.md
+          if-no-files-found: warn
+          retention-days: 30

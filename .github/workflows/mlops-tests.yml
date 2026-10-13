@@ -1,0 +1,180 @@
+# ==============================================================================
+# Workflow: Pruebas automatizadas del flujo MLOps (HT-48)
+#
+# Dos bloques con costes muy distintos:
+#
+#   1. calidad-y-sesgo (CA1, CA2, CA5) -- Great Expectations sobre el dataset de
+#      entrenamiento y sobre las predicciones, metricas y equidad del modelo de
+#      priorizacion, y deteccion de deriva. Es gratis y determinista, asi que
+#      corre en cada push y PR que toque algo relacionado.
+#
+#   2. regresion-prompts (CA3) -- promptfoo contra Gemini: guardrails y el
+#      dataset dorado de 56 reportes etiquetados. Cada corrida gasta cuota real
+#      de la API, asi que fuera del pipeline MLOps es opt-in.
+#
+# QUALITY GATE DEL PIPELINE MLOps (CA4): este workflow es reutilizable
+# (`workflow_call`). El pipeline de HT-47 lo invoca antes de promover un modelo,
+# y si falla no se promueve:
+#
+#     jobs:
+#       pruebas:
+#         uses: ./.github/workflows/mlops-tests.yml
+#         with:
+#           correr_promptfoo: true
+#         secrets: inherit
+#       promover:
+#         needs: pruebas        # el gate: sin pruebas en verde no hay promocion
+#         ...
+#
+# Python 3.12 es obligatorio: Great Expectations 1.x fija numpy<2.0, y numpy
+# 1.26 no publica wheels para 3.13+, asi que en interpretes mas nuevos pip
+# intenta compilar numpy desde el fuente y la instalacion falla.
+# ==============================================================================
+
+name: MLOps - Calidad de datos, sesgo y prompts
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'ia-ops/mlops-tests/**'
+      - 'ia-ops/prompts/**'
+      - 'database/migrations/*prediccion_riesgo*'
+      - '.github/workflows/mlops-tests.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'ia-ops/mlops-tests/**'
+      - 'ia-ops/prompts/**'
+      - 'database/migrations/*prediccion_riesgo*'
+      - '.github/workflows/mlops-tests.yml'
+  workflow_dispatch:
+    inputs:
+      correr_promptfoo:
+        description: 'Correr tambien la regresion de prompts (consume cuota de Gemini)'
+        required: false
+        default: false
+        type: boolean
+  workflow_call:
+    inputs:
+      correr_promptfoo:
+        description: 'Correr la regresion de prompts como parte del gate'
+        required: false
+        default: true
+        type: boolean
+    secrets:
+      GOOGLE_API_KEY:
+        description: 'Clave de la API de Gemini para promptfoo'
+        required: false
+
+defaults:
+  run:
+    working-directory: ia-ops/mlops-tests
+
+jobs:
+  calidad-y-sesgo:
+    name: Datos, equidad y deriva (HT-48 CA1/CA2/CA5)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v7
+
+      - name: Configurar Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: ia-ops/mlops-tests/requirements.txt
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Verificar que los fixtures estan al dia
+        # Si alguien edita los generadores sin regenerar los CSV, los datos
+        # versionados dejan de corresponder al script y las pruebas validarian
+        # algo que ya nadie sabe reproducir.
+        run: |
+          python datos/generar_fixtures.py
+          if ! git diff --quiet -- datos/; then
+            echo "::error::Los CSV de datos/ no coinciden con sus generadores."
+            echo "Corre 'python ia-ops/mlops-tests/datos/generar_fixtures.py' y commitea el resultado."
+            git diff --stat -- datos/
+            exit 1
+          fi
+
+      - name: Ejecutar la suite de calidad, equidad y deriva
+        run: pytest --junitxml=reportes/pytest-mlops.xml
+
+      - name: Subir el reporte de pruebas
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: mlops-reporte-pytest
+          path: ia-ops/mlops-tests/reportes/
+          if-no-files-found: warn
+          retention-days: 30
+
+  regresion-prompts:
+    name: Prompts y dataset dorado (HT-48 CA3)
+    runs-on: ubuntu-latest
+    if: ${{ inputs.correr_promptfoo }}
+
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v7
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+
+      - name: Evaluar el dataset dorado (56 reportes etiquetados)
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        run: |
+          # promptfoo falla si alguna respuesta no es JSON valido, que es
+          # exactamente el criterio del 100%. Se captura su codigo de salida para
+          # poder generar igualmente el informe de precision antes de rendirse:
+          # un fallo sin informe obliga a repetir la corrida, y cada repeticion
+          # gasta cuota.
+          estado=0
+          npx --yes promptfoo@latest eval \
+            -c promptfoo/dorado.promptfooconfig.yaml \
+            --output reportes/promptfoo-dorado.json || estado=$?
+
+          node promptfoo/evaluar-umbrales.mjs \
+            reportes/promptfoo-dorado.json reportes/dataset-dorado.md
+          cat reportes/dataset-dorado.md >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$estado" -ne 0 ]; then
+            echo "::error::promptfoo reporto fallos: alguna respuesta no fue JSON valido."
+            exit "$estado"
+          fi
+
+      - name: Evaluar los guardrails del clasificador
+        if: ${{ !cancelled() }}
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        run: |
+          npx --yes promptfoo@latest eval \
+            -c promptfoo/clasificacion.promptfooconfig.yaml \
+            --output reportes/promptfoo-clasificacion.json
+
+      - name: Evaluar el prompt del asistente NLQ
+        if: ${{ !cancelled() }}
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        run: |
+          npx --yes promptfoo@latest eval \
+            -c promptfoo/nlq.promptfooconfig.yaml \
+            --output reportes/promptfoo-nlq.json
+
+      - name: Subir los reportes de promptfoo
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: mlops-reporte-promptfoo
+          path: ia-ops/mlops-tests/reportes/
+          if-no-files-found: warn
+          retention-days: 30

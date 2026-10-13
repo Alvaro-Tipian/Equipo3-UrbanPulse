@@ -36,6 +36,7 @@ docker-compose.*.local.yml
 # Lightsail: definición de contenedor generada con secretos sustituidos
 # (el .template sí se versiona)
 infrastructure/lightsail-containers.json
+infrastructure/lightsail-api-containers.json
 
 # IDE / editor
 .vscode/
@@ -48,3 +49,8 @@ postman/collections/*.html
 postman/collections/*resultado*.json
 postman/**/*.postman_environment.json
 postman/environments/*.postman_environment.json
+
+
+ml/data/output/
+mlruns/
+ml/train/output/

@@ -19,16 +19,32 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   /* Retry on CI only (máximo 1 reintento para evitar esperas excesivas) */
   retries: process.env.CI ? 1 : 0,
-  /* En CI, el webServer[] levanta 4 servidores de Vite (host + 3
-   * microfrontends) desde cero en cada run. Con 2+ workers, varios archivos
-   * de test arrancan a la vez contra esos servidores mientras Vite todavía
-   * está compilando módulos bajo demanda por primera vez, y un click puede
-   * dispararse antes de que la vista termine de montar (visto: la suite de
-   * dashboard fallaba en paralelo pero pasaba siempre en secuencial). Un
-   * solo worker evita esa carrera a costa de una ejecución algo más lenta. */
-  workers: process.env.CI ? 1 : undefined,
+  /* El webServer[] levanta 8 servidores de Vite (host + 7 microfrontends)
+   * desde cero en cada run. Con 2+ workers, varios archivos de test arrancan a
+   * la vez contra esos servidores mientras Vite todavía está compilando
+   * módulos bajo demanda por primera vez, y un click puede dispararse antes de
+   * que la vista termine de montar.
+   *
+   * Un solo worker SIEMPRE, no solo en CI. Antes el límite se aplicaba con
+   * `process.env.CI ? 1 : undefined`, así que en local la suite corría en
+   * paralelo y fallaba un test distinto en cada ejecución por timeout —con 3
+   * microfrontends la carrera se ganaba casi siempre; con 7 ya no. Además,
+   * que local y CI usen la misma concurrencia es lo que hace reproducible un
+   * fallo de CI en la máquina de quien lo tiene que arreglar. */
+  workers: 1,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: [['list'], ['html']],
+  /* El reporter json alimenta scripts/certificar-sla.mjs (HT-37): la
+   * certificación se calcula sobre los resultados reales de la corrida, no
+   * sobre lo que alguien copie a mano en un documento. */
+  reporter: [['list'], ['html'], ['json', { outputFile: 'reportes/playwright.json' }]],
+
+  /* 15 s en vez de los 5 s por defecto. Cada vista monta su microfrontend por
+   * Module Federation con React.lazy, y la PRIMERA vez que se abre una pestaña
+   * el servidor de Vite todavía tiene que compilar ese remoto bajo demanda:
+   * la primera aserción sobre su contenido espera la descarga del remoteEntry,
+   * la del chunk y esa compilación. Con 5 s el grid del operador fallaba por
+   * los pelos aunque la app funcionara. */
+  expect: { timeout: 15_000 },
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('')`. */
@@ -82,26 +98,36 @@ export default defineConfig({
     // },
   ],
 
+  /* Los microfrontends federados que el host resuelve en local, segun
+   * src/frontend/public/remotes.local.json. Tras el refactor de HT-39 ya no son
+   * tres: el login vive en mf-auth y el grid del operador en
+   * mf-gestion-incidentes, asi que arrancar solo mapa, dashboard y chatbot
+   * dejaba la mitad de la app sin montar.
+   *
+   * mf-panel-riesgo queda fuera a proposito: hoy es un scaffold de Vite sin
+   * Module Federation (HU-08 en curso), no expone remoteEntry.js y esperarlo
+   * colgaria el arranque. El host lo degrada con RemoteBoundary, y
+   * mapa.spec.ts cubre ese camino. */
   webServer: [
     {
       command: 'npm --prefix ../../src/frontend run dev -- --host 0.0.0.0',
       url: 'http://localhost:3000',
       reuseExistingServer: !process.env.CI,
+      timeout: 180_000,
     },
-    {
-      command: 'npm --prefix ../../mf-mapa-urbano run dev -- --host 0.0.0.0',
-      url: 'http://localhost:5174/remoteEntry.js',
+    ...[
+      ['mf-gestion-incidentes', 5173],
+      ['mf-mapa-urbano', 5174],
+      ['mf-dashboard', 5175],
+      ['mf-historial-reportes', 5176],
+      ['mf-auth', 5177],
+      ['mf-ajustes', 5178],
+      ['mf-chatbot', 3003],
+    ].map(([nombre, puerto]) => ({
+      command: `npm --prefix ../../${nombre} run dev -- --host 0.0.0.0`,
+      url: `http://localhost:${puerto}/remoteEntry.js`,
       reuseExistingServer: !process.env.CI,
-    },
-    {
-      command: 'npm --prefix ../../mf-dashboard run dev -- --host 0.0.0.0',
-      url: 'http://localhost:5175/remoteEntry.js',
-      reuseExistingServer: !process.env.CI,
-    },
-    {
-      command: 'npm --prefix ../../mf-chatbot run dev -- --host 0.0.0.0',
-      url: 'http://localhost:3003/remoteEntry.js',
-      reuseExistingServer: !process.env.CI,
-    },
+      timeout: 180_000,
+    })),
   ],
 });

@@ -1,0 +1,193 @@
+{
+  "name": "UrbanPulse - Enrutador de Eventos de Dominio (HT-51 T02)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "urbanpulse/eventos",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-eventos",
+      "name": "Webhook POST /urbanpulse/eventos",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "UrbanPulse Event Router Header Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.item.json.body || $input.item.json;\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\nconst tiposValidos = ['reporte.creado', 'reporte.estado_cambiado', 'n8n.flujo_fallido', 'modelo.deriva_detectada'];\nconst franjasValidas = ['mañana', 'tarde', 'noche'];\nconst estadosValidos = ['Pendiente', 'En Proceso', 'Resuelto'];\n\nlet esValido = true;\nlet errorDetalle = '';\n\nif (!body.id || !uuidRegex.test(body.id)) {\n  esValido = false;\n  errorDetalle = 'El campo \"id\" debe ser un UUID v4 válido.';\n} else if (!body.tipo || !tiposValidos.includes(body.tipo)) {\n  esValido = false;\n  errorDetalle = `El campo \"tipo\" debe ser uno de: ${tiposValidos.join(', ')}.`;\n} else if (!body.fecha || isNaN(Date.parse(body.fecha))) {\n  esValido = false;\n  errorDetalle = 'El campo \"fecha\" debe ser un ISO 8601 válido.';\n} else if (!body.origen || typeof body.origen !== 'string') {\n  esValido = false;\n  errorDetalle = 'El campo \"origen\" es obligatorio.';\n} else if (!body.datos || typeof body.datos !== 'object') {\n  esValido = false;\n  errorDetalle = 'El campo \"datos\" debe ser un objeto JSON.';\n} else {\n  const d = body.datos;\n  if (body.tipo === 'reporte.creado') {\n    if (!d.reporte_id || !d.distrito || !franjasValidas.includes(d.franja) || !d.tipo_incidente) {\n      esValido = false;\n      errorDetalle = 'Campos de reporte.creado requeridos: reporte_id, distrito, franja (mañana|tarde|noche), tipo_incidente.';\n    }\n  } else if (body.tipo === 'reporte.estado_cambiado') {\n    if (!d.reporte_id || !estadosValidos.includes(d.estado_anterior) || !estadosValidos.includes(d.estado_nuevo)) {\n      esValido = false;\n      errorDetalle = 'Campos de reporte.estado_cambiado requeridos: reporte_id, estado_anterior, estado_nuevo.';\n    }\n  } else if (body.tipo === 'n8n.flujo_fallido') {\n    if (!d.workflow_id || !d.workflow_nombre || !d.ejecucion_id || !d.mensaje_error) {\n      esValido = false;\n      errorDetalle = 'Campos de n8n.flujo_fallido requeridos: workflow_id, workflow_nombre, ejecucion_id, mensaje_error.';\n    }\n  } else if (body.tipo === 'modelo.deriva_detectada') {\n    if (!d.modelo || d.version === undefined || d.psi_max === undefined || d.f1_real === undefined || !d.reporte_url) {\n      esValido = false;\n      errorDetalle = 'Campos de modelo.deriva_detectada requeridos: modelo, version, psi_max, f1_real, reporte_url.';\n    }\n  }\n}\n\nreturn [{\n  json: {\n    es_valido: esValido,\n    http_code: esValido ? 202 : 400,\n    response_body: esValido\n      ? { estado: 'recibido', id: body.id, tipo: body.tipo, timestamp: new Date().toISOString() }\n      : { error: 'Validación de sobre o datos fallida', detalle: errorDetalle },\n    evento: body\n  }\n}];"
+      },
+      "id": "validador-esquema",
+      "name": "Validar Esquema del Sobre de Eventos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.response_body) }}",
+        "options": {
+          "responseCode": "={{ $json.http_code }}"
+        }
+      },
+      "id": "responder-webhook",
+      "name": "Responder 202 o 400",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.es_valido }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-valido",
+      "name": "¿Es Evento Válido?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO eventos (id, tipo, fecha, origen, datos, estado)\nVALUES ($1::uuid, $2, $3::timestamptz, $4, $5::jsonb, 'recibido')\nON CONFLICT (id) DO NOTHING\nRETURNING id, tipo, fecha, origen, datos;",
+        "options": {
+          "queryReplacement": "={{ [ $json.evento.id, String($json.evento.tipo).slice(0, 100), new Date($json.evento.fecha).toISOString(), String($json.evento.origen).slice(0, 255), JSON.stringify($json.evento.datos) ] }}"
+        }
+      },
+      "id": "postgres-persist",
+      "name": "Persistir Evento en Neon DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO eventos (id, tipo, fecha, origen, datos, estado)\nVALUES ($1::uuid, $2, now(), $3, $4::jsonb, 'rechazado')\nON CONFLICT (id) DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ [ (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test($json.evento.id) ? $json.evento.id : '00000000-0000-0000-0000-000000000000'), String($json.evento.tipo || 'desconocido').slice(0, 100), String($json.evento.origen || 'desconocido').slice(0, 255), JSON.stringify($json.response_body) ] }}"
+        }
+      },
+      "id": "postgres-persist-rechazado",
+      "name": "Registrar Evento Rechazado (400)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        900,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "UrbanPulse - Despachar Evento (HT-51 T02)"
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "despachar-evento",
+      "name": "Despachar Evento",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        1100,
+        200
+      ],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Webhook POST /urbanpulse/eventos": {
+      "main": [
+        [
+          {
+            "node": "Validar Esquema del Sobre de Eventos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar Esquema del Sobre de Eventos": {
+      "main": [
+        [
+          {
+            "node": "Responder 202 o 400",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "¿Es Evento Válido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Es Evento Válido?": {
+      "main": [
+        [
+          {
+            "node": "Persistir Evento en Neon DB",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar Evento Rechazado (400)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Persistir Evento en Neon DB": {
+      "main": [
+        [
+          {
+            "node": "Despachar Evento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

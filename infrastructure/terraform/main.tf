@@ -6,3 +6,27 @@ resource "aws_lightsail_container_service" "n8n" {
   power = "micro"
   scale = 1
 }
+
+# n8n de staging (HT-42 T02). Ya existe: se importa en el apply. Se deshabilita
+# desde la consola cuando no hay pruebas en curso.
+resource "aws_lightsail_container_service" "n8n_staging" {
+  name  = "urbanpulse-n8n-staging"
+  power = "micro"
+  scale = 1
+}
+
+import {
+  to = aws_lightsail_container_service.n8n_staging
+  id = "urbanpulse-n8n-staging"
+}
+
+# Servicio de contenedores de la API de inferencia de riesgo vial (HT-47 T02).
+# Igual que n8n: Terraform administra el servicio y GitHub Actions publica las
+# imagenes (deploy-api-inferencia.yml, invocado por mlops-pipeline.yml).
+# Si el servicio ya fue creado a mano, importarlo antes del primer apply:
+#   terraform import aws_lightsail_container_service.api_inferencia urbanpulse-api
+resource "aws_lightsail_container_service" "api_inferencia" {
+  name  = "urbanpulse-api"
+  power = "micro"
+  scale = 1
+}

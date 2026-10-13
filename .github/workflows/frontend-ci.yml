@@ -32,7 +32,7 @@ jobs:
       contents: read
     steps:
     - name: Checkout del repositorio
-      uses: actions/checkout@v7
+      uses: actions/checkout@v4
     - name: Inicializar CodeQL
       uses: github/codeql-action/init@v3
       with:
@@ -45,9 +45,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout del repositorio
-      uses: actions/checkout@v7
+      uses: actions/checkout@v4
     - name: Configurar Node.js
-      uses: actions/setup-node@v7
+      uses: actions/setup-node@v4
       with:
         node-version: '20'
     - name: Ejecutar Escáner SAST de Secretos y Variables de Red
@@ -58,9 +58,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout del repositorio
-      uses: actions/checkout@v7
+      uses: actions/checkout@v4
     - name: Configurar Node.js
-      uses: actions/setup-node@v7
+      uses: actions/setup-node@v4
       with:
         node-version: '20'
 
@@ -79,7 +79,7 @@ jobs:
 
     - name: Subir reporte de cobertura
       if: always()
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@v4
       with:
         name: frontend-coverage-report
         path: src/frontend/coverage/

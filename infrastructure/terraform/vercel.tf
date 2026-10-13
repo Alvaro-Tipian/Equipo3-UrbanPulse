@@ -4,6 +4,12 @@
 locals {
   vercel_git_repo = "SergioAscurraPerez/Equipo3-UrbanPulse"
 
+  # "Ignored Build Step" de Vercel: no construye si el commit no toca la
+  # carpeta raíz del proyecto. Sin declararlo, el plan lo pone en null.
+  # En la rama staging construye siempre (exit 1 = construir), para que cada
+  # proyecto tenga su URL fija de staging (remotes.staging.json, HT-42 T02).
+  vercel_ignore_command = "[ \"$VERCEL_GIT_COMMIT_REF\" = \"staging\" ] && exit 1; git diff --quiet HEAD^ HEAD -- ."
+
   vercel_projects = {
     host = {
       name           = "equipo3-urban-pulse"
@@ -45,7 +51,18 @@ locals {
       framework      = "vite"
       root_directory = "mf-dashboard"
     }
+    panel-riesgo = {
+      name           = "equipo3-urbanpulse-panel-riesgo"
+      framework      = "vite"
+      root_directory = "mf-panel-riesgo"
+    }
   }
+}
+
+# mf-panel-riesgo (HU-08) se creó a mano en Vercel; se importa en el apply.
+import {
+  to = vercel_project.mf["panel-riesgo"]
+  id = "prj_qwELVvFArP3QM34zzL4MiSqHtMgI"
 }
 
 resource "vercel_project" "mf" {
@@ -54,8 +71,19 @@ resource "vercel_project" "mf" {
   name           = each.value.name
   framework      = each.value.framework
   root_directory = each.value.root_directory
+  # panel-riesgo se creó sin Ignored Build Step; se declara igual que en Vercel.
+  ignore_command = each.key == "panel-riesgo" ? null : local.vercel_ignore_command
 
-  skew_protection = "12 hours"
+  # El host no tiene skew protection en Vercel; solo los microfrontends.
+  skew_protection = each.key == "host" ? null : "12 hours"
+
+  # El host de staging carga el remoteEntry.js de cada microfrontend desde su
+  # URL de rama; con Vercel Authentication esa carga redirige al login. Los
+  # microfrontends quedan sin protección (son bundles públicos, igual que en
+  # producción) y el host conserva la estándar.
+  vercel_authentication = {
+    deployment_type = each.key == "host" ? "standard_protection_new" : "none"
+  }
 
   git_repository = {
     type = "github"
