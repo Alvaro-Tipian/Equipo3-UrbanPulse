@@ -49,7 +49,18 @@ locals {
       framework      = "vite"
       root_directory = "mf-dashboard"
     }
+    panel-riesgo = {
+      name           = "equipo3-urbanpulse-panel-riesgo"
+      framework      = "vite"
+      root_directory = "mf-panel-riesgo"
+    }
   }
+}
+
+# mf-panel-riesgo (HU-08) se creó a mano en Vercel; se importa en el apply.
+import {
+  to = vercel_project.mf["panel-riesgo"]
+  id = "prj_qwELVvFArP3QM34zzL4MiSqHtMgI"
 }
 
 resource "vercel_project" "mf" {
