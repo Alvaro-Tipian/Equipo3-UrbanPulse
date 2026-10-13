@@ -6,7 +6,9 @@ locals {
 
   # "Ignored Build Step" de Vercel: no construye si el commit no toca la
   # carpeta raíz del proyecto. Sin declararlo, el plan lo pone en null.
-  vercel_ignore_command = "git diff --quiet HEAD^ HEAD -- ."
+  # En la rama staging construye siempre (exit 1 = construir), para que cada
+  # proyecto tenga su URL fija de staging (remotes.staging.json, HT-42 T02).
+  vercel_ignore_command = "[ \"$VERCEL_GIT_COMMIT_REF\" = \"staging\" ] && exit 1; git diff --quiet HEAD^ HEAD -- ."
 
   vercel_projects = {
     host = {
