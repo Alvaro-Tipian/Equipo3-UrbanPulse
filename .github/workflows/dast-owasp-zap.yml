@@ -227,6 +227,21 @@ jobs:
           sed -i "s#__ZAP_API_BASE_URL__#$BASE#" .zap/urbanpulse-api.openapi.yaml
           echo "Servidor de la spec fijado en $BASE"
 
+      - name: Negarse a escanear si el destino no es staging
+        # El API scan es ACTIVO: envia payloads de inyeccion y crea registros.
+        # Un secret mal puesto (la URL de produccion) lo apuntaria contra datos
+        # reales de ciudadanos, asi que se exige que el host se declare staging.
+        env:
+          API_BASE_URL: ${{ secrets.DAST_API_BASE_URL }}
+        run: |
+          host=$(echo "$API_BASE_URL" | sed -E 's#^[a-zA-Z]+://##; s#[/:].*$##')
+          case "$host" in
+            *staging*) echo "El destino del API scan es un host de staging." ;;
+            *)
+              echo "::error::DAST_API_BASE_URL no apunta a un host de staging. El escaneo activo no corre contra otros entornos."
+              exit 1 ;;
+          esac
+
       - name: Comprobar que los webhooks existen en el entorno
         # Un n8n recien creado responde, pero sin los flujos importados y
         # activados todos los webhooks devuelven 404. ZAP escanearia quince rutas
