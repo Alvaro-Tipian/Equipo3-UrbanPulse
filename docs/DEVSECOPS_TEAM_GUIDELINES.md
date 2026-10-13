@@ -157,3 +157,31 @@ Antes de presionar "Create Pull Request", verifica:
 - [ ] **Secretos:** ¿Revisaste con `git diff` que no haya ninguna API key ni contraseña real?
 - [ ] **Build:** ¿Probaste `npm run build` en tu componente?
 - [ ] **Lockfiles:** ¿Subiste tu `package-lock.json` junto con cualquier cambio en `package.json`?
+
+---
+
+## 🧱 Análisis de seguridad de IaC (HT-44 T02)
+
+`terraform-ci.yml` analiza `infrastructure/terraform/` con **Trivy en modo config**
+antes del `terraform plan`. Se usa Trivy y no el binario `tfsec` porque Aqua
+Security fusionó tfsec dentro de Trivy; el repositorio de tfsec está en
+mantenimiento y su propio README remite a Trivy. Así el análisis de IaC usa el
+mismo motor y las mismas reglas que el escaneo de imágenes de HT-44 T01.
+
+Dos pasos, a propósito:
+
+| Paso | Severidades | ¿Bloquea? | Para qué |
+|---|---|---|---|
+| Informe | CRITICAL, HIGH, MEDIUM | No | Publica el SARIF en la pestaña **Security** |
+| Gate | CRITICAL | Sí, antes del `plan` | Impide aplicar IaC con un hallazgo crítico |
+
+**Pendiente de calibración:** el gate arranca solo en `CRITICAL`. El umbral que
+queremos es `CRITICAL,HIGH`, pero subirlo sin haber triado los hallazgos
+preexistentes dejaría en rojo los PR de todo el equipo. Después de la primera
+ejecución:
+
+1. Abrir la pestaña **Security → Code scanning**, categoría `trivy-iac`.
+2. Revisar los hallazgos HIGH: corregir el Terraform, o justificar la excepción
+   con un comentario `#trivy:ignore:<ID-de-regla>` en la línea correspondiente.
+3. Cambiar `severity: CRITICAL` por `severity: CRITICAL,HIGH` en el paso
+   *Análisis de seguridad de IaC - gate* y borrar esta nota.
