@@ -4,6 +4,10 @@
 locals {
   vercel_git_repo = "SergioAscurraPerez/Equipo3-UrbanPulse"
 
+  # "Ignored Build Step" de Vercel: no construye si el commit no toca la
+  # carpeta raíz del proyecto. Sin declararlo, el plan lo pone en null.
+  vercel_ignore_command = "git diff --quiet HEAD^ HEAD -- ."
+
   vercel_projects = {
     host = {
       name           = "equipo3-urban-pulse"
@@ -54,8 +58,10 @@ resource "vercel_project" "mf" {
   name           = each.value.name
   framework      = each.value.framework
   root_directory = each.value.root_directory
+  ignore_command = local.vercel_ignore_command
 
-  skew_protection = "12 hours"
+  # El host no tiene skew protection en Vercel; solo los microfrontends.
+  skew_protection = each.key == "host" ? null : "12 hours"
 
   git_repository = {
     type = "github"
