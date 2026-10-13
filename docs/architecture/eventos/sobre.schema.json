@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urbanpulse/eventos/sobre.schema.json",
+  "title": "Sobre común de los eventos de UrbanPulse",
+  "description": "Contrato 4.7. Todo evento publicado en POST /urbanpulse/eventos usa este sobre. El enrutador de n8n lo valida antes de guardarlo.",
+  "type": "object",
+  "required": ["id", "tipo", "fecha", "origen", "datos"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "UUID v4 generado por el productor. Es la clave de idempotencia: un id repetido no se procesa dos veces."
+    },
+    "tipo": {
+      "type": "string",
+      "enum": [
+        "reporte.creado",
+        "reporte.estado_cambiado",
+        "n8n.flujo_fallido",
+        "modelo.deriva_detectada"
+      ]
+    },
+    "fecha": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Momento en que ocurrió el hecho, ISO 8601 con zona horaria (por ejemplo 2026-10-06T15:02:11-05:00)."
+    },
+    "origen": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Quién publica el evento (por ejemplo n8n/central-vr5 o github/ml-monitoring)."
+    },
+    "datos": {
+      "type": "object",
+      "description": "Contenido propio de cada tipo de evento; ver las reglas en allOf."
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "tipo": { "const": "reporte.creado" } }, "required": ["tipo"] },
+      "then": {
+        "properties": {
+          "datos": {
+            "type": "object",
+            "required": ["reporte_id", "distrito", "franja", "tipo_incidente"],
+            "properties": {
+              "reporte_id": { "type": "integer", "minimum": 1 },
+              "distrito": { "type": "string", "minLength": 1 },
+              "franja": { "enum": ["mañana", "tarde", "noche"] },
+              "tipo_incidente": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "tipo": { "const": "reporte.estado_cambiado" } }, "required": ["tipo"] },
+      "then": {
+        "properties": {
+          "datos": {
+            "type": "object",
+            "required": ["reporte_id", "estado_anterior", "estado_nuevo"],
+            "properties": {
+              "reporte_id": { "type": "integer", "minimum": 1 },
+              "estado_anterior": { "enum": ["Pendiente", "En Proceso", "Resuelto"] },
+              "estado_nuevo": { "enum": ["Pendiente", "En Proceso", "Resuelto"] },
+              "distrito": { "type": "string" },
+              "franja": { "enum": ["mañana", "tarde", "noche"] }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "tipo": { "const": "n8n.flujo_fallido" } }, "required": ["tipo"] },
+      "then": {
+        "properties": {
+          "datos": {
+            "type": "object",
+            "required": ["workflow_id", "workflow_nombre", "ejecucion_id", "mensaje_error"],
+            "properties": {
+              "workflow_id": { "type": "string", "minLength": 1 },
+              "workflow_nombre": { "type": "string", "minLength": 1 },
+              "ejecucion_id": { "type": "string", "minLength": 1 },
+              "nodo_fallido": { "type": "string" },
+              "mensaje_error": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "tipo": { "const": "modelo.deriva_detectada" } }, "required": ["tipo"] },
+      "then": {
+        "properties": {
+          "datos": {
+            "type": "object",
+            "required": ["modelo", "version", "psi_max", "f1_real", "reporte_url"],
+            "properties": {
+              "modelo": { "type": "string", "minLength": 1 },
+              "version": { "type": "integer", "minimum": 1 },
+              "psi_max": { "type": "number", "minimum": 0 },
+              "variables_con_deriva_pct": { "type": "number", "minimum": 0, "maximum": 100 },
+              "f1_real": { "type": "number", "minimum": 0, "maximum": 1 },
+              "reporte_url": { "type": "string", "format": "uri" }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

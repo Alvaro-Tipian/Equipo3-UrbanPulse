@@ -1,0 +1,50 @@
+# ==============================================================================
+# Evaluacion del clasificador contra el dataset dorado (HT-48 CA3)
+#
+#   npx promptfoo@latest eval -c promptfoo/dorado.promptfooconfig.yaml \
+#     --output reportes/promptfoo-dorado.json
+#
+# 56 reportes ciudadanos etiquetados a mano en dataset-dorado.csv, por encima
+# del minimo de 50 que pide el criterio de aceptacion.
+#
+# Dos umbrales, y se comprueban en sitios distintos a proposito:
+#
+#   100% de JSON valido -> la asercion `is-json` de abajo. Cualquier fila que
+#   falle tumba la corrida de promptfoo, que es justo lo que se quiere: el
+#   prompt promete salida JSON estricta, y una sola respuesta con prosa alrededor
+#   rompe a todo lo que consume al clasificador.
+#
+#   Precision >= 85% -> evaluar-umbrales.mjs, sobre el JSON de salida. No puede
+#   ser una asercion de promptfoo porque promptfoo falla ante CUALQUIER caso
+#   erroneo, y aqui se admite hasta un 15% de error: el umbral es sobre el
+#   agregado, no sobre cada fila.
+#
+# La precision se mide solo sobre `categoria`, que es lo que el criterio exige.
+# La subcategoria se recoge en el CSV y la reporta el evaluador como metrica
+# secundaria, sin umbral: la taxonomia del prompt no define subcategoria para
+# ANOMALIA_AMBIENTAL, asi que 16 de las 56 filas no tienen etiqueta esperada.
+# ==============================================================================
+
+description: Clasificador de incidentes contra el dataset dorado
+
+prompts:
+  - id: file://prompts.js:clasificacionIncidente
+    label: clasificacion_incidente_v1
+
+providers:
+  - id: google:gemini-1.5-flash
+    config:
+      temperature: 0.1
+      maxOutputTokens: 512
+
+tests: file://dataset-dorado.csv
+
+defaultTest:
+  options:
+    # Gemini suele envolver el JSON en un bloque ```json pese a la instruccion
+    # de determinismo. Se recorta antes de evaluar para que la asercion mida el
+    # contenido y no el formateo del envoltorio.
+    transform: output.trim().replace(/^```(?:json)?\s*/i, '').replace(/```$/, '').trim()
+  assert:
+    - type: is-json
+      metric: json_valido

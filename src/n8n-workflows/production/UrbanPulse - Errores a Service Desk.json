@@ -1,0 +1,218 @@
+{
+  "name": "UrbanPulse - Errores a Service Desk",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -800,
+        0
+      ],
+      "id": "a1e2c3d4-1111-4a5b-9c6d-000000000001",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const wf = $json.workflow || {};\nconst exec = $json.execution || {};\nconst err = exec.error || {};\n\nconst workflowName = wf.name || 'Workflow desconocido';\nconst lastNode = exec.lastNodeExecuted || (err.node && err.node.name) || 'Nodo desconocido';\nconst errorMessage = err.message || 'Sin mensaje de error';\nconst executionUrl = exec.url || '';\nconst fecha = new Date().toISOString();\n\n// Prioridad: Alta para Central vr5 y auth; Media para el resto\nconst nombreNormalizado = workflowName.toLowerCase();\nconst prioridad = (nombreNormalizado.includes('central vr5') || nombreNormalizado.includes('auth'))\n  ? 'Alta'\n  : 'Media';\n\n// Slug del nombre del workflow para la etiqueta wf-<nombre>\nconst slug = workflowName\n  .toLowerCase()\n  .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')\n  .replace(/[^a-z0-9]+/g, '-')\n  .replace(/(^-|-$)/g, '');\n\nconst etiquetaWorkflow = `wf-${slug}`;\nconst resumen = `[n8n] ${workflowName} fallo en ${lastNode}`;\nconst descripcionTexto = `Workflow: ${workflowName}\\nNodo: ${lastNode}\\nError: ${errorMessage}\\nEjecucion: ${executionUrl}\\nFecha: ${fecha}`;\n\nreturn {\n  json: {\n    workflowName,\n    lastNode,\n    errorMessage,\n    executionUrl,\n    fecha,\n    prioridad,\n    etiquetaWorkflow,\n    resumen,\n    descripcionTexto,\n    jql: `project = UPTI AND labels = \"${etiquetaWorkflow}\" AND created >= -15m ORDER BY created DESC`\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -576,
+        0
+      ],
+      "id": "a1e2c3d4-1111-4a5b-9c6d-000000000002",
+      "name": "Armar datos del ticket"
+    },
+    {
+      "parameters": {
+        "url": "https://urbanpulse-ti.atlassian.net/rest/api/3/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "jql",
+              "value": "={{ $json.jql }}"
+            },
+            {
+              "name": "maxResults",
+              "value": "1"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -352,
+        0
+      ],
+      "id": "a1e2c3d4-1111-4a5b-9c6d-000000000003",
+      "name": "Buscar incidentes recientes",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "REEMPLAZAR_CON_TU_CREDENCIAL",
+          "name": "Jira API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b2f3d4e5-2222-4a5b-9c6d-000000000004",
+              "leftValue": "={{ $json.total }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -128,
+        0
+      ],
+      "id": "a1e2c3d4-1111-4a5b-9c6d-000000000005",
+      "name": "¿Ya existe ticket reciente?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://urbanpulse-ti.atlassian.net/rest/api/3/issue/' + $json.issues[0].key + '/comment' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"body\": { \"type\": \"doc\", \"version\": 1, \"content\": [ { \"type\": \"paragraph\", \"content\": [ { \"type\": \"text\", \"text\": $('Armar datos del ticket').item.json.descripcionTexto } ] } ] } } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        96,
+        -112
+      ],
+      "id": "a1e2c3d4-1111-4a5b-9c6d-000000000006",
+      "name": "Agregar comentario",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "REEMPLAZAR_CON_TU_CREDENCIAL",
+          "name": "Jira API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://urbanpulse-ti.atlassian.net/rest/api/3/issue",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"fields\": { \"project\": { \"key\": \"UPTI\" }, \"summary\": $('Armar datos del ticket').item.json.resumen, \"issuetype\": { \"name\": \"Incident\" }, \"priority\": { \"name\": $('Armar datos del ticket').item.json.prioridad }, \"labels\": [\"n8n-error\", $('Armar datos del ticket').item.json.etiquetaWorkflow], \"description\": { \"type\": \"doc\", \"version\": 1, \"content\": [ { \"type\": \"paragraph\", \"content\": [ { \"type\": \"text\", \"text\": $('Armar datos del ticket').item.json.descripcionTexto } ] } ] } } } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        96,
+        112
+      ],
+      "id": "a1e2c3d4-1111-4a5b-9c6d-000000000007",
+      "name": "Crear incidente",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "REEMPLAZAR_CON_TU_CREDENCIAL",
+          "name": "Jira API"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Armar datos del ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar datos del ticket": {
+      "main": [
+        [
+          {
+            "node": "Buscar incidentes recientes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar incidentes recientes": {
+      "main": [
+        [
+          {
+            "node": "¿Ya existe ticket reciente?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Ya existe ticket reciente?": {
+      "main": [
+        [
+          {
+            "node": "Agregar comentario",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Crear incidente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "b3f4e5d6-0000-4a5b-9c6d-000000000099",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "87fb69796176a971aac5891ddee53273b6d94e06350b078fcd71a5f192810c8f"
+  },
+  "nodeGroups": [],
+  "id": "ErrSvcDeskUP01",
+  "tags": []
+}

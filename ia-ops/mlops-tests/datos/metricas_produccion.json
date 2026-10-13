@@ -1,0 +1,15 @@
+{
+  "_comentario": [
+    "Metricas del modelo de priorizacion actualmente EN PRODUCCION (el campeon).",
+    "Las pruebas de HT-48 CA2 exigen que el modelo candidato no empeore frente a",
+    "estos numeros: un reentrenamiento puede subir la metrica global y aun asi",
+    "degradar la equidad, o al reves, por eso se compara contra las tres.",
+    "Este archivo lo actualiza el pipeline MLOps (HT-47) cuando promueve un",
+    "modelo nuevo; a mano solo se toca para registrar el primer campeon."
+  ],
+  "model_version": "priorizacion-1.0.0",
+  "promovido_en": "2026-09-20",
+  "exactitud": 0.89,
+  "brecha_error_por_distrito": 0.05,
+  "brecha_error_por_tipo_incidente": 0.1
+}

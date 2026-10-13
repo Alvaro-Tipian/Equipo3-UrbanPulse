@@ -1,0 +1,263 @@
+# ==============================================================================
+# Definicion OpenAPI de los webhooks n8n de UrbanPulse (HT-45 T02)
+#
+# Esta spec NO es la documentacion oficial de la API: existe para alimentar el
+# "API scan" de OWASP ZAP, que necesita conocer rutas, metodos y forma de los
+# payloads para poder atacar cada endpoint en vez de limitarse a spiderear HTML.
+#
+# Las rutas se extrajeron de los nodos Webhook de src/n8n-workflows/production/.
+# Si se agrega o renombra un webhook en n8n, hay que reflejarlo aqui o el DAST
+# dejara de cubrirlo.
+#
+# El servidor se sobreescribe en tiempo de ejecucion con la variable de entorno
+# ZAP_API_TARGET (ver .github/workflows/dast-owasp-zap.yml), para no fijar la
+# URL de produccion en el repositorio.
+# ==============================================================================
+openapi: 3.0.3
+
+info:
+  title: UrbanPulse - Webhooks n8n
+  version: 1.0.0
+  description: >
+    Superficie HTTP expuesta por n8n (AWS Lightsail) y consumida por el host y
+    los microfrontends. Usada como objetivo del escaneo DAST de OWASP ZAP.
+
+servers:
+  # Marcador sustituido en CI por el valor del secret DAST_API_BASE_URL.
+  - url: __ZAP_API_BASE_URL__
+    description: Base de los webhooks n8n, inyectada en tiempo de ejecucion.
+
+tags:
+  - name: auth
+    description: Registro, inicio de sesion y recuperacion de contrasena.
+  - name: reportes
+    description: Alta y gestion de reportes ciudadanos.
+  - name: mapa
+    description: Capas GeoJSON de siniestralidad (Open Data).
+  - name: chat
+    description: Asistente conversacional y su historial.
+  - name: dashboard
+    description: Indicadores agregados.
+
+paths:
+  /urbanpulse/auth/register:
+    post:
+      tags: [auth]
+      summary: Registrar un ciudadano
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Registro'
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+
+  /urbanpulse/auth/login:
+    post:
+      tags: [auth]
+      summary: Iniciar sesion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Credenciales'
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+
+  /urbanpulse/auth/forgot:
+    post:
+      tags: [auth]
+      summary: Solicitar restablecimiento de contrasena
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                correo: { type: string, format: email, example: qa@urbanpulse.pe }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+
+  /urbanpulse/auth/reset:
+    post:
+      tags: [auth]
+      summary: Confirmar nueva contrasena con token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token: { type: string, example: token-de-prueba }
+                contrasena: { type: string, example: Passw0rd!QA }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+
+  /urbanpulse/report:
+    post:
+      tags: [reportes]
+      summary: Registrar un reporte ciudadano
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Reporte'
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+
+  /urbanpulse/reports-list:
+    get:
+      tags: [reportes]
+      summary: Listar reportes para el operador
+      parameters:
+        - name: estado
+          in: query
+          schema: { type: string, example: pendiente }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+
+  /urbanpulse/reports-history:
+    get:
+      tags: [reportes]
+      summary: Historial de reportes del ciudadano autenticado
+      parameters:
+        - name: correo
+          in: query
+          schema: { type: string, format: email, example: qa@urbanpulse.pe }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+
+  /urbanpulse/report-resolve:
+    post:
+      tags: [reportes]
+      summary: Cambiar el estado de un reporte
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id: { type: integer, example: 1 }
+                estado: { type: string, example: resuelto }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+
+  /urbanpulse/report-image:
+    get:
+      tags: [reportes]
+      summary: Descargar la evidencia fotografica de un reporte
+      parameters:
+        - name: id
+          in: query
+          schema: { type: integer, example: 1 }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+
+  /urbanpulse/mapa-siniestros-onsv:
+    get:
+      tags: [mapa]
+      summary: Capa GeoJSON de siniestros ONSV
+      parameters:
+        - { name: anio, in: query, schema: { type: integer, example: 2024 } }
+        - { name: departamento, in: query, schema: { type: string, example: LIMA } }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+
+  /urbanpulse/mapa-siniestros-sutran:
+    get:
+      tags: [mapa]
+      summary: Capa GeoJSON de siniestros SUTRAN
+      parameters:
+        - { name: anio, in: query, schema: { type: integer, example: 2024 } }
+        - { name: departamento, in: query, schema: { type: string, example: LIMA } }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+
+  /urbanpulse/chat:
+    post:
+      tags: [chat]
+      summary: Consulta en lenguaje natural al asistente ciudadano
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mensaje: { type: string, example: 'Como esta el trafico en Miraflores?' }
+                correo: { type: string, format: email, example: qa@urbanpulse.pe }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+
+  /urbanpulse/chat-history:
+    get:
+      tags: [chat]
+      summary: Recuperar el historial de conversacion
+      parameters:
+        - name: correo
+          in: query
+          schema: { type: string, format: email, example: qa@urbanpulse.pe }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+
+  /urbanpulse/chat-history-append:
+    post:
+      tags: [chat]
+      summary: Anexar un turno al historial de conversacion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                correo: { type: string, format: email, example: qa@urbanpulse.pe }
+                rol: { type: string, example: usuario }
+                mensaje: { type: string, example: Hola }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+
+  /urbanpulse/dashboard-kpis:
+    get:
+      tags: [dashboard]
+      summary: Indicadores agregados del tablero
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+
+components:
+  responses:
+    Ok:
+      description: Respuesta del flujo n8n.
+      content:
+        application/json:
+          schema:
+            type: object
+
+  schemas:
+    Credenciales:
+      type: object
+      properties:
+        correo: { type: string, format: email, example: qa@urbanpulse.pe }
+        contrasena: { type: string, example: Passw0rd!QA }
+
+    Registro:
+      allOf:
+        - $ref: '#/components/schemas/Credenciales'
+        - type: object
+          properties:
+            nombre: { type: string, example: QA Automatizado }
+
+    Reporte:
+      type: object
+      properties:
+        correo: { type: string, format: email, example: qa@urbanpulse.pe }
+        descripcion: { type: string, example: Semaforo averiado en la Av. Arequipa }
+        latitud: { type: number, format: double, example: -12.0464 }
+        longitud: { type: number, format: double, example: -77.0428 }
+        categoria: { type: string, example: semaforo }

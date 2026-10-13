@@ -1,0 +1,7 @@
+# Los fixtures se versionan con LF en todas las plataformas.
+#
+# CI regenera estos CSV con datos/generar_fixtures.py y compara el resultado
+# contra lo commiteado. Sin fijar el fin de linea, un archivo commiteado desde
+# Windows (core.autocrlf=true) se materializaria con CRLF y el chequeo marcaria
+# el archivo entero como modificado en cada corrida.
+*.csv text eol=lf

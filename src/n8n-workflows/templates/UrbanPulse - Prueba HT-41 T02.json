@@ -1,0 +1,58 @@
+{
+  "name": "UrbanPulse - Prueba HT-41 T02",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -400,
+        0
+      ],
+      "id": "c4d5e6f7-3333-4a5b-9c6d-000000000010",
+      "name": "When clicking 'Execute workflow'"
+    },
+    {
+      "parameters": {
+        "jsCode": "throw new Error('Prueba HT-41 T02: fallo provocado a proposito para probar el workflow de errores a Service Desk');"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -176,
+        0
+      ],
+      "id": "c4d5e6f7-3333-4a5b-9c6d-000000000011",
+      "name": "Fallar a proposito"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking 'Execute workflow'": {
+      "main": [
+        [
+          {
+            "node": "Fallar a proposito",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "errorWorkflow": ""
+  },
+  "versionId": "d5e6f7a8-0000-4a5b-9c6d-000000000098",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "87fb69796176a971aac5891ddee53273b6d94e06350b078fcd71a5f192810c8f"
+  },
+  "nodeGroups": [],
+  "id": "TestHT41T02UP01",
+  "tags": []
+}
