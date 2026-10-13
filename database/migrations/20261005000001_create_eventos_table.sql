@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS eventos (
     fecha TIMESTAMPTZ NOT NULL,
     origen VARCHAR(255) NOT NULL,
     datos JSONB NOT NULL,
-    estado VARCHAR(50) NOT NULL DEFAULT 'recibido', -- 'recibido', 'entregado', 'fallido', 'rechazado'
+    -- Valores: 'recibido', 'entregado', 'fallido', 'rechazado'
+    estado VARCHAR(50) NOT NULL DEFAULT 'recibido',
     intentos INT NOT NULL DEFAULT 0,
     creado_en TIMESTAMPTZ NOT NULL DEFAULT now(),
     actualizado_en TIMESTAMPTZ NOT NULL DEFAULT now()
