@@ -36,28 +36,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TF_VERSION }}
-          terraform_wrapper: true
-
-      - name: terraform fmt
-        id: fmt
-        working-directory: ${{ env.TF_DIR }}
-        run: terraform fmt -check -recursive -diff
-        continue-on-error: true
-
-      - name: terraform init
-        id: init
-        working-directory: ${{ env.TF_DIR }}
-        run: terraform init -input=false
-
-      - name: terraform validate
-        id: validate
-        working-directory: ${{ env.TF_DIR }}
-        run: terraform validate -no-color
-
       # HT-44 T02: analisis de seguridad del codigo Terraform ANTES del plan.
+      #
+      # Va antes de "terraform init" a proposito: Trivy lee los .tf del disco y
+      # no necesita credenciales de AWS ni de Vercel. Si estuviera despues del
+      # init, un PR desde un fork (donde GitHub no entrega los secrets) moriria
+      # en el init y el analisis de seguridad no llegaria a ejecutarse nunca.
       #
       # Se usa Trivy en modo config, que es donde Aqua Security fusiono tfsec
       # (tfsec quedo en mantenimiento y su propio README remite a Trivy). Asi
@@ -77,8 +61,13 @@ jobs:
           severity: CRITICAL,HIGH,MEDIUM
           exit-code: '0'
 
+      # En un PR que viene de un fork, GitHub entrega un GITHUB_TOKEN de solo
+      # lectura y la subida del SARIF falla con "Resource not accessible by
+      # integration". Es un problema de publicacion del informe, no un hallazgo
+      # de seguridad: no debe tumbar el job. El gate de abajo si bloquea.
       - name: Subir SARIF de IaC a GitHub Security
         if: ${{ !cancelled() }}
+        continue-on-error: true
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-iac.sarif
@@ -100,6 +89,27 @@ jobs:
           format: table
           severity: CRITICAL
           exit-code: '1'
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: true
+
+      - name: terraform fmt
+        id: fmt
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform fmt -check -recursive -diff
+        continue-on-error: true
+
+      - name: terraform init
+        id: init
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform init -input=false
+
+      - name: terraform validate
+        id: validate
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform validate -no-color
 
       # -lock=false: el plan de un PR solo lee, asi el usuario de CI no necesita escribir
       # el archivo de bloqueo (use_lockfile) en el bucket de estado. El apply si bloquea.
