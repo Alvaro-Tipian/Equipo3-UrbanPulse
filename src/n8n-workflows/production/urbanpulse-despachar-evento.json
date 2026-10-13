@@ -1,0 +1,122 @@
+{
+  "name": "UrbanPulse - Despachar Evento (HT-51 T02)",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "85dcffc3-af64-4b88-8ed5-1b5e43e3a517",
+      "name": "Recibir Evento",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -608,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE eventos\nSET estado = 'fallido',\n    intentos = intentos + 1,\n    ultimo_error = $2,\n    actualizado_en = now()\nWHERE id = $1::uuid;",
+        "options": {
+          "queryReplacement": "={{ [ $('Recibir Evento').first().json.id, String(($json.error && $json.error.message) || $json.error).slice(0, 500) ] }}"
+        }
+      },
+      "id": "54399486-4d0c-472a-87b5-934f1e4be294",
+      "name": "Marcar Evento Fallido",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE eventos\nSET estado = 'entregado',\n    entregado_en = now(),\n    ultimo_error = NULL,\n    actualizado_en = now()\nWHERE id = $1::uuid;",
+        "options": {
+          "queryReplacement": "={{ [ $('Recibir Evento').first().json.id ] }}"
+        }
+      },
+      "id": "67b50403-67d5-472e-9a79-52a44a789eef",
+      "name": "Marcar Evento Entregado",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "MUtJggRUnx8G73Su",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/MUtJggRUnx8G73Su",
+          "cachedResultName": "UrbanPulse - Suscriptor de Prueba (HT-51 T02, solo staging)"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -384,
+        112
+      ],
+      "id": "1ea9309d-a7c0-4d81-9d9e-fc80c7592c7d",
+      "name": "Call 'UrbanPulse - Suscriptor de Prueba (HT-51 T02, solo staging)'",
+      "onError": "continueErrorOutput"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Recibir Evento": {
+      "main": [
+        [
+          {
+            "node": "Call 'UrbanPulse - Suscriptor de Prueba (HT-51 T02, solo staging)'",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call 'UrbanPulse - Suscriptor de Prueba (HT-51 T02, solo staging)'": {
+      "main": [
+        [
+          {
+            "node": "Marcar Evento Fallido",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Marcar Evento Entregado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "nodeGroups": [],
+  "id": "NMpdGqSfzerYqLbD",
+  "tags": []
+}

@@ -1,0 +1,90 @@
+# ==============================================================================
+# Workflow: Pruebas de la ingesta RAG de conocimiento vial (HT-50 T01)
+#
+# Levanta el mismo Postgres de desarrollo (PostGIS + pgvector), aplica todas
+# las migraciones y corre ia-ops/workflows/tests: las consultas SQL exactas
+# del workflow n8n_ingesta_rag.json, sus nodos Code ejecutados en Node.js y
+# una respuesta simulada de Gemini (no consume cuota).
+# ==============================================================================
+
+name: RAG - Ingesta de conocimiento vial
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'ia-ops/workflows/n8n_ingesta_rag.json'
+      - 'ia-ops/workflows/tests/**'
+      - 'database/migrations/**'
+      - '.github/workflows/rag-ingesta-ci.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'ia-ops/workflows/n8n_ingesta_rag.json'
+      - 'ia-ops/workflows/tests/**'
+      - 'database/migrations/**'
+      - '.github/workflows/rag-ingesta-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  pruebas:
+    name: SQL, nodos Code y flujo completo
+    runs-on: ubuntu-latest
+    env:
+      COMPOSE: docker compose -f infrastructure/docker-compose.yml
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v7
+
+      - name: Levantar Postgres (PostGIS + pgvector)
+        run: ${COMPOSE} up -d postgres
+
+      - name: Esperar a que PostGIS este listo
+        run: |
+          for _ in $(seq 1 30); do
+            if ${COMPOSE} exec -T postgres psql -U urban_admin -d urbanpulse_db -tAc "SELECT postgis_version();" > /dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::PostGIS no quedo listo."
+          exit 1
+
+      - name: Aplicar migraciones
+        run: |
+          set -o pipefail
+          for archivo in $(find database/migrations -name '*.sql' | sort); do
+            if ! ${COMPOSE} exec -T postgres psql -U urban_admin -d urbanpulse_db -v ON_ERROR_STOP=1 -q -f - < "$archivo"; then
+              echo "::error::Fallo aplicando $(basename "$archivo")"
+              exit 1
+            fi
+          done
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependencias de prueba
+        run: pip install pytest==8.3.3 "psycopg[binary]==3.2.3"
+
+      - name: Pruebas
+        working-directory: ia-ops/workflows
+        env:
+          TEST_DATABASE_URL: postgresql://urban_admin:urban_password_local@localhost:5432/urbanpulse_db
+        run: pytest -v --junitxml=../../reportes-rag/pytest-rag.xml
+
+      - name: Subir reporte
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: rag-ingesta-pruebas
+          path: reportes-rag/
+          retention-days: 30

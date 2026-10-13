@@ -1,0 +1,436 @@
+{
+  "info": {
+    "_postman_id": "8c3e5d1a-4b7f-4f0e-a6d2-51a04e7b9c15",
+    "name": "UrbanPulse - Router de Eventos (HT-51 T04)",
+    "description": "Coleccion Newman de HT-51 T04. Prueba el Enrutador de Eventos de Dominio: POST {{base_url}}/webhook/urbanpulse/eventos con Header Auth (header X-Event-Token). Contrato: docs/architecture/eventos.md y docs/architecture/eventos/sobre.schema.json.\n\nVariables de entorno: base_url (sin / final) y event_token. No se guardan valores reales en el repo.\n\nLos casos se ejecutan en orden: d) reutiliza el id generado en c). Cada caso guarda su id en una variable de coleccion (evento_valido_id, evento_tipo_desconocido_id, evento_fecha_invalida_id, evento_fallo_id) para buscarlo luego en la tabla eventos.\n\nEjecucion:\nnewman run postman/collections/urbanpulse-eventos-router.postman_collection.json -e postman/environments/urbanpulse-eventos.postman_environment.example.json --env-var base_url=$BASE_URL --env-var event_token=$TOKEN",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "evento_valido_id",
+      "value": ""
+    },
+    {
+      "key": "evento_tipo_desconocido_id",
+      "value": ""
+    },
+    {
+      "key": "evento_fecha_invalida_id",
+      "value": ""
+    },
+    {
+      "key": "evento_fallo_id",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "a) Sin header X-Event-Token -> 403",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 403 sin header X-Event-Token', () => pm.response.to.have.status(403));",
+              "pm.test('No devuelve estado \"recibido\"', () => {",
+              "  let json = {};",
+              "  try { json = pm.response.json(); } catch (e) { /* body no-JSON */ }",
+              "  pm.expect(json.estado).to.not.equal('recibido');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": \"{{$guid}}\",\n  \"tipo\": \"reporte.creado\",\n  \"fecha\": \"{{$isoTimestamp}}\",\n  \"origen\": \"newman/pruebas-eventos\",\n  \"datos\": {\n    \"reporte_id\": 1842,\n    \"distrito\": \"Miraflores\",\n    \"franja\": \"tarde\",\n    \"tipo_incidente\": \"choque\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/webhook/urbanpulse/eventos",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "webhook",
+            "urbanpulse",
+            "eventos"
+          ]
+        },
+        "description": "Sin el header de autenticacion, el Header Auth del webhook responde 403 (\"Authorization data is wrong!\"), igual que con un token incorrecto, antes de validar el sobre. No se persiste nada."
+      }
+    },
+    {
+      "name": "b) Token incorrecto -> 403",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 403 con token incorrecto', () => pm.response.to.have.status(403));",
+              "pm.test('No devuelve estado \"recibido\"', () => {",
+              "  let json = {};",
+              "  try { json = pm.response.json(); } catch (e) { /* body no-JSON */ }",
+              "  pm.expect(json.estado).to.not.equal('recibido');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Event-Token",
+            "value": "token-incorrecto-de-prueba"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": \"{{$guid}}\",\n  \"tipo\": \"reporte.creado\",\n  \"fecha\": \"{{$isoTimestamp}}\",\n  \"origen\": \"newman/pruebas-eventos\",\n  \"datos\": {\n    \"reporte_id\": 1842,\n    \"distrito\": \"Miraflores\",\n    \"franja\": \"tarde\",\n    \"tipo_incidente\": \"choque\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/webhook/urbanpulse/eventos",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "webhook",
+            "urbanpulse",
+            "eventos"
+          ]
+        },
+        "description": "Header presente pero con un valor que no coincide con la credencial del webhook."
+      }
+    },
+    {
+      "name": "c) Evento valido reporte.creado -> 202 recibido",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('evento_valido_id', pm.variables.replaceIn('{{$guid}}'));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const esperado = pm.collectionVariables.get('evento_valido_id');",
+              "pm.test('HTTP 202 Accepted', () => pm.response.to.have.status(202));",
+              "const json = pm.response.json();",
+              "pm.test('estado es \"recibido\"', () => pm.expect(json.estado).to.eql('recibido'));",
+              "pm.test('Devuelve el mismo id y el tipo enviados', () => {",
+              "  pm.expect(json.id).to.eql(esperado);",
+              "  pm.expect(json.tipo).to.eql('reporte.creado');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Event-Token",
+            "value": "{{event_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": \"{{evento_valido_id}}\",\n  \"tipo\": \"reporte.creado\",\n  \"fecha\": \"{{$isoTimestamp}}\",\n  \"origen\": \"newman/pruebas-eventos\",\n  \"datos\": {\n    \"reporte_id\": 1842,\n    \"distrito\": \"Miraflores\",\n    \"franja\": \"tarde\",\n    \"tipo_incidente\": \"choque\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/webhook/urbanpulse/eventos",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "webhook",
+            "urbanpulse",
+            "eventos"
+          ]
+        },
+        "description": "Genera un UUID v4 y lo guarda en la variable de coleccion evento_valido_id para que el caso d) lo repita."
+      }
+    },
+    {
+      "name": "d) Mismo id repetido -> 202 (idempotencia)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Se ejecuto antes el caso c) (evento_valido_id definido)', () => {",
+              "  pm.expect(pm.collectionVariables.get('evento_valido_id')).to.be.a('string').and.not.empty;",
+              "});",
+              "pm.test('HTTP 202 Accepted con id repetido', () => pm.response.to.have.status(202));",
+              "const json = pm.response.json();",
+              "pm.test('estado es \"recibido\" y devuelve el mismo id', () => {",
+              "  pm.expect(json.estado).to.eql('recibido');",
+              "  pm.expect(json.id).to.eql(pm.collectionVariables.get('evento_valido_id'));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Event-Token",
+            "value": "{{event_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": \"{{evento_valido_id}}\",\n  \"tipo\": \"reporte.creado\",\n  \"fecha\": \"{{$isoTimestamp}}\",\n  \"origen\": \"newman/pruebas-eventos\",\n  \"datos\": {\n    \"reporte_id\": 1842,\n    \"distrito\": \"Miraflores\",\n    \"franja\": \"tarde\",\n    \"tipo_incidente\": \"choque\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/webhook/urbanpulse/eventos",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "webhook",
+            "urbanpulse",
+            "eventos"
+          ]
+        },
+        "description": "Repite el id del caso c). Depende de que c) se haya ejecutado antes en la misma corrida. El router responde 202, pero ON CONFLICT (id) DO NOTHING impide que se duplique la fila en eventos o que se vuelva a entregar."
+      }
+    },
+    {
+      "name": "e) Tipo desconocido -> 400",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('evento_tipo_desconocido_id', pm.variables.replaceIn('{{$guid}}'));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400 Bad Request', () => pm.response.to.have.status(400));",
+              "const json = pm.response.json();",
+              "pm.test('Informa el error y el detalle menciona \"tipo\"', () => {",
+              "  pm.expect(json.error).to.be.a('string').and.not.empty;",
+              "  pm.expect(String(json.detalle)).to.include('tipo');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Event-Token",
+            "value": "{{event_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": \"{{evento_tipo_desconocido_id}}\",\n  \"tipo\": \"reporte.inexistente\",\n  \"fecha\": \"{{$isoTimestamp}}\",\n  \"origen\": \"newman/pruebas-eventos\",\n  \"datos\": {\n    \"reporte_id\": 1842,\n    \"distrito\": \"Miraflores\",\n    \"franja\": \"tarde\",\n    \"tipo_incidente\": \"choque\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/webhook/urbanpulse/eventos",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "webhook",
+            "urbanpulse",
+            "eventos"
+          ]
+        },
+        "description": "El tipo no pertenece al catalogo. El evento queda en eventos con estado 'rechazado' y no se entrega."
+      }
+    },
+    {
+      "name": "f) Fecha invalida (\"ayer\") -> 400",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('evento_fecha_invalida_id', pm.variables.replaceIn('{{$guid}}'));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400 Bad Request', () => pm.response.to.have.status(400));",
+              "const json = pm.response.json();",
+              "pm.test('Informa el error y el detalle menciona \"fecha\"', () => {",
+              "  pm.expect(json.error).to.be.a('string').and.not.empty;",
+              "  pm.expect(String(json.detalle)).to.include('fecha');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Event-Token",
+            "value": "{{event_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": \"{{evento_fecha_invalida_id}}\",\n  \"tipo\": \"reporte.creado\",\n  \"fecha\": \"ayer\",\n  \"origen\": \"newman/pruebas-eventos\",\n  \"datos\": {\n    \"reporte_id\": 1842,\n    \"distrito\": \"Miraflores\",\n    \"franja\": \"tarde\",\n    \"tipo_incidente\": \"choque\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/webhook/urbanpulse/eventos",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "webhook",
+            "urbanpulse",
+            "eventos"
+          ]
+        },
+        "description": "La fecha no es ISO 8601. El evento queda en eventos con estado 'rechazado'."
+      }
+    },
+    {
+      "name": "g) Evento con datos.simular_fallo = true -> 202",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('evento_fallo_id', pm.variables.replaceIn('{{$guid}}'));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 202 Accepted', () => pm.response.to.have.status(202));",
+              "const json = pm.response.json();",
+              "pm.test('estado es \"recibido\" y devuelve el id enviado', () => {",
+              "  pm.expect(json.estado).to.eql('recibido');",
+              "  pm.expect(json.id).to.eql(pm.collectionVariables.get('evento_fallo_id'));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Event-Token",
+            "value": "{{event_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": \"{{evento_fallo_id}}\",\n  \"tipo\": \"reporte.creado\",\n  \"fecha\": \"{{$isoTimestamp}}\",\n  \"origen\": \"newman/pruebas-eventos\",\n  \"datos\": {\n    \"reporte_id\": 1842,\n    \"distrito\": \"Miraflores\",\n    \"franja\": \"tarde\",\n    \"tipo_incidente\": \"choque\",\n    \"simular_fallo\": true\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/webhook/urbanpulse/eventos",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "webhook",
+            "urbanpulse",
+            "eventos"
+          ]
+        },
+        "description": "Sobre valido con datos.simular_fallo = true, para la prueba del suscriptor caido en staging. El router solo acepta (202); la entrega fallida y el reproceso se verifican en la tabla eventos (estado 'fallido' con intentos = 1) con SUSCRIPTOR_CAIDO = true en Suscriptor de Prueba."
+      }
+    }
+  ]
+}

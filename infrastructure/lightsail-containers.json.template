@@ -26,7 +26,8 @@
       "N8N_ENCRYPTION_KEY": "__N8N_ENCRYPTION_KEY__",
       "N8N_AUTH_SECRET": "__N8N_AUTH_SECRET__",
       "NODE_FUNCTION_ALLOW_BUILTIN": "crypto",
-      "N8N_BLOCK_ENV_ACCESS_IN_NODE": "false"
+      "N8N_BLOCK_ENV_ACCESS_IN_NODE": "false",
+      "URBANPULSE_RIESGO_API_URL": "https://urbanpulse-api.xq33kajky1yy6.us-east-1.cs.amazonlightsail.com"
     }
   }
 }
