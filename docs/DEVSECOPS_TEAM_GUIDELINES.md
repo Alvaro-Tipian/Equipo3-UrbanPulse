@@ -185,3 +185,59 @@ ejecución:
    con un comentario `#trivy:ignore:<ID-de-regla>` en la línea correspondiente.
 3. Cambiar `severity: CRITICAL` por `severity: CRITICAL,HIGH` en el paso
    *Análisis de seguridad de IaC - gate* y borrar esta nota.
+
+## 🐳 Escaneo de imágenes y excepciones (HT-44 T01)
+
+`trivy-scan.yml` escanea en cada Pull Request la imagen de **n8n**, la de
+**Postgres** y el árbol de dependencias de **`ml/api`**. Cada uno corre dos
+pasos con el mismo reparto que el análisis de IaC: un informe que publica todo
+en **Security → Code scanning** y un *gate* que bloquea solo ante `CRITICAL`
+**con parche disponible** (`ignore-unfixed: true`). Una CVE crítica sin parche
+publicado no se puede arreglar actualizando nada, así que se reporta pero no
+frena el merge.
+
+### Cuando el gate se pone rojo
+
+El orden de preferencia para resolverlo, de mejor a peor:
+
+1. **Tomar el parche.** Si la imagen la construimos nosotros, actualizar los
+   paquetes en el Dockerfile (es lo que hace `apt-get upgrade` en
+   `infrastructure/postgres.Dockerfile`). Si la dependencia es de Python,
+   subir la versión en el `requirements.txt` que corresponda.
+2. **Quitar el componente vulnerable.** Muchas veces la pieza afectada ni
+   siquiera se usa en ejecución. La API de riesgo instalaba `mlflow` completo
+   —servidor de tracking, AI gateway y *model serving*, que es donde se
+   publican casi todas sus CVE— cuando `main.py` solo necesita
+   `mlflow.sklearn.load_model` sobre la carpeta horneada en la imagen. Pasar a
+   **`mlflow-skinny`** y dejar el cliente de base de datos solo en la etapa
+   *builder* (`ml/api/requirements-build.txt`) saca ese código del contenedor
+   que queda expuesto: es una corrección real, no silenciar al escáner.
+3. **Documentar la excepción**, solo si ninguna de las dos anteriores aplica,
+   en `security/trivy-excepciones.yaml`. Ese archivo **no** se aplica solo:
+   se pasa a mano con `trivyignores:` y únicamente en los pasos que bloquean,
+   así que lo exceptuado sigue apareciendo en la pestaña Security.
+
+### Reglas de una excepción
+
+Toda entrada lleva las tres cosas o no entra:
+
+- **`paths`**, para acotarla al binario o archivo concreto. La misma CVE en
+  otro componente vuelve a bloquear.
+- **`statement`**, explicando por qué el camino vulnerable no es alcanzable
+  aquí, o por qué no existe versión parchada que podamos tomar.
+- **`expired_at`**, una fecha de revisión. Cuando vence, Trivy deja de aplicar
+  la excepción y el gate vuelve a bloquear. Es a propósito: obliga a volver a
+  mirarlo en vez de acumular deuda silenciosa.
+
+El caso que hay hoy es `gosu` dentro de la imagen de Postgres: lo compilaron
+con Go 1.18 y Trivy le atribuye las CVE de esa biblioteca estándar, pero `gosu`
+solo baja de root al usuario `postgres` — no renderiza plantillas HTML, no abre
+TLS y no parsea direcciones de red. No hay versión parchada en Debian bullseye,
+y además esa imagen es solo de desarrollo y CI: en producción la base de datos
+es **Neon**, gestionada.
+
+### Probar que el gate bloquea de verdad
+
+Actions → *DevSecOps - Escaneo Trivy de imagenes* → **Run workflow** → en
+`imagen_prueba` escribir por ejemplo `python:3.8-slim-buster`. Ese job no usa
+el archivo de excepciones, así que debe terminar en rojo.

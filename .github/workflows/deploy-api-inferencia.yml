@@ -148,6 +148,7 @@ jobs:
           format: table
           severity: CRITICAL
           ignore-unfixed: true
+          trivyignores: security/trivy-excepciones.yaml
           exit-code: '1'
 
       - name: Configurar credenciales de AWS

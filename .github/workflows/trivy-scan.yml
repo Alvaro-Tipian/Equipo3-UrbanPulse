@@ -8,6 +8,11 @@ name: DevSecOps - Escaneo Trivy de imagenes (HT-44 T01)
 # Se usa ignore-unfixed: una CVE critica sin parche publicado no se puede
 # corregir actualizando la imagen, asi que se reporta en la pestana Security
 # (SARIF) pero no bloquea. Las que si tienen parche bloquean.
+#
+# Las excepciones justificadas viven en security/trivy-excepciones.yaml y solo
+# se aplican en los pasos que bloquean; el SARIF sigue reportandolo todo. Cada
+# entrada lleva ruta, justificacion y fecha de vencimiento (ver
+# docs/DEVSECOPS_TEAM_GUIDELINES.md).
 
 on:
   pull_request:
@@ -97,6 +102,8 @@ jobs:
           category: trivy-${{ matrix.nombre }}
 
       # Gate: falla si hay una CRITICAL con parche disponible.
+      # Las excepciones del archivo solo se aplican aqui, en el paso que
+      # bloquea: el SARIF de arriba sigue reportandolo todo.
       - name: Trivy - gate CRITICAL (bloquea)
         uses: aquasecurity/trivy-action@master
         with:
@@ -104,6 +111,7 @@ jobs:
           format: table
           severity: CRITICAL
           ignore-unfixed: true
+          trivyignores: security/trivy-excepciones.yaml
           exit-code: '1'
 
   # Evidencia del criterio "una imagen vulnerable de prueba bloquea el merge":
@@ -192,4 +200,5 @@ jobs:
           format: table
           severity: CRITICAL
           ignore-unfixed: true
+          trivyignores: security/trivy-excepciones.yaml
           exit-code: '1'
