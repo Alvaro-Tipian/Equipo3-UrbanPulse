@@ -1,0 +1,163 @@
+name: Terraform CI
+
+# HT-42 T03: fmt, validate y plan en cada Pull Request que toca infrastructure/terraform.
+# El apply es solo manual (workflow_dispatch) y pasa por el entorno "production",
+# que en GitHub se configura con revisores obligatorios.
+
+on:
+  pull_request:
+    paths:
+      - "infrastructure/terraform/**"
+      - ".github/workflows/terraform-ci.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: terraform-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  TF_VERSION: "1.10.5"
+  TF_DIR: infrastructure/terraform
+  AWS_DEFAULT_REGION: us-east-1
+
+jobs:
+  plan:
+    name: fmt, validate y plan
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.TF_AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.TF_AWS_SECRET_ACCESS_KEY }}
+      VERCEL_API_TOKEN: ${{ secrets.TF_VERCEL_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: true
+
+      - name: terraform fmt
+        id: fmt
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform fmt -check -recursive -diff
+        continue-on-error: true
+
+      - name: terraform init
+        id: init
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform init -input=false
+
+      - name: terraform validate
+        id: validate
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform validate -no-color
+
+      # HT-44 T02 (Alvaro): aqui va el analisis de seguridad de IaC (por ejemplo tfsec o Checkov),
+      # siempre antes del plan. Dejarlo como paso separado para que su fallo bloquee el plan.
+      # - name: Analisis de seguridad de IaC
+      #   run: ...
+
+      # -lock=false: el plan de un PR solo lee, asi el usuario de CI no necesita escribir
+      # el archivo de bloqueo (use_lockfile) en el bucket de estado. El apply si bloquea.
+      - name: terraform plan
+        id: plan
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform plan -input=false -no-color -lock=false
+        continue-on-error: true
+
+      - name: Comentar el plan en el Pull Request
+        uses: actions/github-script@v7
+        env:
+          PLAN: ${{ steps.plan.outputs.stdout }}
+          PLAN_ERR: ${{ steps.plan.outputs.stderr }}
+          FMT_OUTCOME: ${{ steps.fmt.outcome }}
+          INIT_OUTCOME: ${{ steps.init.outcome }}
+          VALIDATE_OUTCOME: ${{ steps.validate.outcome }}
+          PLAN_OUTCOME: ${{ steps.plan.outcome }}
+        with:
+          script: |
+            const marker = '<!-- terraform-plan -->';
+            const ok = (o) => (o === 'success' ? 'OK' : 'FALLO');
+            const raw = (process.env.PLAN_OUTCOME === 'success' ? process.env.PLAN : (process.env.PLAN_ERR || process.env.PLAN)) || '(sin salida)';
+            const max = 60000; // limite de un comentario de GitHub: 65536 caracteres
+            const salida = raw.length > max ? raw.slice(0, max) + '\n... (salida truncada)' : raw;
+
+            const body = [
+              marker,
+              '### Terraform: resultado del Pull Request',
+              '',
+              `| fmt | init | validate | plan |`,
+              `|---|---|---|---|`,
+              `| ${ok(process.env.FMT_OUTCOME)} | ${ok(process.env.INIT_OUTCOME)} | ${ok(process.env.VALIDATE_OUTCOME)} | ${ok(process.env.PLAN_OUTCOME)} |`,
+              '',
+              '<details><summary>Ver el plan</summary>',
+              '',
+              '```',
+              salida,
+              '```',
+              '',
+              '</details>',
+              '',
+              `Ejecucion: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            ].join('\n');
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const previo = comments.find((c) => c.body && c.body.includes(marker));
+            if (previo) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: previo.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+      - name: Fallar si fmt o plan fallaron
+        if: steps.fmt.outcome == 'failure' || steps.plan.outcome == 'failure'
+        run: exit 1
+
+  apply:
+    name: apply (manual, con aprobacion)
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    # Configurar en Settings > Environments > production: revisores obligatorios.
+    environment: production
+    permissions:
+      contents: read
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.TF_AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.TF_AWS_SECRET_ACCESS_KEY }}
+      VERCEL_API_TOKEN: ${{ secrets.TF_VERCEL_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: terraform init
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform init -input=false
+
+      - name: terraform plan
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform plan -input=false -no-color -out=tfplan
+
+      - name: terraform apply
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform apply -input=false tfplan

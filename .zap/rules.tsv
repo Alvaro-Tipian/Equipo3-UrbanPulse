@@ -1,0 +1,36 @@
+# ==============================================================================
+# Tuning de alertas para los escaneos DAST de OWASP ZAP (HT-45)
+#
+# Formato (separado por TABS, no espacios):
+#   <id de regla ZAP>	<WARN|IGNORE|FAIL>	<comentario opcional>
+#
+# WARN   -> aparece en el reporte y en el SARIF, pero no rompe el build.
+# IGNORE -> se suprime por completo (usar solo con justificacion escrita).
+# FAIL   -> rompe el build.
+#
+# Criterio del equipo: durante el Sprint 3 el DAST corre en modo no bloqueante
+# (todo WARN) salvo las reglas de la lista FAIL, que cubren hallazgos que ya
+# fueron remediados en HT-44 y no deben volver a aparecer (regresion de
+# seguridad). Ver docs/DAST_OWASP_ZAP.md.
+# ==============================================================================
+
+# --- Falsos positivos conocidos / fuera de nuestro control -------------------
+# El host y los microfrontends se sirven desde Vercel, que inyecta sus propias
+# cookies de borde sin atributos que podamos controlar desde el repo.
+10054	IGNORE	Cookie sin flag HttpOnly: cookies de infraestructura de Vercel, no de la app
+# Los bundles de Module Federation son JS generado por Vite; los comentarios de
+# sourcemap disparan esta regla informativa en cada chunk.
+10027	IGNORE	Fuga de informacion por comentarios en bundles generados por Vite
+
+# --- Regresiones de seguridad: ya remediadas en HT-44, deben seguir pasando ---
+10038	FAIL	Falta Content-Security-Policy (ver docs/HTTP_SECURITY_HEADERS_CORS_CSP.md)
+10035	FAIL	Falta Strict-Transport-Security (TLS obligatorio, HT-44 T04)
+10021	FAIL	Falta X-Content-Type-Options: nosniff
+10098	FAIL	Cross-Domain Misconfiguration (CORS permisivo)
+
+# --- Resto: informativo durante el sprint ------------------------------------
+10015	WARN	Falta cabecera Cache-Control en respuestas de la API
+10017	WARN	Inclusion de JS entre dominios (CDN de TomTom / Google Fonts)
+10063	WARN	Cabeceras de Permissions-Policy ausentes
+10096	WARN	Marca de tiempo expuesta en la respuesta
+90022	WARN	Application Error Disclosure en respuestas de n8n
