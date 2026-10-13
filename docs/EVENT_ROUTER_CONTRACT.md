@@ -46,6 +46,14 @@ Todo evento enviado a `POST /urbanpulse/eventos` debe cumplir con el siguiente e
    - `reporte.estado_cambiado`
    - `n8n.flujo_fallido`
    - `modelo.deriva_detectada`
+   - `modelo.monitoreado`
+
+   Los dos del modelo llevan los mismos `datos` (`modelo`, `version`,
+   `psi_max`, `f1_real`, `reporte_url`) y los publica el mismo paso de
+   `ml-monitoring.yml`: cuando hay deriva el tipo es `modelo.deriva_detectada`
+   y cuando no, `modelo.monitoreado`. El monitoreo deja constancia **todos los
+   días**, no solo los días malos, que es de donde el webhook de estado de
+   plataforma (HU-13 T01) saca el F1 real y la fecha del último monitoreo.
 3. **Respuesta Exitosos:** HTTP `202 Accepted`
    ```json
    {
@@ -77,6 +85,7 @@ Después de persistir un evento válido (estado `recibido`), el router lo entreg
 | `reporte.estado_cambiado` | Ingesta RAG (HT-50 T01) | **Enrutado** |
 | `n8n.flujo_fallido` | Service Desk (HT-41) | Pendiente: va al Suscriptor de Prueba |
 | `modelo.deriva_detectada` | Service Desk (HT-41) | Pendiente: va al Suscriptor de Prueba |
+| `modelo.monitoreado` | Ninguno; se persiste y se consulta | Va al Suscriptor de Prueba; lo lee HU-13 T01 desde `eventos` |
 
 El despachador decide con el nodo **¿Es evento de reporte?**: los tipos que
 empiezan por `reporte.` van a la Ingesta RAG y el resto al Suscriptor de Prueba.

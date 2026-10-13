@@ -112,32 +112,47 @@ jobs:
       # impedir que la deriva se haya atendido.
       #
       # Contrato: docs/EVENT_ROUTER_CONTRACT.md (sobre comun + X-Event-Token).
-      - name: Publicar evento modelo.deriva_detectada (HT-49 T03 / HT-51)
-        if: steps.drift_eval.outputs.deriva == 'true'
+      # El monitoreo publica su veredicto SIEMPRE, no solo los dias con deriva.
+      # Con deriva el tipo es modelo.deriva_detectada (HT-49 T03); sin deriva es
+      # modelo.monitoreado, y de ahi sale el F1 real y la fecha del ultimo
+      # monitoreo que necesita el webhook de estado de plataforma (HU-13 T01).
+      - name: Publicar el veredicto del monitoreo al enrutador (HT-49 T03 / HT-51)
         env:
           EVENT_ROUTER_URL: ${{ vars.EVENT_ROUTER_URL || 'https://urbanpulse-n8n.xq33kajky1yy6.us-east-1.cs.amazonlightsail.com/webhook/urbanpulse/eventos' }}
           EVENT_ROUTER_TOKEN: ${{ secrets.EVENT_ROUTER_TOKEN }}
           REPORTE_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          DERIVA: ${{ steps.drift_eval.outputs.deriva }}
         run: |
           set -euo pipefail
 
+          if [ "${DERIVA}" = "true" ]; then
+            TIPO=modelo.deriva_detectada
+          else
+            TIPO=modelo.monitoreado
+          fi
+
           if [ -z "${EVENT_ROUTER_TOKEN}" ]; then
-            echo "::error::Falta el secret EVENT_ROUTER_TOKEN. La deriva se atendio (ticket y reentrenamiento), pero el evento no quedo registrado en la tabla eventos."
-            exit 1
+            if [ "${DERIVA}" = "true" ]; then
+              echo "::error::Falta el secret EVENT_ROUTER_TOKEN. La deriva se atendio (ticket y reentrenamiento), pero el evento no quedo registrado en la tabla eventos."
+              exit 1
+            fi
+            echo "::warning::Falta el secret EVENT_ROUTER_TOKEN: no se publica ${TIPO} y el estado de plataforma (HU-13 T01) se quedara sin F1 ni fecha de monitoreo."
+            exit 0
           fi
 
           # El sobre se arma con jq a partir del reporte real, no con valores
           # escritos a mano: los campos de datos son los que exige el validador
-          # del router para modelo.deriva_detectada.
+          # del router para los dos tipos de evento del modelo.
           SOBRE=$(jq -n \
             --arg id "$(cat /proc/sys/kernel/random/uuid)" \
             --arg fecha "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --arg origen "github-actions/ml-monitoring" \
             --arg reporte_url "${REPORTE_URL}" \
+            --arg tipo "${TIPO}" \
             --slurpfile r docs/DRIFT_MONITORING_REPORT.json \
             '{
                id: $id,
-               tipo: "modelo.deriva_detectada",
+               tipo: $tipo,
                fecha: $fecha,
                origen: $origen,
                datos: {
@@ -148,7 +163,7 @@ jobs:
                  reporte_url: $reporte_url
                }
              }')
-          echo "Sobre a publicar:"
+          echo "Sobre a publicar (${TIPO}):"
           echo "${SOBRE}" | jq '.datos'
 
           CODIGO=$(curl --silent --output respuesta.json --write-out '%{http_code}' \
@@ -162,7 +177,7 @@ jobs:
           echo
 
           case "${CODIGO}" in
-            202) echo "Evento registrado y entregado a sus suscriptores." ;;
+            202) echo "Evento ${TIPO} registrado y entregado a sus suscriptores." ;;
             400) echo "::error::El enrutador rechazo el sobre (400). Revisa los campos de 'datos' contra docs/EVENT_ROUTER_CONTRACT.md."; exit 1 ;;
             403) echo "::error::El enrutador respondio 403: EVENT_ROUTER_TOKEN no coincide con la credencial Header Auth de n8n."; exit 1 ;;
             000) echo "::error::No se pudo contactar al enrutador en ${EVENT_ROUTER_URL}."; exit 1 ;;
