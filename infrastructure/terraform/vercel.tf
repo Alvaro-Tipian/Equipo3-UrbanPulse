@@ -77,6 +77,14 @@ resource "vercel_project" "mf" {
   # El host no tiene skew protection en Vercel; solo los microfrontends.
   skew_protection = each.key == "host" ? null : "12 hours"
 
+  # El host de staging carga el remoteEntry.js de cada microfrontend desde su
+  # URL de rama; con Vercel Authentication esa carga redirige al login. Los
+  # microfrontends quedan sin protección (son bundles públicos, igual que en
+  # producción) y el host conserva la estándar.
+  vercel_authentication = {
+    deployment_type = each.key == "host" ? "standard_protection_new" : "none"
+  }
+
   git_repository = {
     type = "github"
     repo = local.vercel_git_repo

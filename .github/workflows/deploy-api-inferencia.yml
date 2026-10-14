@@ -43,6 +43,7 @@ on:
 
 permissions:
   contents: read
+  security-events: write   # SARIF del escaneo de la imagen (HT-44 T01)
 
 concurrency:
   group: lightsail-api-deploy
@@ -116,7 +117,39 @@ jobs:
             --secret id=db_name,env=DB_DATABASE \
             --secret id=db_user,env=DB_USER \
             --secret id=db_pass,env=DB_PASSWORD \
-            -t "urbanpulse-api:${GITHUB_SHA::12}" .
+            -t "urbanpulse-api:${GITHUB_SHA}" .
+
+      # HT-44 T01: la imagen de la API se escanea aqui, ya construida, porque
+      # es el unico sitio donde existe (su Dockerfile necesita los secretos de
+      # build y no se puede construir en un gate de Pull Request). Un hallazgo
+      # CRITICAL con parche disponible impide publicarla en Lightsail.
+      - name: Trivy - reporte SARIF de la imagen
+        if: ${{ !cancelled() }}
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: urbanpulse-api:${{ github.sha }}
+          format: sarif
+          output: trivy-api.sarif
+          severity: CRITICAL,HIGH
+          exit-code: '0'
+
+      - name: Subir SARIF a GitHub Security
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-api.sarif
+          category: trivy-api-riesgo
+
+      - name: Trivy - gate CRITICAL antes de publicar (HT-44 T01)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: urbanpulse-api:${{ github.sha }}
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          trivyignores: security/trivy-excepciones.yaml
+          exit-code: '1'
 
       - name: Configurar credenciales de AWS
         uses: aws-actions/configure-aws-credentials@v6
@@ -136,7 +169,7 @@ jobs:
         run: |
           set -euo pipefail
           salida=$(aws lightsail push-container-image \
-            --service-name "${SERVICIO}" --label api --image "urbanpulse-api:${GITHUB_SHA::12}")
+            --service-name "${SERVICIO}" --label api --image "urbanpulse-api:${GITHUB_SHA}")
           echo "${salida}"
           # La CLI responde: Refer to this image as ":urbanpulse-api.api.N" in deployments.
           imagen=$(echo "${salida}" | grep -o '":urbanpulse-api\.api\.[0-9]*"' | tr -d '"' | tail -n1)

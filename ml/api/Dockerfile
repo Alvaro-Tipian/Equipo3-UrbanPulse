@@ -31,10 +31,14 @@ FROM python:3.12-slim AS builder
 
 WORKDIR /build
 
-COPY ml/api/requirements.txt .
-RUN pip install --no-cache-dir --break-system-packages -r requirements.txt
+COPY ml/api/requirements.txt ml/api/requirements-build.txt ./
+RUN pip install --no-cache-dir --break-system-packages -r requirements-build.txt
 
 COPY ml/api/export_model.py ml/api/build_lookup.py ./
+
+# Alias del Model Registry que se hornea en la imagen (HT-47 T03).
+ARG MODEL_ALIAS=challenger
+ENV MODEL_ALIAS=${MODEL_ALIAS}
 
 # Los secretos se montan como archivos en /run/secrets/<id> SOLO durante
 # este RUN; no quedan en la imagen final. Se exportan como variables de
@@ -64,6 +68,9 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
+# Solo las dependencias de ejecucion: el cliente de la base de datos y el
+# cliente completo de MLflow se quedan en la etapa builder, no viajan en la
+# imagen que se publica (HT-44 T01).
 COPY ml/api/requirements.txt .
 RUN pip install --no-cache-dir --break-system-packages -r requirements.txt \
     && rm requirements.txt
