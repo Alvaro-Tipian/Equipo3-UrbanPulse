@@ -160,7 +160,12 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          # Variable, no secret: una region no es un secreto, y guardarla como
+          # secret hace que GitHub la tache con *** en todos los logs, incluida
+          # la URL publica del servicio que imprime este mismo workflow. Se deja
+          # el secret como respaldo para no romper nada mientras no exista la
+          # variable.
+          aws-region: ${{ vars.AWS_REGION || secrets.AWS_REGION }}
 
       - name: Instalar lightsailctl
         run: |
