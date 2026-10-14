@@ -1,0 +1,229 @@
+{
+  "name": "UrbanPulse - Estado de la Plataforma (HU-13 T01)",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "urbanpulse/estado-plataforma",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-estado",
+      "name": "Webhook GET /estado-plataforma",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// HU-13 T01 - Sondas de los dos servicios publicos. No llevan credenciales:\n// /healthz de n8n y /health de la API de riesgo son endpoints abiertos.\n//\n// Las URLs estan aqui arriba, juntas, para cambiarlas en un solo sitio.\nconst URL_N8N = 'https://urbanpulse-n8n.xq33kajky1yy6.us-east-1.cs.amazonlightsail.com';\nconst URL_API_RIESGO = 'https://urbanpulse-api.xq33kajky1yy6.us-east-1.cs.amazonlightsail.com';\n\n// El contrato promete responder en menos de 3 s. Con 2 s por sonda, un\n// servicio caido degrada la respuesta en vez de colgar el webhook.\nconst TIMEOUT_MS = 2000;\n\nconst sondar = async (url) => {\n  const inicio = Date.now();\n  try {\n    const cuerpo = await this.helpers.httpRequest({\n      method: 'GET', url, timeout: TIMEOUT_MS, json: true,\n    });\n    return { estado: 'ONLINE', latencia_ms: Date.now() - inicio, cuerpo };\n  } catch (e) {\n    return {\n      estado: 'OFFLINE',\n      latencia_ms: Date.now() - inicio,\n      error: String((e && e.message) || e).slice(0, 200),\n    };\n  }\n};\n\nconst n8n = await sondar(URL_N8N + '/healthz');\nconst api = await sondar(URL_API_RIESGO + '/health');\n\n// t_db se toma justo antes del nodo de Postgres, que es el siguiente: asi la\n// latencia de Neon que calcula \"Armar estado de la plataforma\" es la de esa\n// consulta y nada mas.\nreturn [{ json: { n8n, api, t_db: Date.now() } }];\n"
+      },
+      "id": "sondas-http",
+      "name": "Sondar n8n y la API de riesgo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT 1 AS ok,\n       m.tipo,\n       m.fecha,\n       m.datos\nFROM (SELECT 1) AS ping\nLEFT JOIN LATERAL (\n  SELECT tipo, fecha, datos\n  FROM eventos\n  WHERE tipo IN ('modelo.monitoreado', 'modelo.deriva_detectada')\n  ORDER BY fecha DESC\n  LIMIT 1\n) AS m ON true;",
+        "options": {}
+      },
+      "id": "neon-ping-monitoreo",
+      "name": "Neon: ping y ultimo monitoreo",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        540,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "https://urbanpulse-ti.atlassian.net/rest/api/3/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "jql",
+              "value": "project = UPTI AND statusCategory != Done"
+            },
+            {
+              "name": "maxResults",
+              "value": "0"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 2000
+        }
+      },
+      "id": "jira-tickets-abiertos",
+      "name": "Jira: tickets abiertos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        760,
+        300
+      ],
+      "credentials": {
+        "httpBasicAuth": {
+          "name": "Jira API"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "https://urbanpulse-ti.atlassian.net/rest/api/3/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "jql",
+              "value": "project = UPTI AND statusCategory != Done AND \"Time to resolution\" = breached()"
+            },
+            {
+              "name": "maxResults",
+              "value": "0"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 2000
+        }
+      },
+      "id": "jira-tickets-con-sla-vencido",
+      "name": "Jira: tickets con SLA vencido",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        980,
+        300
+      ],
+      "credentials": {
+        "httpBasicAuth": {
+          "name": "Jira API"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// HU-13 T01 - Arma la respuesta del contrato\n// (docs/PLATFORM_HEALTH_WEBHOOK_CONTRACT.md) con lo que devolvieron las\n// sondas, Neon y Jira. Toda la logica de \"que estado reportar\" vive aqui, y\n// por eso este nodo es el que tiene pruebas.\nconst PORTAL_JIRA = 'https://urbanpulse-ti.atlassian.net';\nconst DIAS_MONITOREO_VIGENTE = 7;\nconst VERSION_CONTRATO = '1.1.0';\n\nconst leer = (nodo) => {\n  try { return $(nodo).first().json || {}; } catch (e) { return {}; }\n};\n\nconst sondas = leer('Sondar n8n y la API de riesgo');\nconst neon = leer('Neon: ping y ultimo monitoreo');\nconst jiraAbiertos = leer('Jira: tickets abiertos');\nconst jiraVencidos = leer('Jira: tickets con SLA vencido');\n\n// --- Servicios ------------------------------------------------------------\n// Neon no se da por bueno copiando el estado de otro servicio: o la consulta\n// devolvio ok = 1, o esta OFFLINE.\nconst sondaN8n = sondas.n8n || {};\nconst sondaApi = sondas.api || {};\nconst neonEnLinea = !neon.error && Number(neon.ok) === 1;\n\nconst servicios = [\n  {\n    nombre: 'n8n_engine',\n    estado: sondaN8n.estado || 'DESCONOCIDO',\n    latencia_ms: sondaN8n.latencia_ms === undefined ? null : sondaN8n.latencia_ms,\n  },\n  {\n    nombre: 'fastapi_mlops',\n    estado: sondaApi.estado || 'DESCONOCIDO',\n    latencia_ms: sondaApi.latencia_ms === undefined ? null : sondaApi.latencia_ms,\n  },\n  {\n    nombre: 'neon_postgres',\n    estado: neonEnLinea ? 'ONLINE' : 'OFFLINE',\n    latencia_ms: typeof sondas.t_db === 'number' ? Date.now() - sondas.t_db : null,\n  },\n];\n\nconst enLinea = servicios.filter((s) => s.estado === 'ONLINE').length;\nconst estadoPlataforma = enLinea === servicios.length\n  ? 'OPERATIVO'\n  : (enLinea === 0 ? 'CAIDO' : 'DEGRADADO');\n\n// --- Monitoreo del modelo -------------------------------------------------\n// La version que sirve la API manda sobre lo demas: es el modelo que de\n// verdad esta respondiendo /predict. El F1 y la deriva salen del ultimo\n// evento que publico ml-monitoring.yml (HT-49 T03) y que el enrutador de\n// HT-51 dejo en la tabla eventos.\nconst tag = String((sondaApi.cuerpo || {}).model_version || '');\nconst modeloApi = tag.includes('@') ? tag.split('@')[0] : (tag || null);\nconst versionApi = tag.includes('@') ? tag.split('@')[1] : null;\n\nconst datosEvento = (neon.datos && typeof neon.datos === 'object') ? neon.datos : null;\nconst fechaEvento = neon.fecha ? new Date(neon.fecha) : null;\nconst fechaValida = fechaEvento && !isNaN(fechaEvento.getTime());\nconst vigente = fechaValida\n  && (Date.now() - fechaEvento.getTime()) <= DIAS_MONITOREO_VIGENTE * 86400000;\n\nconst monitoreoModelo = {\n  modelo: modeloApi || (datosEvento ? datosEvento.modelo : null),\n  version: versionApi || (datosEvento && datosEvento.version !== undefined\n    ? String(datosEvento.version) : null),\n  // null, no false: sin evento no es que no haya deriva, es que no se sabe.\n  f1_score: datosEvento && datosEvento.f1_real !== undefined && datosEvento.f1_real !== null\n    ? Number(datosEvento.f1_real) : null,\n  deriva_detectada: neon.tipo ? neon.tipo === 'modelo.deriva_detectada' : null,\n  ultimo_monitoreo: fechaValida ? fechaEvento.toISOString() : null,\n  monitoreo_vigente: Boolean(vigente),\n};\n\n// --- Service Desk ---------------------------------------------------------\n// maxResults=0 para que Jira devuelva solo el contador. Si una de las dos\n// consultas falla, el porcentaje queda en null en vez de inventarse.\nconst totalDe = (r) => (r && !r.error && typeof r.total === 'number') ? r.total : null;\nconst abiertos = totalDe(jiraAbiertos);\nconst vencidos = totalDe(jiraVencidos);\n\nlet cumplimiento = null;\nif (abiertos !== null && vencidos !== null) {\n  cumplimiento = abiertos === 0\n    ? 100\n    : Math.round(((abiertos - vencidos) / abiertos) * 1000) / 10;\n}\n\nreturn [{\n  json: {\n    estado_plataforma: estadoPlataforma,\n    timestamp: new Date().toISOString(),\n    version: VERSION_CONTRATO,\n    servicios,\n    monitoreo_modelo: monitoreoModelo,\n    service_desk_jira: {\n      tickets_abiertos: abiertos,\n      cumplimiento_sla_porcentaje: cumplimiento,\n      portal_url: PORTAL_JIRA,\n    },\n  },\n}];\n"
+      },
+      "id": "armar-estado",
+      "name": "Armar estado de la plataforma",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "responder-estado",
+      "name": "Responder JSON Ciudadano",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1420,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook GET /estado-plataforma": {
+      "main": [
+        [
+          {
+            "node": "Sondar n8n y la API de riesgo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sondar n8n y la API de riesgo": {
+      "main": [
+        [
+          {
+            "node": "Neon: ping y ultimo monitoreo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Neon: ping y ultimo monitoreo": {
+      "main": [
+        [
+          {
+            "node": "Jira: tickets abiertos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jira: tickets abiertos": {
+      "main": [
+        [
+          {
+            "node": "Jira: tickets con SLA vencido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jira: tickets con SLA vencido": {
+      "main": [
+        [
+          {
+            "node": "Armar estado de la plataforma",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar estado de la plataforma": {
+      "main": [
+        [
+          {
+            "node": "Responder JSON Ciudadano",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
