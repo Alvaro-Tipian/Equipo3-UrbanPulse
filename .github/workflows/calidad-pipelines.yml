@@ -1,0 +1,173 @@
+name: DevSecOps - Calidad de los pipelines y de las URLs publicadas
+
+# Esta red existe por una razon concreta: los ultimos tres fallos que se nos
+# colaron a produccion y los detecto otro del equipo eran todos de este tipo,
+# y los tres se podian haber visto aqui:
+#
+#   - una variable de shell sin comillas en el escaner de secretos, que hacia
+#     que los workflows de n8n con espacios en el nombre no se escanearan nunca;
+#   - una accion con una version que no existe, que tumbaba el job antes de
+#     ejecutar nada;
+#   - una URL de un servicio escrita a mano que no resolvia.
+#
+# Dos trabajos:
+#   1. actionlint (que incluye shellcheck) sobre los workflows de CI. Informa de
+#      todo, pero solo BLOQUEA por los archivos que toca el propio PR: la deuda
+#      vieja no frena a nadie, y lo que tocas tiene que quedar limpio.
+#   2. Sonda de las URLs de Lightsail que el repositorio da por buenas. Bloquea
+#      solo si el host NO RESUELVE, que es un error nuestro de escritura. Si el
+#      host existe pero el servicio responde mal, avisa: eso es operacion, no un
+#      error del PR.
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/**'
+      - 'ia-ops/workflows/**'
+      - 'src/n8n-workflows/**'
+      - 'infrastructure/**'
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/**'
+      - 'ia-ops/workflows/**'
+      - 'src/n8n-workflows/**'
+      - 'infrastructure/**'
+  # Una URL puede dejar de resolver sin que nadie toque el repositorio.
+  schedule:
+    - cron: '41 12 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint-pipelines:
+    name: Lint de los workflows de CI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Instalar actionlint
+        run: |
+          set -euo pipefail
+          bash <(curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash) 1.7.7
+          ./actionlint --version
+
+      - name: Informe completo (no bloquea)
+        run: |
+          set -uo pipefail
+          ./actionlint -no-color > informe.txt 2>&1 || true
+          total=$(grep -cE '^\.github/workflows/.*:[0-9]+:[0-9]+:' informe.txt || true)
+          {
+            echo "## actionlint sobre todos los workflows"
+            echo ""
+            echo "Hallazgos: **${total:-0}**"
+            echo ""
+            if [ "${total:-0}" -gt 0 ]; then
+              echo '```'
+              head -c 60000 informe.txt
+              echo '```'
+            else
+              echo "Sin hallazgos."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: "Gate: lo que toca este PR tiene que quedar limpio"
+        env:
+          EVENTO: ${{ github.event_name }}
+          BASE: ${{ github.base_ref }}
+        run: |
+          set -uo pipefail
+
+          if [ "${EVENTO}" != "pull_request" ]; then
+            echo "Evento '${EVENTO}': solo informe, sin gate."
+            exit 0
+          fi
+          if ! git fetch --no-tags --depth=1 origin "${BASE}"; then
+            echo "::warning::No se pudo traer '${BASE}' para comparar; no se aplica el gate."
+            exit 0
+          fi
+
+          # Array, no una cadena con espacios: un nombre de archivo con espacios
+          # ya nos costo un escaner de secretos que no escaneaba nada.
+          archivos=()
+          while IFS= read -r f; do
+            [ -n "$f" ] && [ -f "$f" ] && archivos+=("$f")
+          done < <(git diff --name-only FETCH_HEAD -- '.github/workflows/*.yml' '.github/workflows/*.yaml')
+
+          if [ "${#archivos[@]}" -eq 0 ]; then
+            echo "Este PR no cambia workflows de CI."
+            exit 0
+          fi
+
+          echo "Workflows que toca este PR:"
+          printf ' - %s\n' "${archivos[@]}"
+          echo
+
+          if ./actionlint -no-color "${archivos[@]}"; then
+            echo "Limpio."
+            exit 0
+          fi
+          echo "::error::actionlint encontro problemas en los workflows que cambia este PR. Arreglalos o justificalos con un comentario '# actionlint-disable' acotado."
+          exit 1
+
+  sondas-urls:
+    name: Sonda de las URLs publicadas
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Comprobar que cada URL de Lightsail resuelve
+        run: |
+          set -uo pipefail
+
+          # -n para poder descartar las que estan dentro de un comentario:
+          # las de los ejemplos en prosa no son URLs que el codigo use.
+          urls=$(grep -rn --include='*.json' --include='*.yml' --include='*.yaml' --include='*.template' \
+                   -E 'https://[A-Za-z0-9.-]+\.cs\.amazonlightsail\.com' \
+                   .github/workflows ia-ops/workflows src/n8n-workflows infrastructure 2>/dev/null \
+                 | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' \
+                 | grep -oE 'https://[A-Za-z0-9.-]+\.cs\.amazonlightsail\.com' \
+                 | sort -u)
+
+          if [ -z "${urls}" ]; then
+            echo "No hay URLs de Lightsail escritas en el repositorio."
+            exit 0
+          fi
+
+          echo "## Sonda de las URLs publicadas" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| URL | Resultado |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+
+          rotas=0
+          while IFS= read -r u; do
+            [ -n "${u}" ] || continue
+            # Sin "|| true": hace falta el codigo de salida real de curl para
+            # distinguir "el host no existe" de "el host existe y no responde".
+            codigo=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 15 "${u}/")
+            salida=$?
+            # curl: 6 = no resuelve el host, 3 = URL mal formada. Eso es un error
+            # de escritura en el repositorio, y por eso bloquea.
+            if [ "${salida}" = "6" ] || [ "${salida}" = "3" ]; then
+              echo "| \`${u}\` | **el host no existe** (curl ${salida}) |" >> "$GITHUB_STEP_SUMMARY"
+              echo "::error::${u} no resuelve. Esa URL esta escrita a mano en el repositorio y no apunta a ningun servicio."
+              rotas=$((rotas + 1))
+            elif [ "${codigo}" = "000" ]; then
+              echo "| \`${u}\` | el host existe pero no respondio |" >> "$GITHUB_STEP_SUMMARY"
+              echo "::warning::${u} resuelve pero no respondio a tiempo. Eso es operacion, no un error de este PR."
+            else
+              echo "| \`${u}\` | responde HTTP ${codigo} |" >> "$GITHUB_STEP_SUMMARY"
+              echo "${u} -> HTTP ${codigo}"
+            fi
+          done <<< "${urls}"
+
+          if [ "${rotas}" -gt 0 ]; then
+            echo "::error::${rotas} URL(s) escritas en el repositorio no resuelven."
+            exit 1
+          fi
+          echo "Todas las URLs resuelven."
