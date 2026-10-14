@@ -19,6 +19,7 @@ on:
     branches: [ main ]
     paths:
       - 'ia-ops/workflows/n8n_ingesta_rag.json'
+      - 'ia-ops/workflows/n8n_registrar_despliegue.json'
       - 'ia-ops/workflows/n8n_estado_plataforma.json'
       - 'ia-ops/workflows/n8n_event_router.json'
       - 'ia-ops/workflows/tests/**'
@@ -28,6 +29,7 @@ on:
     branches: [ main ]
     paths:
       - 'ia-ops/workflows/n8n_ingesta_rag.json'
+      - 'ia-ops/workflows/n8n_registrar_despliegue.json'
       - 'ia-ops/workflows/n8n_estado_plataforma.json'
       - 'ia-ops/workflows/n8n_event_router.json'
       - 'ia-ops/workflows/tests/**'
