@@ -1,8 +1,9 @@
-name: MLOps - Monitoreo de Deriva y Auto Re-entrenamiento (HT-49 T03)
+name: MLOps - Monitoreo de Deriva y Auto Re-entrenamiento (HT-49 T02/T03)
 
 on:
   schedule:
-    - cron: '0 0 * * *' # Ejecución diaria a medianoche
+    # HT-49 T02: semanal, lunes 06:00 de Lima (11:00 UTC)
+    - cron: '0 11 * * 1'
   workflow_dispatch:
     inputs:
       simulate_drift:
@@ -29,14 +30,29 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Instalar dependencias de monitoreo (Evidently, MLflow)
+        if: github.event.inputs.simulate_drift != 'true'
+        run: pip install -r ml/requirements.txt
+
       - name: Ejecutar Evaluación de Deriva del Modelo
         id: drift_eval
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_DATABASE: ${{ secrets.DB_DATABASE }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
           set -euo pipefail
           if [ "${{ github.event.inputs.simulate_drift }}" = "true" ]; then
+            # Simulacro de HT-49 T03 / HT-48: lotes de prueba, sin Neon ni MLflow.
             OUTPUT=$(python ia-ops/scripts/monitor_drift.py --simulate-drift)
           else
-            OUTPUT=$(python ia-ops/scripts/monitor_drift.py)
+            # HT-49 T02: monitoreo real (Evidently + F1 real + MLflow).
+            OUTPUT=$(python ml/monitoring/monitor.py)
           fi
           echo "${OUTPUT}"
 
@@ -174,5 +190,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: drift-monitoring-report
-          path: docs/DRIFT_MONITORING_REPORT.json
+          path: |
+            docs/DRIFT_MONITORING_REPORT.json
+            ml/monitoring/output/reporte_evidently.html
+          if-no-files-found: ignore
           retention-days: 30

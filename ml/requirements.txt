@@ -7,3 +7,6 @@ pyarrow==15.0.2
 python-dotenv==1.0.1
 mlflow==2.14.1
 matplotlib==3.9.0
+
+# HT-49 T02: monitoreo de deriva. Fijada: la API de Evidently cambio entre 0.4 y 0.7.
+evidently==0.7.14
