@@ -31,8 +31,8 @@ Todo evento enviado a `POST /urbanpulse/eventos` debe cumplir con el siguiente e
   "fecha": "2026-10-06T15:02:11-05:00",
   "origen": "n8n/central-vr5",
   "datos": {
-    "reporte_id": 1842,
-    "distrito": "Miraflores",
+    "reporte_id": "a3f1c2e4-9b7d-4e2a-9c51-0d8f2b7a1e44",
+    "distrito": "MIRAFLORES",
     "franja": "tarde",
     "tipo_incidente": "choque"
   }
@@ -54,7 +54,22 @@ Todo evento enviado a `POST /urbanpulse/eventos` debe cumplir con el siguiente e
    y cuando no, `modelo.monitoreado`. El monitoreo deja constancia **todos los
    días**, no solo los días malos, que es de donde el webhook de estado de
    plataforma (HU-13 T01) saca el F1 real y la fecha del último monitoreo.
-3. **Respuesta Exitosos:** HTTP `202 Accepted`
+3. **Catálogos: los valores son los de la base, no los bonitos.**
+
+   | Campo | Valores admitidos | De dónde salen |
+   |---|---|---|
+   | `datos.franja` | `manana` · `tarde` · `noche` | Las franjas de `conocimiento_vial`, del dataset de HT-46 y de la ingesta de HT-50. **Sin eñe** |
+   | `datos.estado_anterior` / `estado_nuevo` | `pending` · `en_proceso` · `resuelto` | La restricción `reports_status_check` (migración `20260914000001`) |
+   | `datos.reporte_id` | UUID | `reports.id` es `UUID`, no un entero |
+
+   Esto no es un detalle de estilo. El validador pedía antes `mañana` con eñe y
+   `Pendiente`/`En Proceso`/`Resuelto`, valores que **no existen en ninguna
+   tabla**: un productor que publicara lo que de verdad tiene en la base se
+   habría llevado un `400`, y uno que publicara lo que pedía el contrato habría
+   pasado la validación para después no casar con ninguna ficha de
+   `conocimiento_vial`. Ahora el contrato habla el idioma de la base.
+
+4. **Respuesta Exitosos:** HTTP `202 Accepted`
    ```json
    {
      "estado": "recibido",
@@ -63,7 +78,7 @@ Todo evento enviado a `POST /urbanpulse/eventos` debe cumplir con el siguiente e
      "timestamp": "2026-10-05T20:13:00.000Z"
    }
    ```
-4. **Respuesta Evento Inválido:** HTTP `400 Bad Request`
+5. **Respuesta Evento Inválido:** HTTP `400 Bad Request`
    ```json
    {
      "error": "Validación de sobre o datos fallida",

@@ -45,10 +45,10 @@ DATOS_MODELO = {
 }
 
 ACEPTADOS = [
-    sobre("reporte.creado", reporte_id=str(uuid.uuid4()), distrito="Miraflores",
-          franja="tarde", tipo_incidente="choque"),
+    sobre("reporte.creado", reporte_id=str(uuid.uuid4()), distrito="MIRAFLORES",
+          franja="manana", tipo_incidente="choque"),
     sobre("reporte.estado_cambiado", reporte_id=str(uuid.uuid4()),
-          estado_anterior="Pendiente", estado_nuevo="En Proceso"),
+          estado_anterior="pending", estado_nuevo="en_proceso"),
     sobre("n8n.flujo_fallido", workflow_id="w1", workflow_nombre="Central",
           ejecucion_id="42", mensaje_error="timeout"),
     sobre("modelo.deriva_detectada", **DATOS_MODELO),
@@ -69,6 +69,13 @@ def test_el_monitoreo_diario_exige_los_mismos_campos_que_la_deriva():
     assert "f1_real" in salida["response_body"]["detalle"]
 
 
+def test_los_estados_son_los_de_la_base_no_los_capitalizados():
+    # reports_status_check solo admite pending | en_proceso | resuelto.
+    malo = sobre("reporte.estado_cambiado", reporte_id=str(uuid.uuid4()),
+                 estado_anterior="Pendiente", estado_nuevo="En Proceso")
+    assert validar(malo)["http_code"] == 400
+
+
 def test_un_tipo_inventado_se_rechaza():
     salida = validar(sobre("modelo.lo_que_sea", **DATOS_MODELO))
     assert salida["http_code"] == 400
@@ -81,8 +88,10 @@ def test_el_id_tiene_que_ser_uuid_v4():
     assert validar(malo)["http_code"] == 400
 
 
-def test_la_franja_sin_enie_se_rechaza():
-    # El catalogo del contrato es "mañana|tarde|noche"; "manana" no vale.
+def test_la_franja_con_enie_se_rechaza():
+    # El catalogo real es el de la base: manana | tarde | noche, sin enie.
+    # Un evento con "mañana" pasaria el validador pero luego no casaria con
+    # ninguna ficha de conocimiento_vial.
     malo = sobre("reporte.creado", reporte_id=str(uuid.uuid4()),
-                 distrito="Surco", franja="manana", tipo_incidente="choque")
+                 distrito="SURCO", franja="mañana", tipo_incidente="choque")
     assert validar(malo)["http_code"] == 400
