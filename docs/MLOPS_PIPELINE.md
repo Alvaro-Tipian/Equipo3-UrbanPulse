@@ -107,4 +107,14 @@ y `X-API-Key`. No comparte la memoria del servicio `micro` de n8n (limitado a
    `terraform import aws_lightsail_container_service.api_inferencia urbanpulse-api`.
 3. Secrets: `MLFLOW_TRACKING_URI`, `MLFLOW_TRACKING_USERNAME`,
    `MLFLOW_TRACKING_PASSWORD`, `RIESGO_API_KEY` (nuevos); `DB_*` y `AWS_*` ya existen.
+4. Secret **opcional** `PREDICCION_DB_URL`: si está, el despliegue se lo pasa al
+   contenedor como variable de entorno y la API guarda cada predicción en la
+   tabla `prediccion_riesgo`. Si no está, la API responde igual pero no
+   persiste, y el despliegue lo avisa con un *warning* en vez de fallar.
+5. `AWS_REGION` debería estar como **variable**, no como secret. Una región no
+   es un secreto, y guardarla como secret hace que GitHub la tache con `***` en
+   todos los logs — incluida la URL pública del servicio, que es justo el dato
+   que uno va a buscar ahí. El workflow acepta las dos formas
+   (`vars.AWS_REGION || secrets.AWS_REGION`), así que se puede crear la variable
+   y borrar el secret sin romper nada.
 4. Opcional: variable de repositorio `FECHA_CORTE_RIESGO` (por defecto `2025-03-31`).

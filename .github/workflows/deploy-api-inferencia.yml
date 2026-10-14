@@ -19,6 +19,10 @@
 #   MLFLOW_TRACKING_URI, MLFLOW_TRACKING_USERNAME, MLFLOW_TRACKING_PASSWORD
 #   DB_HOST, DB_PORT, DB_DATABASE, DB_USER, DB_PASSWORD (Neon, solo en el build)
 #   RIESGO_API_KEY (la misma clave que usa la credencial Header Auth de n8n)
+#   PREDICCION_DB_URL (opcional; si esta, la API guarda cada prediccion)
+#
+# Variables (no secrets):
+#   AWS_REGION
 # ==============================================================================
 
 name: Deploy API de riesgo vial to AWS Lightsail
@@ -123,7 +127,11 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          # Como variable, no como secret: una region no es un secreto, y al
+          # guardarla como secret GitHub la tachaba con *** en todos los logs,
+          # incluida la URL publica del servicio. Se deja el secret como
+          # respaldo hasta que la variable exista.
+          aws-region: ${{ vars.AWS_REGION || secrets.AWS_REGION }}
 
       - name: Instalar lightsailctl
         run: |
@@ -150,12 +158,26 @@ jobs:
         env:
           IMAGEN: ${{ steps.imagen.outputs.ref }}
           RIESGO_API_KEY: ${{ secrets.RIESGO_API_KEY }}
+          # Opcional: si existe, la API guarda cada prediccion en la tabla
+          # prediccion_riesgo. Si no esta, el contenedor arranca igual y
+          # simplemente no persiste; asi este despliegue no depende de que el
+          # secret ya este creado.
+          PREDICCION_DB_URL: ${{ secrets.PREDICCION_DB_URL }}
         run: |
           set -euo pipefail
           # jq --arg: el valor nunca se interpreta como JSON ni como sed.
           jq --arg imagen "${IMAGEN}" --arg api_key "${RIESGO_API_KEY}" \
-             '.api.image = $imagen | .api.environment.API_KEY = $api_key' \
+             --arg prediccion_db "${PREDICCION_DB_URL}" \
+             '.api.image = $imagen
+              | .api.environment.API_KEY = $api_key
+              | if $prediccion_db == "" then . else .api.environment.PREDICCION_DB_URL = $prediccion_db end' \
              infrastructure/lightsail-api-containers.json.template > infrastructure/lightsail-api-containers.json
+
+          if [ -n "${PREDICCION_DB_URL}" ]; then
+            echo "PREDICCION_DB_URL presente: la API persistira en prediccion_riesgo."
+          else
+            echo "::warning::PREDICCION_DB_URL no esta configurado: la API respondera igual pero no guardara las predicciones en prediccion_riesgo."
+          fi
           chmod 600 infrastructure/lightsail-api-containers.json
           if grep -q '__[A-Z_]*__' infrastructure/lightsail-api-containers.json; then
             echo "::error::Quedaron placeholders sin reemplazar en la definicion del contenedor."
