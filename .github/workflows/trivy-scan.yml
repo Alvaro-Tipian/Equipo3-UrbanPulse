@@ -1,52 +1,311 @@
-name: DevSecOps - Escaneo Trivy (Contenedores e IaC Terraform)
+name: DevSecOps - Escaneo Trivy de imagenes (HT-44 T01)
+
+# HT-44 T01: escaneo con Trivy de las imagenes que corre el proyecto y del
+# arbol de dependencias de la API de inferencia. Cada objetivo tiene dos pasos:
+# un informe que publica TODO en la pestana Security (SARIF) y un gate que
+# falla ante una CRITICAL con parche disponible.
+#
+# Se usa ignore-unfixed: una CVE critica sin parche publicado no se corrige
+# actualizando nada, asi que se reporta pero no bloquea. Las que si tienen
+# parche bloquean.
+#
+# El gate bloquea donde el autor del PR puede arreglar el hallazgo:
+#
+#   - Postgres: la construimos nosotros desde infrastructure/postgres.Dockerfile,
+#     asi que el arreglo esta en el propio PR. Bloquea siempre.
+#   - API de riesgo: sus dependencias estan en ml/api/requirements*.txt.
+#     Bloquea siempre.
+#   - n8n: es una imagen de terceros fijada en el template de Lightsail. Sus
+#     CVE viven en el Alpine sobre el que n8n construye, y el unico arreglo es
+#     SUBIR LA VERSION FIJADA, que es un cambio de despliegue. Bloquear con eso
+#     cada PR que toque infrastructure/ dejaria al equipo sin poder mergear por
+#     algo que su PR no introdujo ni puede corregir, y la salida facil seria
+#     quitar el gate. Asi que ese escaneo bloquea cuando el PR cambia la version
+#     fijada (no se puede fijar una version vulnerable) y cuando corre solo cada
+#     semana; en los demas PR reporta sin frenar.
+#
+# Las excepciones justificadas viven en security/trivy-excepciones.yaml y solo
+# se aplican en los pasos que bloquean; el SARIF sigue reportandolo todo. Cada
+# entrada lleva ruta, justificacion y fecha de vencimiento (ver
+# docs/DEVSECOPS_TEAM_GUIDELINES.md).
 
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - 'infrastructure/terraform/**'
-      - 'src/backend/**'
-      - 'src/frontend/**'
-      - 'infrastructure/**'
-      - '.github/workflows/trivy-scan.yml'
   pull_request:
     branches: [ main ]
     paths:
-      - 'infrastructure/terraform/**'
-      - 'src/backend/**'
-      - 'src/frontend/**'
       - 'infrastructure/**'
+      - 'ml/api/**'
       - '.github/workflows/trivy-scan.yml'
+      - 'security/trivy-excepciones.yaml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'infrastructure/**'
+      - 'ml/api/**'
+      - '.github/workflows/trivy-scan.yml'
+      - 'security/trivy-excepciones.yaml'
+  # Revision semanal: las CVE aparecen solas, sin que nadie toque el repositorio.
+  # Aqui si bloquea el escaneo de n8n, para que la deuda sea visible cada lunes
+  # en vez de acumularse en silencio.
+  schedule:
+    - cron: '23 13 * * 1'
+  workflow_dispatch:
+    inputs:
+      imagen_prueba:
+        description: 'Imagen extra a escanear para demostrar el bloqueo (ej. python:3.8-slim-buster). Vacio = ninguna.'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+  security-events: write
 
 jobs:
-  iac-security-scan:
-    name: Escaneo de Seguridad IaC Terraform (HT-44 T02)
+  # ---------------------------------------------------------------------------
+  # Imagen que construimos nosotros. El arreglo cabe en el PR, asi que bloquea.
+  # ---------------------------------------------------------------------------
+  imagen-propia:
+    name: Trivy imagen (postgres)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout del repositorio
         uses: actions/checkout@v4
 
-      - name: Escanear IaC Terraform con Trivy
+      - name: Construir imagen local
+        run: docker build -t "urbanpulse/postgres:${{ github.sha }}" -f infrastructure/postgres.Dockerfile infrastructure
+
+      - name: Trivy - reporte SARIF
         uses: aquasecurity/trivy-action@master
         with:
-          scan-type: 'config'
-          scan-ref: 'infrastructure/terraform'
-          format: 'table'
+          image-ref: urbanpulse/postgres:${{ github.sha }}
+          format: sarif
+          output: trivy-postgres.sarif
+          severity: CRITICAL,HIGH
           exit-code: '0'
-          severity: 'CRITICAL,HIGH,MEDIUM'
 
-  container-security-scan:
-    name: Escaneo de Seguridad de Configuración de Contenedores (HT-44 T01)
+      # continue-on-error: si el paso anterior no llego a generar el SARIF
+      # (por ejemplo porque fallo el build de la imagen), este paso no debe
+      # tapar el error de verdad con un "Path does not exist".
+      - name: Subir SARIF a GitHub Security
+        if: always()
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-postgres.sarif
+          category: trivy-postgres
+
+      # Las excepciones del archivo solo se aplican aqui, en el paso que
+      # bloquea: el SARIF de arriba sigue reportandolo todo.
+      - name: Trivy - gate CRITICAL (bloquea)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: urbanpulse/postgres:${{ github.sha }}
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          trivyignores: security/trivy-excepciones.yaml
+          exit-code: '1'
+
+  # ---------------------------------------------------------------------------
+  # Imagen de terceros fijada en el template. Siempre se reporta; bloquea solo
+  # cuando el PR cambia la version fijada, o en la revision semanal.
+  # ---------------------------------------------------------------------------
+  imagen-n8n:
+    name: Trivy imagen (n8n)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout del repositorio
         uses: actions/checkout@v4
 
-      - name: Escanear Dockerfile Postgres e Infraestructura con Trivy
+      # La version de n8n se lee del template de Lightsail para escanear
+      # exactamente la imagen que se despliega en produccion.
+      - name: Resolver imagen de n8n desplegada
+        id: n8n
+        run: |
+          IMAGEN=$(jq -r '.. | .image? // empty' infrastructure/lightsail-containers.json.template | grep n8n | head -n1)
+          if [ -z "$IMAGEN" ]; then
+            echo "No se encontro la imagen de n8n en lightsail-containers.json.template" >&2
+            exit 1
+          fi
+          echo "Imagen de n8n en produccion: $IMAGEN"
+          echo "ref=$IMAGEN" >> "$GITHUB_OUTPUT"
+
+      - name: Trivy - reporte SARIF
         uses: aquasecurity/trivy-action@master
         with:
-          scan-type: 'config'
-          scan-ref: 'infrastructure'
-          format: 'table'
+          image-ref: ${{ steps.n8n.outputs.ref }}
+          format: sarif
+          output: trivy-n8n.sarif
+          severity: CRITICAL,HIGH
           exit-code: '0'
-          severity: 'CRITICAL,HIGH'
+
+      - name: Subir SARIF a GitHub Security
+        if: always()
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-n8n.sarif
+          category: trivy-n8n
+
+      # Este paso nunca tumba el job: solo deja constancia de si hay CRITICAL
+      # con parche. Quien decide si eso frena el PR es el paso siguiente.
+      - name: Trivy - buscar CRITICAL con parche
+        id: gate
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.n8n.outputs.ref }}
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          trivyignores: security/trivy-excepciones.yaml
+          exit-code: '1'
+
+      # La decision vive entera en un solo paso, en shell: si depende de dos
+      # pasos distintos, basta con que una salida llegue vacia para que el gate
+      # se comporte al reves de lo que dice su propio resumen.
+      - name: Decidir si el hallazgo bloquea este PR
+        if: always()
+        env:
+          EVENTO: ${{ github.event_name }}
+          BASE: ${{ github.base_ref }}
+          RESULTADO: ${{ steps.gate.outcome }}
+          IMAGEN: ${{ steps.n8n.outputs.ref }}
+        run: |
+          set -uo pipefail
+          PLANTILLA=infrastructure/lightsail-containers.json.template
+
+          if [ "${RESULTADO}" != "failure" ]; then
+            echo "Sin CRITICAL con parche en ${IMAGEN}."
+            exit 0
+          fi
+
+          # Bloquea si el PR cambia la version fijada (no se puede fijar una
+          # version vulnerable), si no hay con que comparar, o si no es un PR
+          # (push a main, revision semanal, ejecucion manual).
+          bloquea=true
+          if [ "${EVENTO}" = "pull_request" ]; then
+            if ! git fetch --no-tags --depth=1 origin "${BASE}"; then
+              echo "::warning::No se pudo traer '${BASE}' para comparar; se asume que bloquea."
+            elif git diff --quiet FETCH_HEAD -- "${PLANTILLA}"; then
+              bloquea=false
+            fi
+          fi
+          echo "evento=${EVENTO} bloquea=${bloquea}"
+
+          {
+            echo "## La imagen de n8n fijada tiene CRITICAL con parche disponible"
+            echo ""
+            echo "Imagen escaneada: \`${IMAGEN}\`"
+            echo ""
+            echo "Los hallazgos estan en el **Alpine base de n8n**, no en el codigo de n8n"
+            echo "ni en nuestros workflows. No se corrigen desde este repositorio: hay que"
+            echo "subir la version fijada en \`${PLANTILLA}\`, que es un cambio de despliegue"
+            echo "y se coordina con quien opera Lightsail."
+            echo ""
+            echo "El detalle completo esta en **Security -> Code scanning**, categoria \`trivy-n8n\`."
+            echo ""
+            if [ "${bloquea}" = "true" ]; then
+              echo "Este escaneo **bloquea**: o este cambio toca la version fijada, o es la revision semanal."
+            else
+              echo "Este escaneo **no bloquea** este PR: el hallazgo no lo introdujo este cambio."
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+          if [ "${bloquea}" = "true" ]; then
+            echo "::error::La version fijada de n8n tiene CRITICAL con parche disponible. Sube la version en ${PLANTILLA}."
+            exit 1
+          fi
+          echo "Se reporta sin frenar este PR."
+
+  # Evidencia del criterio "una imagen vulnerable de prueba bloquea el merge":
+  # se ejecuta a mano con workflow_dispatch y una imagen antigua. No usa el
+  # archivo de excepciones a proposito.
+  imagen-prueba:
+    name: Trivy imagen de prueba (demostracion de bloqueo)
+    if: github.event_name == 'workflow_dispatch' && inputs.imagen_prueba != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trivy - gate CRITICAL sobre imagen de prueba
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ inputs.imagen_prueba }}
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
+  # Configuracion de Dockerfiles y compose (misconfiguraciones). Informativo:
+  # el analisis de IaC que bloquea va en terraform-ci.yml (HT-44 T02).
+  config-scan:
+    name: Trivy config de infraestructura (informativo)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Trivy config
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: config
+          scan-ref: infrastructure
+          format: sarif
+          output: trivy-config.sarif
+          severity: CRITICAL,HIGH
+          exit-code: '0'
+
+      - name: Subir SARIF a GitHub Security
+        if: always()
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-config.sarif
+          category: trivy-config
+
+  # La imagen de la API de riesgo NO se construye aqui: su Dockerfile hornea el
+  # modelo desde MLflow y exige 9 secretos de build (MLflow y Neon). Meterlos en
+  # un gate de Pull Request ataria el merge a que DagsHub y Neon esten arriba, y
+  # un PR desde un fork no recibe secrets: el gate fallaria por infraestructura,
+  # no por seguridad.
+  #
+  # El reparto queda asi:
+  #   - aqui, en cada PR: escaneo del arbol de ml/api, que es donde viven las
+  #     CVE que importan de este servicio (requirements.txt);
+  #   - en deploy-api-inferencia.yml: escaneo de la imagen ya construida, con
+  #     gate CRITICAL antes de publicarla en Lightsail.
+  api-dependencias:
+    name: Trivy dependencias de la API de riesgo (ml/api)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Trivy - reporte SARIF
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: ml/api
+          format: sarif
+          output: trivy-ml-api.sarif
+          severity: CRITICAL,HIGH
+          exit-code: '0'
+
+      - name: Subir SARIF a GitHub Security
+        if: always()
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-ml-api.sarif
+          category: trivy-ml-api
+
+      - name: Trivy - gate CRITICAL (bloquea)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: ml/api
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          trivyignores: security/trivy-excepciones.yaml
+          exit-code: '1'

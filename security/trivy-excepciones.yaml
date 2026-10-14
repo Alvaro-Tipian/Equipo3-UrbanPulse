@@ -1,0 +1,71 @@
+# Excepciones del gate de Trivy (HT-44 T01).
+#
+# Este archivo NO lo lee Trivy por su cuenta: se pasa a mano, y solo en los
+# pasos que BLOQUEAN el merge. Los pasos que publican el SARIF a la pestana
+# Security siguen reportando todo, asi que una CVE exceptuada aqui sigue
+# siendo visible para el equipo; lo unico que cambia es que deja de frenar
+# un Pull Request que no puede hacer nada por arreglarla.
+#
+# Reglas para agregar una entrada (ver docs/DEVSECOPS_TEAM_GUIDELINES.md):
+#   1. Solo si el componente afectado no es alcanzable en nuestro despliegue,
+#      o si no existe version parchada que podamos tomar.
+#   2. Siempre acotada con "paths": la misma CVE en otro binario vuelve a
+#      bloquear.
+#   3. Siempre con "statement" (por que) y "expired_at" (cuando se revisa).
+#      Vencida la fecha, Trivy la ignora y el gate vuelve a bloquear: es a
+#      proposito, obliga a revisar en vez de acumular deuda silenciosa.
+
+vulnerabilities:
+  # libgnutls30 en la imagen de Postgres. El parche existe (3.7.1-5+deb11u10)
+  # pero no se puede tomar: la base postgis/postgis:16-3.5 esta sobre Debian 11
+  # (bullseye), que llego a fin de vida, y los .deb de bullseye-security ya no
+  # se sirven desde deb.debian.org; el apt-get upgrade termina en una pared de
+  # 404 y rompe el build entero.
+  #
+  # Riesgo real acotado: esta imagen es solo de desarrollo y CI. En produccion
+  # la base de datos es Neon, gestionada, que no corre este contenedor; y el
+  # Postgres de CI solo escucha dentro de la red de docker-compose del runner,
+  # sin exponer DTLS ni autenticacion remota a nadie.
+  #
+  # La correccion de verdad es mover la imagen a una base soportada
+  # (pgvector/pgvector:pg16-bookworm + PostGIS de PGDG). Eso es un cambio
+  # aparte porque backend-integration-tests.yml y rag-ingesta-ci.yml esperan
+  # a que "SELECT postgis_version()" responda antes de migrar, asi que hay que
+  # reponer el script de initdb que hoy aporta la imagen de PostGIS.
+  # Sin "paths": para un paquete del sistema operativo Trivy no reporta ruta
+  # (PkgPath va vacio), asi que acotarla por ruta no filtraria nada. El
+  # identificador ya es especifico de gnutls.
+  - id: CVE-2026-33845
+    statement: "Parche solo en bullseye-security, que ya no se distribuye (Debian 11 EOL). Imagen de desarrollo/CI; produccion usa Neon. Pendiente: migrar a base soportada."
+    expired_at: 2026-12-19
+  - id: CVE-2026-42010
+    statement: "Parche solo en bullseye-security, que ya no se distribuye (Debian 11 EOL). Imagen de desarrollo/CI; produccion usa Neon. Pendiente: migrar a base soportada."
+    expired_at: 2026-12-19
+
+  # gosu es el ayudante que usa el entrypoint de Postgres para bajar de root
+  # al usuario postgres y nada mas. Lo compilaron con Go 1.18, asi que Trivy
+  # le atribuye las CVE de la biblioteca estandar de esa version, pero gosu
+  # no renderiza plantillas HTML, no abre conexiones TLS y no parsea
+  # direcciones de red: ninguno de los cuatro caminos vulnerables existe en
+  # ese binario. No hay version de gosu parchada en Debian bullseye ni en las
+  # imagenes oficiales de Postgres, asi que la unica "correccion" posible
+  # seria borrar gosu y romper el arranque del contenedor.
+  #
+  # Ademas esta imagen es solo de desarrollo y CI: en produccion la base de
+  # datos es Neon, gestionada, y no corre este contenedor.
+  - id: CVE-2023-24538
+    paths: ["usr/local/bin/gosu"]
+    statement: "Go stdlib html/template; gosu no renderiza plantillas. Imagen de desarrollo/CI, no expuesta."
+    expired_at: 2026-12-19
+  - id: CVE-2023-24540
+    paths: ["usr/local/bin/gosu"]
+    statement: "Go stdlib html/template; gosu no renderiza plantillas. Imagen de desarrollo/CI, no expuesta."
+    expired_at: 2026-12-19
+  - id: CVE-2024-24790
+    paths: ["usr/local/bin/gosu"]
+    statement: "Go stdlib net/netip; gosu no procesa direcciones IP. Imagen de desarrollo/CI, no expuesta."
+    expired_at: 2026-12-19
+  - id: CVE-2025-68121
+    paths: ["usr/local/bin/gosu"]
+    statement: "Go stdlib crypto/tls; gosu no abre conexiones TLS. Imagen de desarrollo/CI, no expuesta."
+    expired_at: 2026-12-19
