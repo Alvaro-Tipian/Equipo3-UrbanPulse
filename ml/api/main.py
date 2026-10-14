@@ -21,14 +21,19 @@ Uso local (sin Docker):
   uvicorn ml.api.main:app --reload --port 8000
 """
 import json
+import logging
 import os
 from datetime import datetime, timezone
 from typing import Optional
 
 import mlflow.sklearn
 import pandas as pd
-from fastapi import FastAPI, Header, HTTPException
+import psycopg2
+import psycopg2.extras
+from fastapi import BackgroundTasks, FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
+
+logger = logging.getLogger("uvicorn.error")
 
 MODEL_DIR = os.path.join(os.path.dirname(__file__), "model")
 MAX_ZONAS = 200
@@ -41,6 +46,14 @@ FEATURES_CAT = ["franja"]
 FEATURES = FEATURES_NUM_BASE + FEATURES_NUM_DERIVADAS + FEATURES_CAT
 
 FRANJAS_VALIDAS = {"manana", "tarde", "noche"}
+
+# HT-49 T01: rol de Neon que SOLO puede insertar en prediccion_riesgo
+# (ver database/migrations/20261014000001_rol_insercion_prediccion_riesgo.sql).
+# Separada de DB_HOST/DB_USER/... (esas son de build time, ver Dockerfile) y
+# opcional a proposito: si no esta configurada (p.ej. en local), /predict
+# sigue funcionando igual -- este registro es para monitoreo, nunca puede
+# tumbar una prediccion real que n8n esta esperando.
+PREDICCION_DB_URL = os.environ.get("PREDICCION_DB_URL")
 
 
 # --------------------------------------------------------------------------
@@ -171,6 +184,67 @@ def _armar_dataframe(req: PredictRequest) -> pd.DataFrame:
 
 
 # --------------------------------------------------------------------------
+# HT-49 T01 - Registro de predicciones para monitoreo de deriva
+# --------------------------------------------------------------------------
+def _guardar_predicciones(
+    req: PredictRequest,
+    predicciones: list[Prediccion],
+    df: pd.DataFrame,
+    model_version: str,
+) -> None:
+    """Corre en background (ver BackgroundTasks en /predict): nunca bloquea
+    la respuesta a n8n, ni la rompe si Neon esta lento o caido.
+
+    Una fila por zona predicha, con las variables YA derivadas que alimentaron
+    al modelo (no las crudas del request) -- son las que de verdad explican la
+    prediccion para el calculo de PSI por variable en HT-49 T02.
+    """
+    if not PREDICCION_DB_URL:
+        return  # no configurado (p.ej. entorno local); no es un error
+
+    columnas_variables = [
+        "siniestros_12m", "severidad_media", "congestion_media", "reportes_30d",
+        "congestion_x_siniestros", "severidad_flag", "congestion_alta",
+    ]
+
+    filas = [
+        (
+            z.zona_id,
+            req.franja,
+            req.fecha,
+            json.dumps({c: float(df.iloc[i][c]) for c in columnas_variables}),
+            pred.nivel,
+            pred.probabilidad,
+            model_version,
+        )
+        for i, (z, pred) in enumerate(zip(req.zonas, predicciones))
+    ]
+
+    conexion = None
+    try:
+        # Conecta al endpoint "-pooler" de Neon (PREDICCION_DB_URL debe
+        # apuntar ahi, no al directo): Neon ya resuelve el pooling del lado
+        # del servidor, por eso no mantenemos un pool propio aqui.
+        conexion = psycopg2.connect(PREDICCION_DB_URL, connect_timeout=5)
+        with conexion, conexion.cursor() as cur:
+            psycopg2.extras.execute_values(
+                cur,
+                "INSERT INTO prediccion_riesgo "
+                "(zona_id, franja, fecha_objetivo, variables, nivel, "
+                "probabilidad, model_version) VALUES %s",
+                filas,
+            )
+    except Exception:
+        logger.exception(
+            "HT-49 T01: no se pudo registrar en prediccion_riesgo "
+            "(la prediccion ya se le respondio a n8n igual)"
+        )
+    finally:
+        if conexion is not None:
+            conexion.close()
+
+
+# --------------------------------------------------------------------------
 # Endpoints
 # --------------------------------------------------------------------------
 @app.get("/health", response_model=HealthResponse)
@@ -188,7 +262,11 @@ def health():
 
 
 @app.post("/predict", response_model=PredictResponse)
-def predict(req: PredictRequest, x_api_key: Optional[str] = Header(default=None)):
+def predict(
+    req: PredictRequest,
+    background_tasks: BackgroundTasks,
+    x_api_key: Optional[str] = Header(default=None),
+):
     _verificar_api_key(x_api_key)
 
     if req.franja not in FRANJAS_VALIDAS:
@@ -211,6 +289,9 @@ def predict(req: PredictRequest, x_api_key: Optional[str] = Header(default=None)
             motivos=_motivos_globales,
         ))
 
+    background_tasks.add_task(
+        _guardar_predicciones, req, predicciones, df, _metadata["model_version_tag"]
+    )
     return PredictResponse(
         model_version=_metadata["model_version_tag"],
         predicciones=predicciones,

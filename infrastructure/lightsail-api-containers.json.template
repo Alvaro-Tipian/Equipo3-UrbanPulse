@@ -5,7 +5,8 @@
       "8000": "HTTP"
     },
     "environment": {
-      "API_KEY": "__API_KEY__"
+      "API_KEY": "__API_KEY__",
+      "PREDICCION_DB_URL": "__PREDICCION_DB_URL__"
     }
   }
 }
