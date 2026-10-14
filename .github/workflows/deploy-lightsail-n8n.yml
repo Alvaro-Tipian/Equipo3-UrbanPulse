@@ -44,7 +44,8 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          # Variable, no secret: ver deploy-api-inferencia.yml.
+          aws-region: ${{ vars.AWS_REGION || secrets.AWS_REGION }}
 
       - name: Generar definición de contenedor con secretos
         run: |
