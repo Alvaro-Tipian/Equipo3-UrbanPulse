@@ -73,12 +73,35 @@ Después de persistir un evento válido (estado `recibido`), el router lo entreg
 
 | Tipo de evento | Suscriptor destino | Estado |
 |---|---|---|
-| `reporte.creado` | Ingesta RAG (HT-50) | Pendiente de implementar como subworkflow |
-| `reporte.estado_cambiado` | Ingesta RAG (HT-50) | Pendiente de implementar como subworkflow |
-| `n8n.flujo_fallido` | Service Desk (HT-41) | Pendiente de implementar en n8n |
-| `modelo.deriva_detectada` | Service Desk (HT-41) | Pendiente de implementar en n8n |
+| `reporte.creado` | Ingesta RAG (HT-50 T01) | **Enrutado** |
+| `reporte.estado_cambiado` | Ingesta RAG (HT-50 T01) | **Enrutado** |
+| `n8n.flujo_fallido` | Service Desk (HT-41) | Pendiente: va al Suscriptor de Prueba |
+| `modelo.deriva_detectada` | Service Desk (HT-41) | Pendiente: va al Suscriptor de Prueba |
 
-> **Suscriptor de Prueba (solo staging).** Mientras los flujos de Ingesta RAG y Service Desk no existan como subworkflows, **todos** los tipos se entregan al workflow `Suscriptor de Prueba`. No debe usarse en producción. Al implementar los reales, se reemplaza el nodo de entrega del despachador por un Switch por `tipo` según la tabla anterior.
+El despachador decide con el nodo **¿Es evento de reporte?**: los tipos que
+empiezan por `reporte.` van a la Ingesta RAG y el resto al Suscriptor de Prueba.
+
+> **Por qué el Service Desk todavía no recibe eventos.** El workflow
+> *UrbanPulse - Errores a Service Desk* (HT-41 T02) arranca con un **Error
+> Trigger**, que n8n solo dispara cuando otro workflow falla: no se puede
+> invocar con Execute Workflow. Para enrutarle `n8n.flujo_fallido` y
+> `modelo.deriva_detectada` hace falta un subworkflow con
+> `executeWorkflowTrigger` que cree el ticket en Jira (HT-41). Mientras tanto
+> esos eventos **sí quedan registrados** en la tabla `eventos`, y el ticket de
+> deriva lo sigue creando directamente `ml-monitoring.yml`.
+
+### Puesta en marcha del enrutamiento en n8n
+
+Los JSON no llevan el id interno de los workflows destino, porque cambia en
+cada instancia. Al importar *Despachar Evento*:
+
+1. Abrir el nodo **Call 'UrbanPulse - Ingesta RAG conocimiento vial (HT-50 T01)'**
+   y seleccionar ese workflow en la lista (viene con el marcador
+   `REEMPLAZAR_CON_ID_DE_INGESTA_RAG`).
+2. Comprobar que el nodo **Call 'UrbanPulse - Suscriptor de Prueba'** sigue
+   apuntando al suscriptor de prueba.
+3. En los dos nodos Execute Workflow, la salida de error (la roja) va a
+   *Marcar Evento Fallido* y la de éxito a *Marcar Evento Entregado*.
 
 ### Estados e intentos
 
