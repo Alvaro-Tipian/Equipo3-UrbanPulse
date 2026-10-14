@@ -14,6 +14,7 @@ on:
     branches: [ main ]
     paths:
       - 'ia-ops/workflows/n8n_ingesta_rag.json'
+      - 'ia-ops/workflows/n8n_registrar_despliegue.json'
       - 'ia-ops/workflows/tests/**'
       - 'database/migrations/**'
       - '.github/workflows/rag-ingesta-ci.yml'
@@ -21,6 +22,7 @@ on:
     branches: [ main ]
     paths:
       - 'ia-ops/workflows/n8n_ingesta_rag.json'
+      - 'ia-ops/workflows/n8n_registrar_despliegue.json'
       - 'ia-ops/workflows/tests/**'
       - 'database/migrations/**'
       - '.github/workflows/rag-ingesta-ci.yml'
