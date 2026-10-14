@@ -139,10 +139,12 @@ jobs:
             exit 0
           fi
 
-          echo "## Sonda de las URLs publicadas" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "| URL | Resultado |" >> "$GITHUB_STEP_SUMMARY"
-          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "## Sonda de las URLs publicadas"
+            echo ""
+            echo "| URL | Resultado |"
+            echo "|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
 
           rotas=0
           while IFS= read -r u; do
