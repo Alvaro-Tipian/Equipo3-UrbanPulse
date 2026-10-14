@@ -144,14 +144,14 @@
       "main": [
         [
           {
-            "node": "Marcar Evento Fallido",
+            "node": "Marcar Evento Entregado",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Marcar Evento Entregado",
+            "node": "Marcar Evento Fallido",
             "type": "main",
             "index": 0
           }
@@ -180,14 +180,14 @@
       "main": [
         [
           {
-            "node": "Marcar Evento Fallido",
+            "node": "Marcar Evento Entregado",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Marcar Evento Entregado",
+            "node": "Marcar Evento Fallido",
             "type": "main",
             "index": 0
           }
