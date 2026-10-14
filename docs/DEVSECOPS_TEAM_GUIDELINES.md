@@ -185,3 +185,115 @@ ejecución:
    con un comentario `#trivy:ignore:<ID-de-regla>` en la línea correspondiente.
 3. Cambiar `severity: CRITICAL` por `severity: CRITICAL,HIGH` en el paso
    *Análisis de seguridad de IaC - gate* y borrar esta nota.
+
+## 🐳 Escaneo de imágenes y excepciones (HT-44 T01)
+
+`trivy-scan.yml` escanea en cada Pull Request la imagen de **n8n**, la de
+**Postgres** y el árbol de dependencias de **`ml/api`**. Cada uno corre dos
+pasos con el mismo reparto que el análisis de IaC: un informe que publica todo
+en **Security → Code scanning** y un *gate* que bloquea solo ante `CRITICAL`
+**con parche disponible** (`ignore-unfixed: true`). Una CVE crítica sin parche
+publicado no se puede arreglar actualizando nada, así que se reporta pero no
+frena el merge.
+
+### Dónde bloquea el gate, y por qué no bloquea en todas partes
+
+Un gate de merge debe frenar al autor por algo que **ese PR introdujo y ese PR
+puede arreglar**. Si frena por algo ajeno, lo único que se consigue es que
+alguien termine quitando el gate. Por eso el reparto no es uniforme:
+
+| Objetivo | ¿De quién es el arreglo? | ¿Bloquea? |
+|---|---|---|
+| Imagen de **Postgres** | Nuestra: la construye `infrastructure/postgres.Dockerfile` | Siempre |
+| Dependencias de **`ml/api`** | Nuestras: `requirements.txt` / `requirements-build.txt` | Siempre |
+| Imagen de la **API ya construida** | Nuestra, en `deploy-api-inferencia.yml` | Siempre, antes de publicar |
+| Imagen de **n8n** | De terceros: viene fijada en el template de Lightsail | Solo si el PR cambia la versión fijada, o en la revisión semanal |
+
+El caso de n8n vale la pena explicarlo porque es el que se ve raro. Los
+hallazgos de `n8nio/n8n:2.34.6` están en el **Alpine 3.24 sobre el que n8n
+construye su imagen** — 7 CRITICAL con parche —, no en el código de n8n ni en
+nuestros workflows. El único arreglo posible es **subir la versión fijada** en
+`infrastructure/lightsail-containers.json.template`, que es un cambio de
+despliegue: cambia el n8n que corre en producción y se coordina con quien opera
+Lightsail. Bloquear con eso cualquier PR que toque `infrastructure/` dejaría al
+equipo sin poder mergear por algo que no introdujo.
+
+Así que ese escaneo:
+
+- **bloquea** cuando el PR cambia la versión fijada (no se puede fijar una
+  versión vulnerable) y en la **revisión semanal** (lunes), que es cuando la
+  deuda tiene que doler;
+- **reporta sin frenar** en los demás PR, con un resumen en la ejecución y el
+  detalle completo en Security → Code scanning, categoría `trivy-n8n`.
+
+La revisión semanal existe porque las CVE aparecen solas, sin que nadie toque el
+repositorio. Sin ella, una imagen fijada puede pudrirse durante meses sin que
+nada se ponga rojo.
+
+### Cuando el gate se pone rojo
+
+El orden de preferencia para resolverlo, de mejor a peor:
+
+1. **Tomar el parche.** Si la imagen la construimos nosotros, actualizar la
+   versión del paquete en el Dockerfile. Si la dependencia es de Python, subir
+   la versión en el `requirements.txt` que corresponda.
+2. **Quitar el componente vulnerable.** Muchas veces la pieza afectada ni
+   siquiera se usa en ejecución. La API de riesgo instalaba `mlflow` completo
+   —servidor de tracking, AI gateway y *model serving*, que es donde se
+   publican casi todas sus CVE— cuando `main.py` solo necesita
+   `mlflow.sklearn.load_model` sobre la carpeta horneada en la imagen. Pasar a
+   **`mlflow-skinny`** y dejar el cliente de base de datos solo en la etapa
+   *builder* (`ml/api/requirements-build.txt`) saca ese código del contenedor
+   que queda expuesto: es una corrección real, no silenciar al escáner.
+3. **Documentar la excepción**, solo si ninguna de las dos anteriores aplica,
+   en `security/trivy-excepciones.yaml`. Ese archivo **no** se aplica solo:
+   se pasa a mano con `trivyignores:` y únicamente en los pasos que bloquean,
+   así que lo exceptuado sigue apareciendo en la pestaña Security.
+
+### Reglas de una excepción
+
+Toda entrada lleva las tres cosas o no entra:
+
+- **`paths`**, para acotarla al binario o archivo concreto. La misma CVE en
+  otro componente vuelve a bloquear.
+- **`statement`**, explicando por qué el camino vulnerable no es alcanzable
+  aquí, o por qué no existe versión parchada que podamos tomar.
+- **`expired_at`**, una fecha de revisión. Cuando vence, Trivy deja de aplicar
+  la excepción y el gate vuelve a bloquear. Es a propósito: obliga a volver a
+  mirarlo en vez de acumular deuda silenciosa.
+
+Hoy hay dos casos, los dos en la imagen de Postgres de desarrollo.
+
+**`libgnutls30`.** El parche existe (`3.7.1-5+deb11u10`) y aun así no se puede
+tomar: la base `postgis/postgis:16-3.5` está sobre **Debian 11 (bullseye), que
+llegó a fin de vida**. Los índices siguen anunciando los paquetes de
+`bullseye-security`, pero los `.deb` ya no se sirven desde `deb.debian.org`, así
+que un `apt-get upgrade` termina en una pared de 404 y rompe el build entero
+(pasó en la ejecución #56 de esta PR).
+
+Eso convierte el hallazgo en algo más grande que dos CVE: **la imagen local está
+sobre una distribución que ya no recibe parches**, así que de aquí en adelante
+cualquier CVE nueva de esa base va a salir como "sin arreglo disponible" y el
+gate ni siquiera la va a mostrar. La corrección de verdad es mover la imagen a
+una base soportada — `pgvector/pgvector:pg16-bookworm` más PostGIS desde PGDG es
+el camino más corto, porque mantiene PostgreSQL 16 y las dos extensiones.
+
+No va en esta PR porque arrastra un detalle que rompería al equipo:
+`backend-integration-tests.yml` y `rag-ingesta-ci.yml` esperan a que
+`SELECT postgis_version()` responda **antes** de aplicar las migraciones, y eso
+hoy funciona porque la imagen de PostGIS trae un script de `initdb` que activa
+la extensión sola. Al cambiar de base hay que reponer ese script, o los dos
+workflows se quedan esperando para siempre. Es un cambio propio, con su propia
+prueba.
+
+**`gosu`.** Lo compilaron con Go 1.18 y Trivy le atribuye las CVE de esa biblioteca estándar, pero `gosu`
+solo baja de root al usuario `postgres` — no renderiza plantillas HTML, no abre
+TLS y no parsea direcciones de red. No hay versión parchada en Debian bullseye,
+y además esa imagen es solo de desarrollo y CI: en producción la base de datos
+es **Neon**, gestionada.
+
+### Probar que el gate bloquea de verdad
+
+Actions → *DevSecOps - Escaneo Trivy de imagenes* → **Run workflow** → en
+`imagen_prueba` escribir por ejemplo `python:3.8-slim-buster`. Ese job no usa
+el archivo de excepciones, así que debe terminar en rojo.

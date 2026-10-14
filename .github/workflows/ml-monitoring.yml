@@ -1,8 +1,9 @@
-name: MLOps - Monitoreo de Deriva y Auto Re-entrenamiento (HT-49 T03)
+name: MLOps - Monitoreo de Deriva y Auto Re-entrenamiento (HT-49 T02/T03)
 
 on:
   schedule:
-    - cron: '0 0 * * *' # Ejecución diaria a medianoche
+    # HT-49 T02: semanal, lunes 06:00 de Lima (11:00 UTC)
+    - cron: '0 11 * * 1'
   workflow_dispatch:
     inputs:
       simulate_drift:
@@ -29,19 +30,34 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Instalar dependencias de monitoreo (Evidently, MLflow)
+        if: github.event.inputs.simulate_drift != 'true'
+        run: pip install -r ml/requirements.txt
+
       - name: Ejecutar Evaluación de Deriva del Modelo
         id: drift_eval
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_DATABASE: ${{ secrets.DB_DATABASE }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
-          SIMULATE_FLAG=""
-          if [ "${{ github.event.inputs.simulate_drift }}" == "true" ]; then
-            SIMULATE_FLAG="--simulate-drift"
+          set -euo pipefail
+          if [ "${{ github.event.inputs.simulate_drift }}" = "true" ]; then
+            # Simulacro de HT-49 T03 / HT-48: lotes de prueba, sin Neon ni MLflow.
+            OUTPUT=$(python ia-ops/scripts/monitor_drift.py --simulate-drift)
+          else
+            # HT-49 T02: monitoreo real (Evidently + F1 real + MLflow).
+            OUTPUT=$(python ml/monitoring/monitor.py)
           fi
-          
-          OUTPUT=$(python ia-ops/scripts/monitor_drift.py ${SIMULATE_FLAG})
           echo "${OUTPUT}"
-          
+
           DERIVA_VAL=$(echo "${OUTPUT}" | grep "DERIVA_DETECTADA=" | cut -d'=' -f2)
-          echo "deriva=${DERIVA_VAL}" >> $GITHUB_OUTPUT
+          echo "deriva=${DERIVA_VAL}" >> "$GITHUB_OUTPUT"
 
       - name: Reportar Incidente en Jira Service Desk si hay Deriva (HT-49 T03)
         if: steps.drift_eval.outputs.deriva == 'true'
@@ -96,18 +112,101 @@ jobs:
       - name: Publicar Summary en GitHub Actions
         if: always()
         run: |
-          cat <<EOF >> $GITHUB_STEP_SUMMARY
+          cat <<'EOF' >> "$GITHUB_STEP_SUMMARY"
           ## 📈 Reporte de Monitoreo MLOps (Data Drift & Performance)
 
-          - **Modelo Auditado:** `urbanpulse_risk_classifier`
+          - **Modelo Auditado:** `riesgo_vial`
           - **Estado de Deriva (`deriva`):** ${{ steps.drift_eval.outputs.deriva == 'true' && '🚨 **DERIVA DETECTADA (Re-entrenamiento iniciado)**' || '🟢 **SISTEMA ESTABLE (No Drift)**' }}
           - **Acción Ejecutada:** ${{ steps.drift_eval.outputs.deriva == 'true' && 'Ticket de Incidente Creado en Jira + Re-entrenamiento automático en mlops-pipeline.yml' || 'Monitoreo diario completado sin novedad.' }}
           EOF
+
+      # HT-49 T03: publicar el evento en el enrutador de HT-51.
+      #
+      # Va al final a proposito: el ticket de Jira y el disparo del
+      # reentrenamiento son las acciones criticas y ya ocurrieron. Si la
+      # publicacion falla, el job queda en rojo para que se vea, pero sin
+      # impedir que la deriva se haya atendido.
+      #
+      # Contrato: docs/EVENT_ROUTER_CONTRACT.md (sobre comun + X-Event-Token).
+      # El monitoreo publica su veredicto SIEMPRE, no solo los dias con deriva.
+      # Con deriva el tipo es modelo.deriva_detectada (HT-49 T03); sin deriva es
+      # modelo.monitoreado, y de ahi sale el F1 real y la fecha del ultimo
+      # monitoreo que necesita el webhook de estado de plataforma (HU-13 T01).
+      - name: Publicar el veredicto del monitoreo al enrutador (HT-49 T03 / HT-51)
+        env:
+          EVENT_ROUTER_URL: ${{ vars.EVENT_ROUTER_URL || 'https://urbanpulse-n8n.xq33kajky1yy6.us-east-1.cs.amazonlightsail.com/webhook/urbanpulse/eventos' }}
+          EVENT_ROUTER_TOKEN: ${{ secrets.EVENT_ROUTER_TOKEN }}
+          REPORTE_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          DERIVA: ${{ steps.drift_eval.outputs.deriva }}
+        run: |
+          set -euo pipefail
+
+          if [ "${DERIVA}" = "true" ]; then
+            TIPO=modelo.deriva_detectada
+          else
+            TIPO=modelo.monitoreado
+          fi
+
+          if [ -z "${EVENT_ROUTER_TOKEN}" ]; then
+            if [ "${DERIVA}" = "true" ]; then
+              echo "::error::Falta el secret EVENT_ROUTER_TOKEN. La deriva se atendio (ticket y reentrenamiento), pero el evento no quedo registrado en la tabla eventos."
+              exit 1
+            fi
+            echo "::warning::Falta el secret EVENT_ROUTER_TOKEN: no se publica ${TIPO} y el estado de plataforma (HU-13 T01) se quedara sin F1 ni fecha de monitoreo."
+            exit 0
+          fi
+
+          # El sobre se arma con jq a partir del reporte real, no con valores
+          # escritos a mano: los campos de datos son los que exige el validador
+          # del router para los dos tipos de evento del modelo.
+          SOBRE=$(jq -n \
+            --arg id "$(cat /proc/sys/kernel/random/uuid)" \
+            --arg fecha "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg origen "github-actions/ml-monitoring" \
+            --arg reporte_url "${REPORTE_URL}" \
+            --arg tipo "${TIPO}" \
+            --slurpfile r docs/DRIFT_MONITORING_REPORT.json \
+            '{
+               id: $id,
+               tipo: $tipo,
+               fecha: $fecha,
+               origen: $origen,
+               datos: {
+                 modelo:      $r[0].model_name,
+                 version:     ($r[0].active_version | tostring),
+                 psi_max:     $r[0].psi_score,
+                 f1_real:     $r[0].f1_actual,
+                 reporte_url: $reporte_url
+               }
+             }')
+          echo "Sobre a publicar (${TIPO}):"
+          echo "${SOBRE}" | jq '.datos'
+
+          CODIGO=$(curl --silent --output respuesta.json --write-out '%{http_code}' \
+            --request POST --url "${EVENT_ROUTER_URL}" \
+            --header "X-Event-Token: ${EVENT_ROUTER_TOKEN}" \
+            --header "Content-Type: application/json" \
+            --data "${SOBRE}" --max-time 20 || echo 000)
+
+          echo "Respuesta del enrutador (HTTP ${CODIGO}):"
+          cat respuesta.json 2>/dev/null || true
+          echo
+
+          case "${CODIGO}" in
+            202) echo "Evento ${TIPO} registrado y entregado a sus suscriptores." ;;
+            400) echo "::error::El enrutador rechazo el sobre (400). Revisa los campos de 'datos' contra docs/EVENT_ROUTER_CONTRACT.md."; exit 1 ;;
+            403) echo "::error::El enrutador respondio 403: EVENT_ROUTER_TOKEN no coincide con la credencial Header Auth de n8n."; exit 1 ;;
+            000) echo "::error::No se pudo contactar al enrutador en ${EVENT_ROUTER_URL}."; exit 1 ;;
+            *)   echo "::error::El enrutador respondio HTTP ${CODIGO}."; exit 1 ;;
+          esac
 
       - name: Subir Reporte JSON de Monitoreo
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: drift-monitoring-report
-          path: docs/DRIFT_MONITORING_REPORT.json
+          path: |
+            docs/DRIFT_MONITORING_REPORT.json
+            ml/monitoring/output/reporte_evidently.html
+          if-no-files-found: ignore
           retention-days: 30

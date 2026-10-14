@@ -5,6 +5,11 @@
 # las migraciones y corre ia-ops/workflows/tests: las consultas SQL exactas
 # del workflow n8n_ingesta_rag.json, sus nodos Code ejecutados en Node.js y
 # una respuesta simulada de Gemini (no consume cuota).
+#
+# Aqui corre tambien tests/test_router_eventos.py (HT-51 T02): el validador del
+# enrutador se ejecuta en el mismo Node.js y no necesita base de datos, asi que
+# comparte esta ejecucion en vez de levantar un job propio. Por eso el disparo
+# incluye n8n_event_router.json.
 # ==============================================================================
 
 name: RAG - Ingesta de conocimiento vial
@@ -15,6 +20,7 @@ on:
     paths:
       - 'ia-ops/workflows/n8n_ingesta_rag.json'
       - 'ia-ops/workflows/n8n_estado_plataforma.json'
+      - 'ia-ops/workflows/n8n_event_router.json'
       - 'ia-ops/workflows/tests/**'
       - 'database/migrations/**'
       - '.github/workflows/rag-ingesta-ci.yml'
@@ -23,6 +29,7 @@ on:
     paths:
       - 'ia-ops/workflows/n8n_ingesta_rag.json'
       - 'ia-ops/workflows/n8n_estado_plataforma.json'
+      - 'ia-ops/workflows/n8n_event_router.json'
       - 'ia-ops/workflows/tests/**'
       - 'database/migrations/**'
       - '.github/workflows/rag-ingesta-ci.yml'

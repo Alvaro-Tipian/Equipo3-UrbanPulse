@@ -1,0 +1,75 @@
+name: DevSecOps - SBOM CycloneDX por release (HT-44 T03)
+
+# Genera el SBOM CycloneDX del repositorio completo (frontend, microfrontends,
+# API de inferencia, pruebas) y de la imagen de la API en cada release.
+# Queda como artefacto de la ejecucion y adjunto al release en GitHub.
+
+on:
+  release:
+    types: [ published ]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # para adjuntar los SBOM al release
+
+jobs:
+  sbom:
+    name: SBOM CycloneDX del release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Definir version
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=manual-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: SBOM del repositorio (Syft)
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: cyclonedx-json
+          output-file: sbom-repositorio-${{ steps.ver.outputs.tag }}.cdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      # No se construye la imagen de la API: su Dockerfile hornea el modelo
+      # desde MLflow y exige 9 secretos de build. El SBOM se genera del arbol
+      # de ml/api, que es donde estan declaradas sus dependencias.
+      - name: SBOM de la API de riesgo (Syft)
+        uses: anchore/sbom-action@v0
+        with:
+          path: ml/api
+          format: cyclonedx-json
+          output-file: sbom-api-riesgo-${{ steps.ver.outputs.tag }}.cdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Verificar que los SBOM no esten vacios
+        run: |
+          for f in sbom-*.cdx.json; do
+            n=$(jq '.components | length' "$f")
+            echo "$f: $n componentes"
+            if [ "$n" -eq 0 ]; then
+              echo "El SBOM $f no tiene componentes" >&2
+              exit 1
+            fi
+          done
+
+      - name: Guardar SBOM como artefacto de la ejecucion
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx-${{ steps.ver.outputs.tag }}
+          path: sbom-*.cdx.json
+          retention-days: 90
+
+      - name: Adjuntar SBOM al release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ steps.ver.outputs.tag }}" sbom-*.cdx.json --clobber

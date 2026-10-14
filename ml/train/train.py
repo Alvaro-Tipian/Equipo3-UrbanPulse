@@ -32,10 +32,14 @@ modelo: en las pruebas, agregaban ruido (alta cardinalidad, sin senal
 real a esta granularidad) en vez de ayudar.
 
 Los tres enfoques quedan registrados en el experimento "riesgo-vial" de
-MLflow (parametros, metricas F1-macro / recall de "alto" y matriz de
-confusion). El mejor de los dos modelos entrenados se registra en el
-Model Registry como "riesgo_vial" con el alias "challenger" -- el
-heuristico no es un modelo entrenable, se usa solo como referencia.
+MLflow (parametros, metricas F1-macro / recall de "alto", ROC-AUC
+binario bajo-vs-resto, matriz de confusion y curva ROC). El AUC citado
+arriba ya no es solo un hallazgo documentado aqui: queda logueado como
+metrica y la curva como artifact en cada run, reproducible corriendo
+este script de nuevo. El mejor de los dos modelos entrenados se
+registra en el Model Registry como "riesgo_vial" con el alias
+"challenger" -- el heuristico no es un modelo entrenable, se usa solo
+como referencia.
 
 Uso:
   python ml/train/train.py --fecha-corte 2025-03-31
@@ -61,10 +65,12 @@ from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     ConfusionMatrixDisplay,
+    RocCurveDisplay,
     classification_report,
     confusion_matrix,
     f1_score,
     recall_score,
+    roc_auc_score,
 )
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
@@ -201,19 +207,52 @@ def guardar_matriz_confusion(y_true, y_pred, titulo: str, nombre_archivo: str) -
     return ruta
 
 
+def score_no_bajo_desde_proba(pipe: Pipeline, X: pd.DataFrame) -> np.ndarray:
+    """P(medio) + P(alto) = 1 - P(bajo) para un pipeline sklearn, usando
+    el orden de clases real del clasificador (no necesariamente el de
+    NIVELES: LogisticRegression/HistGradientBoostingClassifier ordenan
+    sus clases alfabeticamente)."""
+    proba = pipe.predict_proba(X)
+    idx_bajo = list(pipe.named_steps["clf"].classes_).index("bajo")
+    return 1.0 - proba[:, idx_bajo]
+
+
+def guardar_curva_roc(y_true: pd.Series, score_no_bajo, titulo: str, nombre_archivo: str) -> tuple[str, float]:
+    """Curva ROC y AUC binarios (bajo vs. resto): mide que tan bien
+    separa el modelo "bajo" del resto usando un score continuo (no la
+    etiqueta ya convertida con el umbral), igual que se describe en el
+    docstring del modulo."""
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    ruta = os.path.join(OUTPUT_DIR, nombre_archivo)
+    y_bin = (y_true != "bajo").astype(int)
+    auc = roc_auc_score(y_bin, score_no_bajo)
+    fig, ax = plt.subplots(figsize=(4, 4))
+    RocCurveDisplay.from_predictions(y_bin, score_no_bajo, ax=ax, name=titulo)
+    ax.set_title(f"{titulo} (bajo vs. resto)")
+    fig.tight_layout()
+    fig.savefig(ruta)
+    plt.close(fig)
+    return ruta, auc
+
+
 def reportar(nombre: str, y_true, y_pred, metricas: dict):
-    print(f"\n[{nombre}] f1_macro={metricas['f1_macro']:.3f}  recall_alto={metricas['recall_alto']:.3f}")
+    auc_txt = f"  roc_auc={metricas['roc_auc_bajo_vs_resto']:.3f}" if "roc_auc_bajo_vs_resto" in metricas else ""
+    print(f"\n[{nombre}] f1_macro={metricas['f1_macro']:.3f}  recall_alto={metricas['recall_alto']:.3f}{auc_txt}")
     print(classification_report(y_true, y_pred, labels=NIVELES, zero_division=0))
 
 
 def run_baseline(train: pd.DataFrame, val: pd.DataFrame) -> dict:
     with mlflow.start_run(run_name="baseline_heuristico", nested=True):
         mlflow.log_param("model", "heuristico_central_vr5")
-        pred_val = score_a_nivel(score_heuristico(val))
+        score_val = score_heuristico(val)
+        pred_val = score_a_nivel(score_val)
         m = calcular_metricas(val[TARGET], pred_val)
+        ruta_roc, auc = guardar_curva_roc(val[TARGET], score_val, "Baseline heuristico", "roc_baseline.png")
+        m["roc_auc_bajo_vs_resto"] = auc
         mlflow.log_metrics(m)
         ruta_png = guardar_matriz_confusion(val[TARGET], pred_val, "Baseline heuristico", "cm_baseline.png")
         mlflow.log_artifact(ruta_png)
+        mlflow.log_artifact(ruta_roc)
         reportar("heuristico", val[TARGET], pred_val, m)
         return m
 
@@ -227,12 +266,16 @@ def run_logreg(train: pd.DataFrame, val: pd.DataFrame):
         pipe.fit(train[FEATURES], train[TARGET])
         pred_val = pipe.predict(val[FEATURES])
         m = calcular_metricas(val[TARGET], pred_val)
+        score_val = score_no_bajo_desde_proba(pipe, val[FEATURES])
+        ruta_roc, auc = guardar_curva_roc(val[TARGET], score_val, "Regresion logistica", "roc_logreg.png")
+        m["roc_auc_bajo_vs_resto"] = auc
 
         mlflow.log_param("model", "logistic_regression")
         mlflow.log_param("class_weight", "balanced")
         mlflow.log_metrics(m)
         ruta_png = guardar_matriz_confusion(val[TARGET], pred_val, "Regresion logistica", "cm_logreg.png")
         mlflow.log_artifact(ruta_png)
+        mlflow.log_artifact(ruta_roc)
         mlflow.sklearn.log_model(pipe, "model")
         reportar("logreg", val[TARGET], pred_val, m)
         return m, pipe, run.info.run_id
@@ -255,12 +298,16 @@ def run_gradient_boosting(train: pd.DataFrame, val: pd.DataFrame):
 
         pred_val = mejor_pipe.predict(val[FEATURES])
         m = calcular_metricas(val[TARGET], pred_val)
+        score_val = score_no_bajo_desde_proba(mejor_pipe, val[FEATURES])
+        ruta_roc, auc = guardar_curva_roc(val[TARGET], score_val, "Gradient Boosting", "roc_gradient_boosting.png")
+        m["roc_auc_bajo_vs_resto"] = auc
 
         mlflow.log_param("model", "gradient_boosting")
         mlflow.log_params(mejor_params)
         mlflow.log_metrics(m)
         ruta_png = guardar_matriz_confusion(val[TARGET], pred_val, "Gradient Boosting", "cm_gradient_boosting.png")
         mlflow.log_artifact(ruta_png)
+        mlflow.log_artifact(ruta_roc)
         mlflow.sklearn.log_model(mejor_pipe, "model")
         reportar("gradient_boosting", val[TARGET], pred_val, m)
         return m, mejor_pipe, run.info.run_id
@@ -293,7 +340,8 @@ def main():
 
         print("\n=== Comparacion final (F1-macro en validacion) ===")
         for nombre, m in resultados.items():
-            print(f"{nombre:18s} f1_macro={m['f1_macro']:.3f}  recall_alto={m['recall_alto']:.3f}")
+            auc_txt = f"  roc_auc={m['roc_auc_bajo_vs_resto']:.3f}" if "roc_auc_bajo_vs_resto" in m else ""
+            print(f"{nombre:18s} f1_macro={m['f1_macro']:.3f}  recall_alto={m['recall_alto']:.3f}{auc_txt}")
 
         # El heuristico no es un modelo sklearn entrenado, no se registra en
         # el Model Registry; se compara solo como referencia (criterio de

@@ -19,6 +19,9 @@
 #   MLFLOW_TRACKING_URI, MLFLOW_TRACKING_USERNAME, MLFLOW_TRACKING_PASSWORD
 #   DB_HOST, DB_PORT, DB_DATABASE, DB_USER, DB_PASSWORD (Neon, solo en el build)
 #   RIESGO_API_KEY (la misma clave que usa la credencial Header Auth de n8n)
+#   PREDICCION_DB_URL (Neon, rol urbanpulse_api_predicciones -- solo INSERT en
+#   prediccion_riesgo, endpoint "-pooler"; viaja al contenedor en ejecucion,
+#   a diferencia de los DB_* de arriba que solo se usan en el build. HT-49 T01)
 # ==============================================================================
 
 name: Deploy API de riesgo vial to AWS Lightsail
@@ -43,6 +46,7 @@ on:
 
 permissions:
   contents: read
+  security-events: write   # SARIF del escaneo de la imagen (HT-44 T01)
 
 concurrency:
   group: lightsail-api-deploy
@@ -85,8 +89,9 @@ jobs:
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           RIESGO_API_KEY: ${{ secrets.RIESGO_API_KEY }}
+          PREDICCION_DB_URL: ${{ secrets.PREDICCION_DB_URL }}
         run: |
-          for v in MLFLOW_TRACKING_URI MLFLOW_TRACKING_USERNAME MLFLOW_TRACKING_PASSWORD DB_HOST DB_DATABASE DB_USER DB_PASSWORD RIESGO_API_KEY; do
+          for v in MLFLOW_TRACKING_URI MLFLOW_TRACKING_USERNAME MLFLOW_TRACKING_PASSWORD DB_HOST DB_DATABASE DB_USER DB_PASSWORD RIESGO_API_KEY PREDICCION_DB_URL; do
             if [ -z "${!v}" ]; then
               echo "::error::Falta el secret ${v}."
               exit 1
@@ -116,7 +121,39 @@ jobs:
             --secret id=db_name,env=DB_DATABASE \
             --secret id=db_user,env=DB_USER \
             --secret id=db_pass,env=DB_PASSWORD \
-            -t "urbanpulse-api:${GITHUB_SHA::12}" .
+            -t "urbanpulse-api:${GITHUB_SHA}" .
+
+      # HT-44 T01: la imagen de la API se escanea aqui, ya construida, porque
+      # es el unico sitio donde existe (su Dockerfile necesita los secretos de
+      # build y no se puede construir en un gate de Pull Request). Un hallazgo
+      # CRITICAL con parche disponible impide publicarla en Lightsail.
+      - name: Trivy - reporte SARIF de la imagen
+        if: ${{ !cancelled() }}
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: urbanpulse-api:${{ github.sha }}
+          format: sarif
+          output: trivy-api.sarif
+          severity: CRITICAL,HIGH
+          exit-code: '0'
+
+      - name: Subir SARIF a GitHub Security
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-api.sarif
+          category: trivy-api-riesgo
+
+      - name: Trivy - gate CRITICAL antes de publicar (HT-44 T01)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: urbanpulse-api:${{ github.sha }}
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          trivyignores: security/trivy-excepciones.yaml
+          exit-code: '1'
 
       - name: Configurar credenciales de AWS
         uses: aws-actions/configure-aws-credentials@v6
@@ -136,7 +173,7 @@ jobs:
         run: |
           set -euo pipefail
           salida=$(aws lightsail push-container-image \
-            --service-name "${SERVICIO}" --label api --image "urbanpulse-api:${GITHUB_SHA::12}")
+            --service-name "${SERVICIO}" --label api --image "urbanpulse-api:${GITHUB_SHA}")
           echo "${salida}"
           # La CLI responde: Refer to this image as ":urbanpulse-api.api.N" in deployments.
           imagen=$(echo "${salida}" | grep -o '":urbanpulse-api\.api\.[0-9]*"' | tr -d '"' | tail -n1)
@@ -150,11 +187,13 @@ jobs:
         env:
           IMAGEN: ${{ steps.imagen.outputs.ref }}
           RIESGO_API_KEY: ${{ secrets.RIESGO_API_KEY }}
+          PREDICCION_DB_URL: ${{ secrets.PREDICCION_DB_URL }}
         run: |
           set -euo pipefail
           # jq --arg: el valor nunca se interpreta como JSON ni como sed.
           jq --arg imagen "${IMAGEN}" --arg api_key "${RIESGO_API_KEY}" \
-             '.api.image = $imagen | .api.environment.API_KEY = $api_key' \
+             --arg db_url "${PREDICCION_DB_URL}" \
+             '.api.image = $imagen | .api.environment.API_KEY = $api_key | .api.environment.PREDICCION_DB_URL = $db_url' \
              infrastructure/lightsail-api-containers.json.template > infrastructure/lightsail-api-containers.json
           chmod 600 infrastructure/lightsail-api-containers.json
           if grep -q '__[A-Z_]*__' infrastructure/lightsail-api-containers.json; then
