@@ -95,3 +95,15 @@ def test_la_franja_con_enie_se_rechaza():
     malo = sobre("reporte.creado", reporte_id=str(uuid.uuid4()),
                  distrito="SURCO", franja="mañana", tipo_incidente="choque")
     assert validar(malo)["http_code"] == 400
+
+
+def test_monitoreo_sin_predicciones_suficientes_se_acepta():
+    # Lo que publica ml-monitoring.yml cuando monitor.py no tiene datos para
+    # medir: sin F1 ni PSI, con el motivo. El validador lo tiene que aceptar,
+    # o el estado de la plataforma nunca sabria que el monitoreo corrio.
+    r = validar(sobre("modelo.monitoreado", modelo="riesgo_vial", version=None,
+                      psi_max=None, f1_real=None,
+                      reporte_url="https://github.com/x/y/actions/runs/2",
+                      motivo="Sin predicciones suficientes para medir la deriva."))
+    assert r["es_valido"] is True and r["http_code"] == 202
+

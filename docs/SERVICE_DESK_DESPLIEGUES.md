@@ -46,6 +46,11 @@ que tocarlos.
 |---|---|---|
 | `deployment_success` | Solicitud de cambio | `19` |
 | `deployment_failure` | Fallo de la plataforma | `16` |
+| `model_drift` | Fallo de la plataforma (resumen `[Deriva del modelo]`) | `16` |
+
+`model_drift` lo envía `ml-monitoring.yml` cuando el monitoreo detecta deriva
+(HT-49 T03), con los mismos campos obligatorios más `modelName`,
+`modelVersion` y `psi`, que van al resumen y a la descripción del ticket.
 
 El resumen del ticket lleva el commit corto y el `runId`:
 
