@@ -52,6 +52,26 @@ def test_un_despliegue_correcto_abre_una_solicitud_de_cambio():
     assert s["etiqueta"] == "Solicitud de cambio"
 
 
+def test_la_deriva_del_modelo_abre_un_fallo_de_plataforma_con_el_modelo():
+    # Es el aviso que manda ml-monitoring.yml (HT-49 T03). Antes el webhook lo
+    # rechazaba con 400 y el ticket de deriva nunca se creaba.
+    s = ejecutar(VALIDAR, aviso(eventType="model_drift", modelName="riesgo_vial",
+                                modelVersion="4", psi=0.31,
+                                message="Deriva detectada."))
+    assert s["es_valido"] is True
+    assert s["requestTypeId"] == "16"
+    assert s["resumen"] == "[Deriva del modelo] riesgo_vial v4 (run 38460872588)"
+    assert "PSI maximo: 0.31" in s["descripcion"]
+    assert "Version: 4" in s["descripcion"]
+
+
+def test_la_deriva_sin_version_no_rompe_el_resumen():
+    s = ejecutar(VALIDAR, aviso(eventType="model_drift", modelName="riesgo_vial",
+                                modelVersion=None, psi=None))
+    assert s["resumen"] == "[Deriva del modelo] riesgo_vial v? (run 38460872588)"
+    assert "PSI maximo: no disponible" in s["descripcion"]
+
+
 def test_un_despliegue_fallido_abre_un_fallo_de_plataforma():
     s = ejecutar(VALIDAR, aviso(eventType="deployment_failure"))
     assert s["requestTypeId"] == "16"

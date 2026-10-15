@@ -51,9 +51,11 @@ Todo evento enviado a `POST /urbanpulse/eventos` debe cumplir con el siguiente e
    Los dos del modelo llevan los mismos `datos` (`modelo`, `version`,
    `psi_max`, `f1_real`, `reporte_url`) y los publica el mismo paso de
    `ml-monitoring.yml`: cuando hay deriva el tipo es `modelo.deriva_detectada`
-   y cuando no, `modelo.monitoreado`. El monitoreo deja constancia **todos los
-   días**, no solo los días malos, que es de donde el webhook de estado de
-   plataforma (HU-13 T01) saca el F1 real y la fecha del último monitoreo.
+   y cuando no, `modelo.monitoreado`. El monitoreo deja constancia **en cada
+   ejecución**, no solo cuando hay deriva, que es de donde el webhook de estado
+   de plataforma (HU-13 T01) saca el F1 real y la fecha del último monitoreo.
+   Si no hay predicciones suficientes para medir, se publica igual con
+   `version`, `psi_max` y `f1_real` en `null` y el campo opcional `motivo`.
 3. **Catálogos: los valores son los de la base, no los bonitos.**
 
    | Campo | Valores admitidos | De dónde salen |

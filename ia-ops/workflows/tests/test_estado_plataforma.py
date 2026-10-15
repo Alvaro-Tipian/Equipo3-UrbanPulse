@@ -21,15 +21,19 @@ NODO = "Armar estado de la plataforma"
 SONDAS = "Sondar n8n y la API de riesgo"
 NEON = "Neon: ping y ultimo monitoreo"
 JIRA_ABIERTOS = "Jira: tickets abiertos"
+JIRA_DEL_MES = "Jira: tickets del mes con SLA"
 JIRA_VENCIDOS = "Jira: tickets con SLA vencido"
+GITHUB = "GitHub: ultimo despliegue"
 
 
-def armar(sondas=None, neon=None, abiertos=None, vencidos=None):
+def armar(sondas=None, neon=None, abiertos=None, del_mes=None, vencidos=None, github=None):
     nodos = {
         SONDAS: [sondas if sondas is not None else sondas_ok()],
         NEON: [neon if neon is not None else neon_ok()],
-        JIRA_ABIERTOS: [abiertos if abiertos is not None else {"count": 10}],
+        JIRA_ABIERTOS: [abiertos if abiertos is not None else {"count": 3}],
+        JIRA_DEL_MES: [del_mes if del_mes is not None else {"count": 10}],
         JIRA_VENCIDOS: [vencidos if vencidos is not None else {"count": 1}],
+        GITHUB: [github if github is not None else github_ok()],
     }
     proc = subprocess.run(
         ["node", str(HARNESS), str(WORKFLOW), NODO],
@@ -48,6 +52,15 @@ def sondas_ok(n8n="ONLINE", api="ONLINE"):
                            "entrenado": "2026-10-09"}},
         "t_db": int(time.time() * 1000),
     }
+
+
+def github_ok():
+    return {"errores": [], "despliegues": [
+        {"workflow": "Deploy n8n to AWS Lightsail", "fecha": "2026-10-13T18:02:11Z",
+         "commit": "6e4c358", "url": "https://github.com/x/y/actions/runs/121"},
+        {"workflow": "MLOps - Despliegue de la API de riesgo vial", "fecha": "2026-10-14T21:40:05Z",
+         "commit": "e24aedf", "url": "https://github.com/x/y/actions/runs/130"},
+    ]}
 
 
 def neon_ok(tipo="modelo.monitoreado", dias=0, f1=0.91):
@@ -124,19 +137,52 @@ def test_un_monitoreo_viejo_deja_de_estar_vigente():
     assert s["monitoreo_modelo"]["ultimo_monitoreo"] is not None
 
 
-def test_el_cumplimiento_de_sla_se_calcula_con_los_dos_contadores():
-    s = armar(abiertos={"count": 10}, vencidos={"count": 1})
-    assert s["service_desk_jira"]["tickets_abiertos"] == 10
+def test_el_cumplimiento_de_sla_es_el_del_mes():
+    # Criterio 3 de HU-13: de los tickets del mes con SLA, cuantos no vencieron.
+    # Los tickets abiertos son otro dato y no entran en el porcentaje.
+    s = armar(abiertos={"count": 3}, del_mes={"count": 10}, vencidos={"count": 1})
+    assert s["service_desk_jira"]["tickets_abiertos"] == 3
     assert s["service_desk_jira"]["cumplimiento_sla_porcentaje"] == 90.0
 
 
-def test_sin_tickets_abiertos_el_cumplimiento_es_100_y_no_divide_entre_cero():
-    s = armar(abiertos={"count": 0}, vencidos={"count": 0})
+def test_sin_tickets_del_mes_el_cumplimiento_es_100_y_no_divide_entre_cero():
+    s = armar(del_mes={"count": 0}, vencidos={"count": 0})
     assert s["service_desk_jira"]["cumplimiento_sla_porcentaje"] == 100
 
 
+def test_si_falla_el_contador_del_mes_el_sla_no_se_inventa():
+    s = armar(del_mes={"error": "400 campo de SLA inexistente"})
+    assert s["service_desk_jira"]["cumplimiento_sla_porcentaje"] is None
+    assert s["service_desk_jira"]["tickets_abiertos"] == 3
+
+
+def test_el_ultimo_despliegue_es_el_mas_reciente_de_los_dos_workflows():
+    d = armar()["ultimo_despliegue"]
+    assert d == {"fecha": "2026-10-14T21:40:05.000Z", "commit": "e24aedf",
+                 "workflow": "MLOps - Despliegue de la API de riesgo vial",
+                 "url": "https://github.com/x/y/actions/runs/130"}
+
+
+def test_si_github_no_responde_el_despliegue_sale_en_null():
+    s = armar(github={"despliegues": [], "errores": ["timeout"]})
+    assert s["ultimo_despliegue"] is None
+    assert s["estado_plataforma"] == "OPERATIVO"
+
+
+def test_el_motivo_del_monitoreo_sin_datos_llega_al_operador():
+    neon = neon_ok()
+    neon["datos"].update({"version": None, "f1_real": None, "psi_max": None,
+                          "motivo": "Sin predicciones suficientes para medir la deriva."})
+    m = armar(neon=neon)["monitoreo_modelo"]
+    assert m["f1_score"] is None
+    assert m["observacion"] == "Sin predicciones suficientes para medir la deriva."
+    assert m["version"] == "7"            # la sigue diciendo la API
+    assert m["monitoreo_vigente"] is True
+
+
 def test_si_jira_falla_el_resto_del_estado_sigue_respondiendo():
-    s = armar(abiertos={"error": "401 Unauthorized"}, vencidos={"error": "401 Unauthorized"})
+    s = armar(abiertos={"error": "401 Unauthorized"}, del_mes={"error": "401 Unauthorized"},
+              vencidos={"error": "401 Unauthorized"})
     assert s["estado_plataforma"] == "OPERATIVO"
     assert s["service_desk_jira"]["tickets_abiertos"] is None
     assert s["service_desk_jira"]["cumplimiento_sla_porcentaje"] is None
@@ -145,13 +191,13 @@ def test_si_jira_falla_el_resto_del_estado_sigue_respondiendo():
 
 def test_la_respuesta_trae_las_tres_secciones_del_contrato():
     s = armar()
-    assert set(s) == {"estado_plataforma", "timestamp", "version",
-                      "servicios", "monitoreo_modelo", "service_desk_jira"}
+    assert set(s) == {"estado_plataforma", "timestamp", "version", "servicios",
+                      "ultimo_despliegue", "monitoreo_modelo", "service_desk_jira"}
     datetime.fromisoformat(s["timestamp"].replace("Z", "+00:00"))
 
 
 def test_tambien_lee_el_total_del_endpoint_anterior():
-    s = armar(abiertos={"total": 4}, vencidos={"total": 1})
+    s = armar(abiertos={"total": 4}, del_mes={"total": 4}, vencidos={"total": 1})
     assert s["service_desk_jira"]["tickets_abiertos"] == 4
     assert s["service_desk_jira"]["cumplimiento_sla_porcentaje"] == 75.0
 
@@ -171,11 +217,31 @@ def test_jira_cuenta_con_approximate_count():
     # /rest/api/3/search fue retirado de Jira Cloud: con el, los dos
     # contadores salian siempre en null en produccion.
     wf = workflow()
-    for nombre in (JIRA_ABIERTOS, JIRA_VENCIDOS):
+    for nombre in (JIRA_ABIERTOS, JIRA_DEL_MES, JIRA_VENCIDOS):
         p = next(n for n in wf["nodes"] if n["name"] == nombre)["parameters"]
         assert p["method"] == "POST"
         assert p["url"].endswith("/rest/api/3/search/approximate-count")
         assert json.loads(p["jsonBody"])["jql"].startswith("project = UPTI AND ")
+
+
+def test_el_sla_cuenta_solo_los_tickets_del_mes():
+    wf = workflow()
+    jql = lambda nombre: json.loads(next(n for n in wf["nodes"] if n["name"] == nombre)
+                                    ["parameters"]["jsonBody"])["jql"]
+    assert "created >= startOfMonth()" in jql(JIRA_DEL_MES)
+    assert "created >= startOfMonth()" in jql(JIRA_VENCIDOS)
+    assert '"Tiempo de primera respuesta" = breached()' in jql(JIRA_VENCIDOS)
+    # Funciones de SLA documentadas por Atlassian (no "IS NOT EMPTY"), sobre
+    # el SLA que de verdad existe en el portal UPTI.
+    assert '"Tiempo de primera respuesta" = completed()' in jql(JIRA_DEL_MES)
+
+
+def test_el_webhook_admite_llamadas_desde_el_navegador():
+    # La pantalla de Ajustes (Vercel) lo llama desde el navegador con
+    # Authorization, que dispara un preflight CORS.
+    wh = next(n for n in workflow()["nodes"] if n["type"].endswith(".webhook"))
+    assert wh["typeVersion"] >= 2
+    assert wh["parameters"]["options"]["allowedOrigins"] == "*"
 
 
 def test_la_latencia_de_neon_no_incluye_a_jira():
@@ -185,8 +251,10 @@ def test_la_latencia_de_neon_no_incluye_a_jira():
     assert siguiente(wf, SONDAS) == NEON
     assert siguiente(wf, NEON) == NODO
     assert siguiente(wf, "Webhook GET /estado-plataforma") == JIRA_ABIERTOS
-    assert siguiente(wf, JIRA_ABIERTOS) == JIRA_VENCIDOS
-    assert siguiente(wf, JIRA_VENCIDOS) == SONDAS
+    assert siguiente(wf, JIRA_ABIERTOS) == JIRA_DEL_MES
+    assert siguiente(wf, JIRA_DEL_MES) == JIRA_VENCIDOS
+    assert siguiente(wf, JIRA_VENCIDOS) == GITHUB
+    assert siguiente(wf, GITHUB) == SONDAS
 
 
 def test_la_copia_de_produccion_es_identica():
