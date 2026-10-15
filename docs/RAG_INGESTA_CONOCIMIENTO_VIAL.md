@@ -38,6 +38,17 @@ Una ficha por cada uno de los **43 distritos de Lima** y cada franja
 En los dos casos, solo se piden embeddings de las fichas cuyo texto cambió (se
 compara el SHA-256), así que una corrida sin cambios no gasta cuota de Gemini.
 
+### Límite del nivel gratuito de Gemini
+
+El nivel gratuito permite **100 embeddings por minuto** y cuenta cada texto de un
+`batchEmbedContents` como una solicitud. Esa cuota es del proyecto de Google, no
+de la clave: crear otra clave en el mismo proyecto no la amplía, y la comparte
+con el chat (cada pregunta del RAG gasta una). Por eso la ingesta manda lotes
+de **50** y espera **65 s** entre lotes (opción *Batching* del nodo
+*Generar embeddings*): la corrida completa de 132 fichas tarda unos 2 minutos y
+deja margen para el chat. Con lotes de 100 enviados seguidos, el segundo lote
+recibía `429 Too Many Requests`.
+
 ## Puesta en marcha en n8n
 
 1. Ejecutar la migración en Neon. Es idempotente. Si la primera versión de la

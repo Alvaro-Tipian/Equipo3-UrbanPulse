@@ -23,7 +23,11 @@ de una medición propia; **ninguno se deduce de otro**:
 
 La consulta a Neon hace las dos cosas de una vez —comprobar que la base responde
 y leer el último monitoreo—, así que es **una sola ida y vuelta** y la latencia
-que se reporta es la de esa consulta:
+que se reporta es la de esa consulta. Para que sea así, el workflow consulta
+Jira **antes** de las sondas, y Neon va directo al nodo que arma la respuesta:
+cuando Jira iba entre Neon y ese nodo, su tiempo se sumaba a la latencia de la
+base. Una latencia alta en la primera llamada del día es el arranque en frío de
+Neon (el plan gratuito suspende la base cuando no se usa), no un fallo:
 
 ```sql
 SELECT 1 AS ok, m.tipo, m.fecha, m.datos
@@ -101,7 +105,8 @@ monitoreo publicado, no que no haya deriva.
 ### Cumplimiento de SLA
 
 Se calcula con dos consultas JQL sobre el proyecto `UPTI`, pidiendo solo el
-contador (`maxResults=0`):
+contador con `POST /rest/api/3/search/approximate-count` (cuerpo `{"jql": ...}`,
+respuesta `{"count": N}`):
 
 ```
 abiertos  = project = UPTI AND statusCategory != Done
@@ -113,6 +118,13 @@ cumplimiento = (abiertos - vencidos) / abiertos * 100     (100 si no hay abierto
 Si el campo `"Time to resolution"` no existe en el Jira Service Management del
 proyecto, esa consulta falla y el porcentaje sale `null`, sin tumbar el resto de
 la respuesta.
+
+> **Por qué `approximate-count` y no `/rest/api/3/search`.** El webhook usaba
+> `GET /rest/api/3/search?maxResults=0` y leía `total`. Atlassian retiró ese
+> endpoint de Jira Cloud, y su reemplazo (`/rest/api/3/search/jql`) ya no
+> devuelve `total` ni acepta `maxResults=0`; por eso los dos contadores salían
+> siempre en `null`. El conteo aproximado es el endpoint que Atlassian indica
+> para obtener solo el número de resultados.
 
 ## 🏗️ Puesta en marcha
 

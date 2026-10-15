@@ -4,7 +4,7 @@ import hashlib
 
 import pytest
 
-from conftest import ErrorDeNodo, ejecutar, respuesta_gemini
+from conftest import ErrorDeNodo, ejecutar, nodo, respuesta_gemini
 
 UUID = "4f6c1a2e-9b3d-4c5e-8f7a-1b2c3d4e5f60"
 
@@ -107,14 +107,24 @@ def test_ficha_sin_cambios_no_se_vuelve_a_vectorizar():
 
 # --------------------------------------------- Lotes y union de embeddings
 
-def test_lotes_de_hasta_100():
+def test_lotes_de_hasta_50():
+    # El nivel gratuito de Gemini cuenta cada texto como una solicitud y
+    # permite 100 por minuto, compartidas con el chat del RAG.
     fichas = [{"clave": f"k{i}", "contenido": f"texto {i}", "modelo_embedding": "gemini-embedding-001"}
               for i in range(132)]
     lotes = ejecutar("Armar lotes de embeddings", fichas)
-    assert [len(l["requests"]) for l in lotes] == [100, 32]
+    assert [len(l["requests"]) for l in lotes] == [50, 50, 32]
     req = lotes[0]["requests"][0]
     assert req == {"model": "models/gemini-embedding-001", "content": {"parts": [{"text": "texto 0"}]},
                    "taskType": "RETRIEVAL_DOCUMENT", "outputDimensionality": 768}
+
+
+def test_un_lote_de_embeddings_por_minuto():
+    # Con los lotes enviados seguidos, el segundo recibia 429 (cuota por
+    # minuto). El nodo HTTP manda un lote y espera mas de un minuto.
+    lote = nodo("Generar embeddings (Gemini)")["parameters"]["options"]["batching"]["batch"]
+    assert lote["batchSize"] == 1
+    assert lote["batchInterval"] >= 60000
 
 
 def test_union_empareja_cada_vector_con_su_ficha():
