@@ -28,8 +28,8 @@ def armar(sondas=None, neon=None, abiertos=None, vencidos=None):
     nodos = {
         SONDAS: [sondas if sondas is not None else sondas_ok()],
         NEON: [neon if neon is not None else neon_ok()],
-        JIRA_ABIERTOS: [abiertos if abiertos is not None else {"total": 10}],
-        JIRA_VENCIDOS: [vencidos if vencidos is not None else {"total": 1}],
+        JIRA_ABIERTOS: [abiertos if abiertos is not None else {"count": 10}],
+        JIRA_VENCIDOS: [vencidos if vencidos is not None else {"count": 1}],
     }
     proc = subprocess.run(
         ["node", str(HARNESS), str(WORKFLOW), NODO],
@@ -125,13 +125,13 @@ def test_un_monitoreo_viejo_deja_de_estar_vigente():
 
 
 def test_el_cumplimiento_de_sla_se_calcula_con_los_dos_contadores():
-    s = armar(abiertos={"total": 10}, vencidos={"total": 1})
+    s = armar(abiertos={"count": 10}, vencidos={"count": 1})
     assert s["service_desk_jira"]["tickets_abiertos"] == 10
     assert s["service_desk_jira"]["cumplimiento_sla_porcentaje"] == 90.0
 
 
 def test_sin_tickets_abiertos_el_cumplimiento_es_100_y_no_divide_entre_cero():
-    s = armar(abiertos={"total": 0}, vencidos={"total": 0})
+    s = armar(abiertos={"count": 0}, vencidos={"count": 0})
     assert s["service_desk_jira"]["cumplimiento_sla_porcentaje"] == 100
 
 
@@ -148,3 +148,47 @@ def test_la_respuesta_trae_las_tres_secciones_del_contrato():
     assert set(s) == {"estado_plataforma", "timestamp", "version",
                       "servicios", "monitoreo_modelo", "service_desk_jira"}
     datetime.fromisoformat(s["timestamp"].replace("Z", "+00:00"))
+
+
+def test_tambien_lee_el_total_del_endpoint_anterior():
+    s = armar(abiertos={"total": 4}, vencidos={"total": 1})
+    assert s["service_desk_jira"]["tickets_abiertos"] == 4
+    assert s["service_desk_jira"]["cumplimiento_sla_porcentaje"] == 75.0
+
+
+# --- Estructura del workflow ---------------------------------------------
+
+def workflow():
+    return json.loads(WORKFLOW.read_text(encoding="utf-8"))
+
+
+def siguiente(wf, nombre):
+    [[destino]] = wf["connections"][nombre]["main"]
+    return destino["node"]
+
+
+def test_jira_cuenta_con_approximate_count():
+    # /rest/api/3/search fue retirado de Jira Cloud: con el, los dos
+    # contadores salian siempre en null en produccion.
+    wf = workflow()
+    for nombre in (JIRA_ABIERTOS, JIRA_VENCIDOS):
+        p = next(n for n in wf["nodes"] if n["name"] == nombre)["parameters"]
+        assert p["method"] == "POST"
+        assert p["url"].endswith("/rest/api/3/search/approximate-count")
+        assert json.loads(p["jsonBody"])["jql"].startswith("project = UPTI AND ")
+
+
+def test_la_latencia_de_neon_no_incluye_a_jira():
+    # "Sondar" toma t_db; entre el y "Armar" solo puede estar la consulta a
+    # Neon. Antes Jira iba en medio y Neon reportaba 7 s.
+    wf = workflow()
+    assert siguiente(wf, SONDAS) == NEON
+    assert siguiente(wf, NEON) == NODO
+    assert siguiente(wf, "Webhook GET /estado-plataforma") == JIRA_ABIERTOS
+    assert siguiente(wf, JIRA_ABIERTOS) == JIRA_VENCIDOS
+    assert siguiente(wf, JIRA_VENCIDOS) == SONDAS
+
+
+def test_la_copia_de_produccion_es_identica():
+    prod = RAIZ / "src" / "n8n-workflows" / "production" / "urbanpulse-estado-plataforma.json"
+    assert json.loads(prod.read_text(encoding="utf-8")) == workflow()
