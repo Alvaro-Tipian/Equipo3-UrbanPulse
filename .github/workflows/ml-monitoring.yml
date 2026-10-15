@@ -32,7 +32,9 @@ jobs:
 
       - name: Instalar dependencias de monitoreo (Evidently, MLflow)
         if: github.event.inputs.simulate_drift != 'true'
-        run: pip install -r ml/requirements.txt
+        # setuptools: mlflow 2.14 importa pkg_resources, que Python 3.12 no trae.
+        # Sin el, monitor.py fallaba al importar mlflow (igual que en mlops-pipeline.yml).
+        run: pip install -r ml/requirements.txt setuptools==75.1.0
 
       - name: Ejecutar Evaluación de Deriva del Modelo
         id: drift_eval
@@ -40,6 +42,10 @@ jobs:
           MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
           MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
           MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+          # Se monitorea el modelo que sirve la API (alias champion, ver
+          # deploy-api-inferencia.yml). monitor.py usa challenger por defecto,
+          # que es la ultima version entrenada aunque no se haya promovido.
+          MODEL_ALIAS: champion
           DB_HOST: ${{ secrets.DB_HOST }}
           DB_PORT: ${{ secrets.DB_PORT }}
           DB_DATABASE: ${{ secrets.DB_DATABASE }}
