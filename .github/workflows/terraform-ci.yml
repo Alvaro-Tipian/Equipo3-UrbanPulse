@@ -33,6 +33,11 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.TF_AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.TF_AWS_SECRET_ACCESS_KEY }}
       VERCEL_API_TOKEN: ${{ secrets.TF_VERCEL_API_TOKEN }}
+      # HT-42 T01: variables del host de Vercel (cambio-despliegue), desde secrets.
+      TF_VAR_deploy_webhook_secret: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}
+      TF_VAR_jira_base_url: ${{ secrets.JIRA_BASE_URL }}
+      TF_VAR_jira_email: ${{ secrets.JIRA_EMAIL }}
+      TF_VAR_jira_api_token: ${{ secrets.JIRA_API_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -199,6 +204,11 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.TF_AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.TF_AWS_SECRET_ACCESS_KEY }}
       VERCEL_API_TOKEN: ${{ secrets.TF_VERCEL_API_TOKEN }}
+      # HT-42 T01: variables del host de Vercel (cambio-despliegue), desde secrets.
+      TF_VAR_deploy_webhook_secret: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}
+      TF_VAR_jira_base_url: ${{ secrets.JIRA_BASE_URL }}
+      TF_VAR_jira_email: ${{ secrets.JIRA_EMAIL }}
+      TF_VAR_jira_api_token: ${{ secrets.JIRA_API_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
