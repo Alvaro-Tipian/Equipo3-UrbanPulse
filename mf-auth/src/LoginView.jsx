@@ -3,7 +3,13 @@ import { Activity, Lock, Mail, Loader2, AlertTriangle, CheckCircle, ArrowLeft } 
 import { saveSession } from '@urbanpulse/shared';
 import './index.css';
 
-const N8N_BASE = 'https://urbanpulse-n8n.xq33kajky1yy6.us-east-1.cs.amazonlightsail.com/webhook';
+// HT-39 / T02: sin URLs fijas. La base sale de TE_N8N_BASE_URL (.env local o Vercel).
+// No se usa fetchN8n porque ese cliente borra la sesión ante un 401, y en el login
+// un 401 solo significa "contraseña incorrecta": aquí hay que mostrar el mensaje.
+const N8N_BASE = (import.meta.env.TE_N8N_BASE_URL || '').replace(/\/+$/, '');
+if (!N8N_BASE) {
+  console.error('[auth] Falta TE_N8N_BASE_URL en el .env de este microfrontend.');
+}
 
 const URLS = {
   login: () => import.meta.env.TE_N8N_AUTH_LOGIN_URL || `${N8N_BASE}/urbanpulse/auth/login`,

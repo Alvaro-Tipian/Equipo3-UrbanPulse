@@ -7,15 +7,17 @@ import MapLayerControl from './MapLayerControl';
 import MapHelpModal from './MapHelpModal';
 import { INCIDENT_COLORS, INCIDENT_LABELS } from './incidentColors';
 import { HelpCircle, Loader2 } from 'lucide-react';
+import { aplicarCapaCalor, visibilidadCapaCalor, fetchN8n } from '@urbanpulse/shared';
 
 const IMAGE_CACHE = new Map();
 let REPORTES_CACHE = null;
 let ULTIMA_CARGA = 0;
 const TIEMPO_EXPIRACION = 60 * 1000;
 
-const N8N_REPORTS_LIST_URL = 'https://urbanpulse-n8n.xq33kajky1yy6.us-east-1.cs.amazonlightsail.com/webhook/urbanpulse/reports-list';
-const N8N_REPORT_IMAGE_URL = 'https://urbanpulse-n8n.xq33kajky1yy6.us-east-1.cs.amazonlightsail.com/webhook/urbanpulse/report-image';
-const N8N_SINIESTROS_HEATMAP_URL = 'https://urbanpulse-n8n.xq33kajky1yy6.us-east-1.cs.amazonlightsail.com/webhook/urbanpulse/mapa-siniestros-onsv';
+// HT-39 / T02: sin URLs fijas de n8n; las rutas se resuelven con fetchN8n (@urbanpulse/shared)
+const RUTA_REPORTES = '/urbanpulse/reports-list';
+const RUTA_IMAGEN_REPORTE = '/urbanpulse/report-image';
+const RUTA_SINIESTROS_HEATMAP = '/urbanpulse/mapa-siniestros-onsv';
 
 const ESTILOS_MAPA = {
   dark: { map: 'basic_night', poi: 'poi_main', trafficIncidents: 'incidents_night', trafficFlow: 'flow_relative0-dark' },
@@ -26,15 +28,12 @@ function temaActual() {
   return document.documentElement.classList.contains('light') ? 'light' : 'dark';
 }
 
-function urlImagenReporte(id) {
-  const base = import.meta.env.TE_N8N_REPORT_IMAGE_URL || N8N_REPORT_IMAGE_URL;
-  return `${base}?id=${encodeURIComponent(id)}`;
+function pedirImagenReporte(id) {
+  return fetchN8n(`${RUTA_IMAGEN_REPORTE}?id=${encodeURIComponent(id)}`);
 }
 
 async function pedirReportes() {
-  const webhookUrl = import.meta.env.TE_N8N_REPORTS_LIST_URL || N8N_REPORTS_LIST_URL;
-  const response = await fetch(webhookUrl);
-  const data = await response.json();
+  const data = await fetchN8n(RUTA_REPORTES);
   return Array.isArray(data) ? data : (data && data.id ? [data] : []);
 }
 
@@ -159,11 +158,7 @@ function crearContenidoPopup(reporte) {
     } else {
       frame.innerHTML = '<span style="font-size: 11px; color: #94a3b8;">Cargando fotografía...</span>';
 
-      fetch(urlImagenReporte(reporte.id))
-        .then((res) => {
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          return res.json();
-        })
+      pedirImagenReporte(reporte.id)
         .then((datos) => {
           const item = Array.isArray(datos) ? datos[0] : datos;
           const fotoData = item?.image_url || item?.image || item?.image_base64 || item?.url || (typeof item === 'string' ? item : null);
@@ -228,7 +223,6 @@ const MapaUrbano = ({ lat, lon }) => {
   const [tema, setTema] = useState(temaActual);
   const [mostrarAyuda, setMostrarAyuda] = useState(false);
 
-  // Inicialización de reportes y estado de carga usando la caché en memoria
   const [reportes, setReportes] = useState(() => {
     const ahora = Date.now();
     if (REPORTES_CACHE && ahora - ULTIMA_CARGA < TIEMPO_EXPIRACION) {
@@ -242,13 +236,19 @@ const MapaUrbano = ({ lat, lon }) => {
     return !(REPORTES_CACHE && ahora - ULTIMA_CARGA < TIEMPO_EXPIRACION);
   });
 
-  // Estados de capas (HU-05 + HU-06: mapaCalor)
   const [capas, setCapas] = useState({
     mapaCalor: true,
     reportesCiudadanos: true,
     traficoTomTom: true,
     siniestrosSutran: true,
   });
+
+  // Visibilidad inicial del mapa de calor. Se lee desde una ref para no volver a pedir
+  // los siniestros cada vez que se activa o desactiva la capa (eso lo hace el efecto de visibilidad).
+  const mapaCalorVisible = useRef(capas.mapaCalor);
+  useEffect(() => {
+    mapaCalorVisible.current = capas.mapaCalor;
+  }, [capas.mapaCalor]);
 
   const toggleCapa = (idCapa) => {
     setCapas((prev) => ({ ...prev, [idCapa]: !prev[idCapa] }));
@@ -275,7 +275,10 @@ const MapaUrbano = ({ lat, lon }) => {
     });
 
     mapInstance.on('load', () => {
-      setMapaListo(true);
+      // ✨ SOLUCIÓN: Damos 300ms a TomTom para que construya sus objetos internos al 100%
+      setTimeout(() => {
+        setMapaListo(true);
+      }, 300);
     });
 
     map.current = mapInstance;
@@ -315,10 +318,7 @@ const MapaUrbano = ({ lat, lon }) => {
   // 4. Carga de reportes ciudadanos
   useEffect(() => {
     const ahora = Date.now();
-
-    if (REPORTES_CACHE && ahora - ULTIMA_CARGA < TIEMPO_EXPIRACION) {
-      return undefined;
-    }
+    if (REPORTES_CACHE && ahora - ULTIMA_CARGA < TIEMPO_EXPIRACION) return undefined;
 
     let activo = true;
 
@@ -352,95 +352,35 @@ const MapaUrbano = ({ lat, lon }) => {
     const SOURCE_ID = 'fuente-siniestros-heatmap';
     const LAYER_ID = 'capa-siniestros-heatmap';
 
-    const cargarCapaHeatmap = (geojson) => {
-      if (!mapInstance.getSource(SOURCE_ID)) {
-        mapInstance.addSource(SOURCE_ID, {
-          type: 'geojson',
-          data: geojson,
-        });
-      } else {
-        mapInstance.getSource(SOURCE_ID).setData(geojson);
-      }
-
-      if (!mapInstance.getLayer(LAYER_ID)) {
-        mapInstance.addLayer({
-          id: LAYER_ID,
-          type: 'heatmap',
-          source: SOURCE_ID,
-          maxzoom: 18,
-          paint: {
-            'heatmap-weight': [
-              'interpolate',
-              ['linear'],
-              ['get', 'cantidad_siniestros'],
-              0, 0.2,
-              5, 0.6,
-              15, 1.0,
-            ],
-            'heatmap-intensity': [
-              'interpolate',
-              ['linear'],
-              ['zoom'],
-              10, 0.8,
-              13, 1.5,
-              16, 2.5,
-            ],
-            'heatmap-color': [
-              'interpolate',
-              ['linear'],
-              ['heatmap-density'],
-              0, 'rgba(254, 240, 138, 0)',
-              0.2, 'rgb(254, 240, 138)',
-              0.4, 'rgb(234, 179, 8)',
-              0.65, 'rgb(249, 115, 22)',
-              0.85, 'rgb(220, 38, 38)',
-              1.0, 'rgb(153, 27, 27)',
-            ],
-            'heatmap-radius': [
-              'interpolate',
-              ['linear'],
-              ['zoom'],
-              10, 12,
-              13, 22,
-              16, 38,
-            ],
-            'heatmap-opacity': 0.82,
-          },
-        });
-      }
-    };
+    // Capa de calor compartida (@urbanpulse/shared) — también la usa mf-panel-riesgo (HU-08)
+    const cargarCapaHeatmap = (geojson) =>
+      aplicarCapaCalor(mapInstance, {
+        sourceId: SOURCE_ID,
+        layerId: LAYER_ID,
+        geojson,
+        visible: mapaCalorVisible.current,
+      });
 
     setCargandoHeatmap(true);
-    fetch(N8N_SINIESTROS_HEATMAP_URL)
-      .then((res) => {
-        if (!res.ok) throw new Error('Error al consultar siniestros');
-        return res.json();
-      })
+    fetchN8n(RUTA_SINIESTROS_HEATMAP)
       .then((geojson) => {
         if (geojson && geojson.type === 'FeatureCollection') {
           cargarCapaHeatmap(geojson);
         }
       })
       .catch((err) => {
-        console.warn('Aviso: cargando fallback de heatmap desde reportes locales:', err);
+        console.warn('Mapa de calor: se usan los reportes como respaldo.', err);
         const fallbackGeoJSON = {
           type: 'FeatureCollection',
           features: reportes.map((r) => ({
             type: 'Feature',
-            geometry: {
-              type: 'Point',
-              coordinates: [parseFloat(r.longitude), parseFloat(r.latitude)],
-            },
-            properties: {
-              cantidad_siniestros: r.severity === 'alta' ? 4 : 1,
-            },
+            geometry: { type: 'Point', coordinates: [parseFloat(r.longitude), parseFloat(r.latitude)] },
+            properties: { cantidad_siniestros: r.severity === 'alta' ? 4 : 1 },
           })),
         };
         cargarCapaHeatmap(fallbackGeoJSON);
       })
-      .finally(() => {
-        setCargandoHeatmap(false);
-      });
+      .finally(() => setCargandoHeatmap(false));
   }, [mapaListo, reportes]);
 
   // Alternar visibilidad de la capa Heatmap
@@ -448,13 +388,7 @@ const MapaUrbano = ({ lat, lon }) => {
     if (!map.current || !mapaListo) return;
     const LAYER_ID = 'capa-siniestros-heatmap';
 
-    if (map.current.getLayer(LAYER_ID)) {
-      map.current.setLayoutProperty(
-        LAYER_ID,
-        'visibility',
-        capas.mapaCalor ? 'visible' : 'none'
-      );
-    }
+    visibilidadCapaCalor(map.current, LAYER_ID, capas.mapaCalor);
   }, [capas.mapaCalor, mapaListo]);
 
   // 5. Filtrado de marcadores de ciudadanos
@@ -497,6 +431,8 @@ const MapaUrbano = ({ lat, lon }) => {
   // 7. Flujo y Alertas de Tráfico
   useEffect(() => {
     if (!map.current || !mapaListo) return;
+    
+    if (!map.current.getStyle || !map.current.getStyle()) return;
 
     try {
       if (capas.traficoTomTom) {
@@ -504,8 +440,8 @@ const MapaUrbano = ({ lat, lon }) => {
       } else {
         if (typeof map.current.hideTrafficFlow === 'function') map.current.hideTrafficFlow();
       }
-    } catch (e) {
-      console.warn('Error al alternar flujo:', e);
+    } catch {
+      // Atrapado silenciosamente
     }
 
     try {
@@ -514,8 +450,8 @@ const MapaUrbano = ({ lat, lon }) => {
       } else {
         if (typeof map.current.hideTrafficIncidents === 'function') map.current.hideTrafficIncidents();
       }
-    } catch (e) {
-      console.warn('Error al alternar incidentes:', e);
+    } catch {
+      // Atrapado silenciosamente
     }
   }, [capas.traficoTomTom, capas.siniestrosSutran, mapaListo]);
 

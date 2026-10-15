@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Sun, Moon, MapPin, Wifi, WifiOff, Loader2, LogOut, User, RefreshCw } from 'lucide-react';
-// ✨ NUEVO 1: Importamos todo desde el módulo compartido
 import { getSession, clearSession, subscribeSession, fetchN8n } from '@urbanpulse/shared';
+import EstadoPlataforma from './EstadoPlataforma';
 import './index.css';
-
-// ✨ NUEVO 2: Borramos N8N_BASE (fetchN8n ya conoce la URL base)
 
 function Seccion({ titulo, descripcion, children }) {
   return (
@@ -32,7 +30,6 @@ export default function AjustesView({ theme, onCambiarTema }) {
   const [estadoN8n, setEstadoN8n] = useState('comprobando');
   const [permisoUbicacion, setPermisoUbicacion] = useState('desconocido');
 
-  // ✨ NUEVO 3: Simplificamos el ping al servidor con el nuevo cliente HTTP
   const comprobarN8n = useCallback(async () => {
     try {
       await fetchN8n('/urbanpulse/reports-list');
@@ -75,6 +72,10 @@ export default function AjustesView({ theme, onCambiarTema }) {
       .then(() => setEstadoN8n('conectado'))
       .catch(() => setEstadoN8n('sin-conexion'));
   };
+
+  // HU-13 / T02: el backend a veces envía `role` y a veces `rol`
+  const rol = sesion?.role || sesion?.rol || 'ciudadano';
+  const esOperador = rol === 'operador';
 
   const cerrarSesionCiudadano = () => {
     clearSession();
@@ -130,7 +131,7 @@ export default function AjustesView({ theme, onCambiarTema }) {
                   <p className="text-sm font-bold text-[var(--color-text-primary)] truncate">
                     {sesion.email || sesion.username}
                   </p>
-                  <p className="text-xs text-[var(--color-text-secondary)]">{sesion.role || 'ciudadano'}</p>
+                  <p className="text-xs text-[var(--color-text-secondary)]">{rol}</p>
                 </div>
               </div>
               <Dato
@@ -187,9 +188,12 @@ export default function AjustesView({ theme, onCambiarTema }) {
               </div>
             </div>
           </div>
+
+          {/* HU-13 / T02: estado ampliado de la plataforma, solo para el operador.
+              El ciudadano sigue viendo solo la comprobación de n8n de arriba. */}
+          {esOperador && <EstadoPlataforma />}
         </Seccion>
 
-        {/* ✨ NUEVO 4: Ahora las conexiones se ven mucho más limpias porque fetchN8n centraliza las URLs */}
         <Seccion titulo="Conexiones configuradas" descripcion="Rutas relativas inyectadas a través del módulo compartido HTTP.">
           <Dato etiqueta="Chat (n8n)" valor="/urbanpulse/chat" />
           <Dato etiqueta="KPIs del dashboard" valor="/urbanpulse/dashboard-kpis" />

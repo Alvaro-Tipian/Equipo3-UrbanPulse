@@ -14,8 +14,13 @@ export async function inicializarRemotes() {
     const respuesta = await fetch(`/remotes.${entorno}.json`);
     if (!respuesta.ok) throw new Error(`Error HTTP: ${respuesta.status}`);
     
-    const remotesConfig = await respuesta.json();
-
+     // Vite devuelve index.html (200) si el archivo no existe → json() falla
+    const remotesConfig = await respuesta.json().catch(() => {
+      throw new Error(`/remotes.${entorno}.json no existe o no es JSON válido`);
+    });
+    if (!Object.keys(remotesConfig).length) {
+      throw new Error(`El manifiesto ${entorno} está vacío`);
+    }
     // ✨ NUEVO: Transformamos el JSON agregando type: 'module' para que Vite lo entienda
     const modulosFederados = Object.entries(remotesConfig).map(([nombre, url]) => ({
       name: nombre,
@@ -27,6 +32,7 @@ export async function inicializarRemotes() {
     console.log(`[Module Federation] Remotos registrados exitosamente para el entorno: ${entorno}`);
   } catch (error) {
     console.error('[Module Federation] Fallo crítico al cargar el manifiesto de remotes:', error);
+    throw error;
   }
 }
 

@@ -1,12 +1,11 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { federation } from '@module-federation/vite';
+import process from 'node:process';
 
 export default defineConfig(({ mode }) => {
-  const isProduction = mode === 'production';
-  const MF_AUTH_URL = isProduction
-    ? 'https://equipo3-urban-pulse-auth.vercel.app/remoteEntry.js'
-    : 'http://localhost:5177/remoteEntry.js';
+  const env = loadEnv(mode, process.cwd(), ['VITE_', 'TE_']);
+  const MF_AUTH_URL = env.TE_MF_AUTH_URL || 'http://localhost:5177/remoteEntry.js';
 
   return {
     plugins: [
@@ -14,44 +13,24 @@ export default defineConfig(({ mode }) => {
       federation({
         name: 'mf_chatbot',
         filename: 'remoteEntry.js',
-        // Consume el microfrontend de autenticación
         remotes: {
-          mf_auth: {
-            type: 'module',
-            name: 'mf_auth',
-            entry: MF_AUTH_URL,
-          },
+          mf_auth: { type: 'module', name: 'mf_auth', entry: MF_AUTH_URL },
         },
-        // Sigue exponiendo el chatbot hacia el Host principal
-        exposes: {
-          './Chatbot': './src/NLQCommandCenter.jsx',
-        },
+        exposes: { './Chatbot': './src/NLQCommandCenter.jsx' },
         shared: {
           react: { singleton: true },
           'react-dom': { singleton: true },
           'react/jsx-runtime': { singleton: true },
           'react/jsx-dev-runtime': { singleton: true },
+          '@urbanpulse/shared': { singleton: true },
         },
         dts: false,
       }),
     ],
     envPrefix: ['VITE_', 'TE_'],
-    server: {
-      port: 3003,
-      cors: true, // ✨ NUEVO: Permite al Host leer los archivos en modo dev
-    },
-    // ✨ NUEVO: Obligatorio para que Module Federation genere los módulos correctamente
-    build: {
-      target: 'esnext',
-    },
-    // ✨ NUEVO: Asegura que npm run preview use el puerto 3003 y permita conexiones
-    preview: {
-      port: 3003,
-      strictPort: true,
-      cors: true,
-    },
-    resolve: {
-      dedupe: ['react', 'react-dom'],
-    },
+    server: { port: 3003, cors: true },
+    build: { target: 'esnext' },
+    preview: { port: 3003, strictPort: true, cors: true },
+    resolve: { dedupe: ['react', 'react-dom'] },
   };
 });

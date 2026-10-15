@@ -20,6 +20,7 @@ export default defineConfig({
         'react/jsx-runtime': { singleton: true },
         'react/jsx-dev-runtime': { singleton: true },
         '@tanstack/react-query': { singleton: true },
+        '@urbanpulse/shared': { singleton: true },
       },
       dts: false,
     }),
