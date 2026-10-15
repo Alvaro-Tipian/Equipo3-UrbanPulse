@@ -44,10 +44,17 @@ El nivel gratuito permite **100 embeddings por minuto** y cuenta cada texto de u
 `batchEmbedContents` como una solicitud. Esa cuota es del proyecto de Google, no
 de la clave: crear otra clave en el mismo proyecto no la amplía, y la comparte
 con el chat (cada pregunta del RAG gasta una). Por eso la ingesta manda lotes
-de **50** y espera **65 s** entre lotes (opción *Batching* del nodo
-*Generar embeddings*): la corrida completa de 132 fichas tarda unos 2 minutos y
-deja margen para el chat. Con lotes de 100 enviados seguidos, el segundo lote
-recibía `429 Too Many Requests`.
+de **50**, uno por vuelta del bucle *Un lote por vuelta*, y el nodo
+*Esperar cuota de Gemini* espera **62 s** antes de cada lote salvo el primero:
+la corrida completa de 132 fichas tarda unos 2 minutos y deja margen para el
+chat. Con lotes de 100 enviados seguidos, el segundo lote recibía
+`429 Too Many Requests`.
+
+No se usa la opción *Batching* del nodo HTTP: mientras esperaba entre lotes,
+n8n dejaba sin leer las respuestas que Gemini ya había enviado y cortaba con
+`Response body timed out after 300000ms without data`. La espera se queda por
+debajo de 65 s para que n8n la haga en memoria; desde 65 s pasa la ejecución a
+*waiting*, y la ingesta también corre como subflujo de *Despachar Evento*.
 
 ## Puesta en marcha en n8n
 
