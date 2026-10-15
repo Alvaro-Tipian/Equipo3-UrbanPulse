@@ -1,4 +1,5 @@
 import js from "@eslint/js";
+import globals from "globals";
 import reactPlugin from "eslint-plugin-react";
 import reactHooksPlugin from "eslint-plugin-react-hooks";
 
@@ -54,6 +55,17 @@ export default [
         afterAll: "readonly",
         jest: "readonly",
         Storage: "readonly"
+      }
+    }
+  },
+  {
+    // Funciones serverless de Vercel (Node.js, no navegador): corren con las
+    // globales de Node (process, Buffer, fetch/Response/crypto nativos de
+    // Node 18+), distintas del resto del frontend.
+    files: ["api/**/*.js"],
+    languageOptions: {
+      globals: {
+        ...globals.node
       }
     }
   }
