@@ -271,6 +271,48 @@ jobs:
           echo "::error::La API no sirvio ${ESPERADA} tras 15 minutos."
           exit 1
 
+      # HT-41 T06: Solicitud de cambio en el Service Desk por la funcion
+      # serverless de Vercel (src/frontend/api/cambio-despliegue.js). Firma el
+      # cuerpo con HMAC-SHA256 y DEPLOY_WEBHOOK_SECRET, sobre los mismos bytes
+      # que se envian. Los despliegues de n8n siguen yendo al webhook de n8n
+      # (HT-41 T03), asi que cada despliegue abre un solo ticket. No bloquea:
+      # la API ya quedo desplegada y verificada.
+      - name: Registrar Solicitud de Cambio en Jira Service Desk (HT-41 T06)
+        if: success()
+        env:
+          FUNCION_URL: ${{ vars.CAMBIO_DESPLIEGUE_URL || 'https://equipo3-urban-pulse.vercel.app/api/cambio-despliegue' }}
+          WEBHOOK_SECRET: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}
+          COMMIT_SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ESPERADA: riesgo_vial@${{ inputs.model_version }}
+          API_URL: ${{ steps.verificar.outputs.url }}
+        run: |
+          set -uo pipefail
+          if [ -z "${WEBHOOK_SECRET}" ]; then
+            echo "::warning::DEPLOY_WEBHOOK_SECRET no configurado: no se registra la Solicitud de cambio."
+            exit 0
+          fi
+
+          CUERPO=$(jq -cn \
+            --arg servicio "${SERVICIO}" \
+            --arg commit "${COMMIT_SHA}" \
+            --arg workflow "${GITHUB_WORKFLOW}" \
+            --arg run_url "${RUN_URL}" \
+            --arg health "ok: ${API_URL}/health responde ${ESPERADA}" \
+            '{servicio: $servicio, commit: $commit, workflow: $workflow, run_url: $run_url, health_check: $health}')
+          FIRMA=$(printf '%s' "${CUERPO}" | openssl dgst -sha256 -hmac "${WEBHOOK_SECRET}" | awk '{print $NF}')
+
+          RESPUESTA=$(curl --silent --max-time 60 --write-out $'\n%{http_code}' \
+            --request POST "${FUNCION_URL}" \
+            --header "Content-Type: application/json" \
+            --header "X-UrbanPulse-Signature: ${FIRMA}" \
+            --data-binary "${CUERPO}" || true)
+          CODIGO=$(echo "${RESPUESTA}" | tail -n1)
+          echo "Respuesta de cambio-despliegue (HTTP ${CODIGO}): $(echo "${RESPUESTA}" | sed '$d')"
+          if [ "${CODIGO}" != "201" ]; then
+            echo "::warning::No se registro la Solicitud de cambio (HTTP ${CODIGO}). 401: el DEPLOY_WEBHOOK_SECRET de Vercel no coincide con el de GitHub; 502: ver el detalle de Jira arriba."
+          fi
+
       - name: Resumen
         if: always()
         run: |
