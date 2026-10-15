@@ -94,3 +94,26 @@ resource "vercel_project" "mf" {
     prevent_destroy = true
   }
 }
+
+# HT-42 T01: variables de entorno del proyecto host (src/frontend) que usa la
+# funcion serverless api/cambio-despliegue. Se marcan sensitive tambien en
+# Vercel, que solo admite este modo en production y preview.
+locals {
+  host_env_vars = {
+    DEPLOY_WEBHOOK_SECRET = var.deploy_webhook_secret
+    JIRA_BASE_URL         = var.jira_base_url
+    JIRA_EMAIL            = var.jira_email
+    JIRA_API_TOKEN        = var.jira_api_token
+  }
+}
+
+resource "vercel_project_environment_variable" "host" {
+  # nonsensitive solo sobre las claves: los valores siguen siendo sensibles.
+  for_each = nonsensitive(toset(keys(local.host_env_vars)))
+
+  project_id = vercel_project.mf["host"].id
+  key        = each.key
+  value      = local.host_env_vars[each.key]
+  target     = ["production", "preview"]
+  sensitive  = true
+}
