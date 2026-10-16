@@ -78,6 +78,12 @@ RUN pip install --no-cache-dir --break-system-packages -r requirements.txt \
 COPY ml/api/main.py .
 COPY --from=builder /build/model ./model
 
+# Falla el build si main.py importa algo que no esta en requirements.txt.
+# Importar main no carga el modelo (eso pasa en el evento startup), asi que
+# solo comprueba las dependencias. Sin esto, el error aparecia recien en
+# Lightsail como "el contenedor no paso /health".
+RUN python -c "import main"
+
 # API_KEY se pasa en runtime (docker run -e API_KEY=...), nunca horneada
 # en la imagen: a diferencia del modelo, es un secreto que puede rotarse
 # sin reconstruir la imagen.
