@@ -15,3 +15,7 @@ pydantic==2.10.4
 pandas==2.2.3
 scikit-learn==1.5.2
 mlflow-skinny==2.19.0
+# HT-49 T01: main.py guarda cada prediccion en prediccion_riesgo (Neon).
+# Sin esto el contenedor se caia al arrancar ("No module named 'psycopg2'")
+# y Lightsail marcaba el deployment como FAILED.
+psycopg2-binary==2.9.10
