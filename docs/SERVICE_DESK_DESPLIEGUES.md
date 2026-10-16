@@ -61,6 +61,15 @@ El resumen del ticket lleva el commit corto y el `runId`:
 El `runId` va ahí a propósito: si un despliegue reintenta el aviso, el ticket
 repetido se reconoce de un vistazo en el portal.
 
+El detalle (mensaje, repositorio, commit y enlace a la ejecución) va en la
+**descripción** solo si el formulario del tipo de solicitud tiene ese campo. El
+de *Solicitud de cambio* no lo tiene, y Jira rechaza la solicitud entera si se
+lo manda (`400`: "El campo 'description' no es válido para este tipo de
+solicitud"). Por eso el workflow lee antes los campos del tipo
+(`/servicedeskapi/servicedesk/{id}/requesttype/{tipo}/field`) y, si no hay
+descripción, agrega el detalle como **comentario interno** de la solicitud ya
+creada. La función de Vercel de HT-41 T06 hace lo mismo.
+
 ### Respuestas
 
 | Código | Cuándo | Cuerpo |

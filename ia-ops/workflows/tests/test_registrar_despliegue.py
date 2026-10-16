@@ -17,7 +17,10 @@ HARNESS = Path(__file__).with_name("ejecutar_nodo.mjs")
 
 VALIDAR = "Validar aviso de despliegue"
 RESOLVER = "Resolver portal del proyecto"
+ARMAR = "Armar solicitud"
+CREAR = "Crear solicitud en el portal"
 RESPUESTA = "Armar respuesta"
+PRODUCCION = RAIZ / "src" / "n8n-workflows" / "production" / "urbanpulse-registrar-despliegue.json"
 
 
 def ejecutar(nodo, entrada, nodos=None):
@@ -124,17 +127,81 @@ def test_si_el_proyecto_no_tiene_portal_se_dice_cual_hay():
     assert "OTRO" in s["response_body"]["error"]
 
 
+# --- Campos del formulario ------------------------------------------------
+# El formulario de "Solicitud de cambio" del portal UPTI no tiene el campo
+# Descripcion, y Jira rechazaba la solicitud entera con 400 ("El campo
+# 'description' no es valido para este tipo de solicitud"): el despliegue
+# recibia 502 y no se creaba ningun ticket.
+
+DETALLE = {"requestTypeId": "19", "resumen": "[Solicitud de cambio] repo @ 9f3c1d2 (run 1)",
+           "descripcion": "Despliegue ok.\n\nCommit: 9f3c1d2"}
+
+
+def armar(campos):
+    return ejecutar(ARMAR, [campos], nodos={VALIDAR: [DETALLE], RESOLVER: [{"serviceDeskId": "2"}]})
+
+
+def test_si_el_formulario_no_tiene_descripcion_va_como_comentario():
+    s = armar({"requestTypeFields": [{"fieldId": "summary"}]})
+    assert s["cuerpo"] == {"serviceDeskId": "2", "requestTypeId": "19",
+                           "requestFieldValues": {"summary": DETALLE["resumen"]}}
+    assert s["comentario"] == DETALLE["descripcion"]
+
+
+def test_si_el_formulario_tiene_descripcion_va_en_la_solicitud():
+    s = armar({"requestTypeFields": [{"fieldId": "summary"}, {"fieldId": "description"}]})
+    assert s["cuerpo"]["requestFieldValues"]["description"] == DETALLE["descripcion"]
+    assert s["comentario"] == ""
+
+
+def test_si_no_se_pudieron_leer_los_campos_no_se_arriesga_la_descripcion():
+    s = armar({"error": {"message": "403"}})
+    assert "description" not in s["cuerpo"]["requestFieldValues"]
+    assert s["comentario"] == DETALLE["descripcion"]
+
+
+def flujo(ruta=WORKFLOW):
+    return json.loads(ruta.read_text(encoding="utf-8"))
+
+
+def destinos(origen, salida=0):
+    return [c["node"] for c in flujo()["connections"][origen]["main"][salida]]
+
+
+def test_orden_del_flujo_con_campos_y_comentario():
+    assert destinos(RESOLVER) == ["Campos del tipo de solicitud"]
+    assert destinos("Campos del tipo de solicitud") == [ARMAR]
+    assert destinos(ARMAR) == [CREAR]
+    assert destinos(CREAR) == ["Falta el detalle?"]
+    assert destinos("Falta el detalle?", 0) == ["Agregar detalle como comentario"]
+    assert destinos("Falta el detalle?", 1) == [RESPUESTA]
+    assert destinos("Agregar detalle como comentario") == [RESPUESTA]
+    nodos = {n["name"]: n for n in flujo()["nodes"]}
+    assert nodos[CREAR]["parameters"]["jsonBody"] == "={{ $json.cuerpo }}"
+    comentario = nodos["Agregar detalle como comentario"]
+    assert "public: false" in comentario["parameters"]["jsonBody"]
+    # Un comentario que falla no debe tapar el ticket ya creado.
+    assert comentario.get("onError") == "continueRegularOutput"
+    assert nodos["Campos del tipo de solicitud"].get("onError") == "continueRegularOutput"
+
+
+def test_la_copia_de_produccion_es_identica():
+    assert flujo(PRODUCCION) == flujo()
+
+
 # --- Respuesta final -------------------------------------------------------
 
 def test_cuando_jira_crea_la_solicitud_se_devuelve_su_clave():
     creado = {"issueKey": "UPTI-42", "_links": {"web": "https://x/UPTI-42"}}
-    s = ejecutar(RESPUESTA, [creado], nodos={VALIDAR: [{"etiqueta": "Solicitud de cambio"}]})
+    s = ejecutar(RESPUESTA, [{"id": "comentario-1"}],
+                 nodos={VALIDAR: [{"etiqueta": "Solicitud de cambio"}], CREAR: [creado]})
     assert s["http_code"] == 201
     assert s["response_body"]["ticket"] == "UPTI-42"
 
 
 def test_si_jira_rechaza_se_devuelve_su_error_y_no_un_exito_falso():
     s = ejecutar(RESPUESTA, [{"errorMessage": "requestTypeId invalido"}],
-                 nodos={VALIDAR: [{"etiqueta": "Solicitud de cambio"}]})
+                 nodos={VALIDAR: [{"etiqueta": "Solicitud de cambio"}],
+                        CREAR: [{"errorMessage": "requestTypeId invalido"}]})
     assert s["http_code"] == 502
     assert "requestTypeId" in str(s["response_body"]["detalle"])

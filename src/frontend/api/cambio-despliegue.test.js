@@ -125,6 +125,10 @@ describe('POST /api/cambio-despliegue', () => {
       })
       .mockResolvedValueOnce({
         ok: true,
+        json: async () => ({ requestTypeFields: [{ fieldId: 'summary' }, { fieldId: 'description' }] }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
         json: async () => ({
           issueKey: 'UPTI-123',
           _links: { web: 'https://urbanpulse-ti.atlassian.net/servicedesk/customer/portal/1/UPTI-123' },
@@ -141,8 +145,8 @@ describe('POST /api/cambio-despliegue', () => {
       url: 'https://urbanpulse-ti.atlassian.net/servicedesk/customer/portal/1/UPTI-123',
     });
 
-    const [, segundaLlamada] = global.fetch.mock.calls;
-    const cuerpoEnviado = JSON.parse(segundaLlamada[1].body);
+    const [, , terceraLlamada] = global.fetch.mock.calls;
+    const cuerpoEnviado = JSON.parse(terceraLlamada[1].body);
     expect(cuerpoEnviado.serviceDeskId).toBe('7');
     expect(cuerpoEnviado.requestTypeId).toBe('19');
   });
@@ -152,6 +156,10 @@ describe('POST /api/cambio-despliegue', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ values: [{ id: '7', projectKey: 'UPTI' }] }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ requestTypeFields: [{ fieldId: 'summary' }, { fieldId: 'description' }] }),
       })
       .mockResolvedValueOnce({
         ok: false,
@@ -165,6 +173,79 @@ describe('POST /api/cambio-despliegue', () => {
 
     expect(respuesta.status).toBe(502);
     expect(cuerpo.detalle).toBe('requestTypeId invalido');
+  });
+
+  // El formulario de "Solicitud de cambio" del portal UPTI no tiene el campo
+  // Descripcion, y Jira rechazaba la solicitud entera con 400 ("El campo
+  // 'description' no es valido para este tipo de solicitud").
+  function jiraFalso({ campos = ['summary'], camposOk = true, comentarioOk = true } = {}) {
+    global.fetch.mockImplementation(async (url, opciones = {}) => {
+      if (url.endsWith('/rest/servicedeskapi/servicedesk')) {
+        return { ok: true, json: async () => ({ values: [{ id: '2', projectKey: 'UPTI' }] }) };
+      }
+      if (url.endsWith('/requesttype/19/field')) {
+        if (!camposOk) return { ok: false, status: 403, json: async () => ({}), text: async () => 'prohibido' };
+        return { ok: true, json: async () => ({ requestTypeFields: campos.map((fieldId) => ({ fieldId })) }) };
+      }
+      if (url.endsWith('/rest/servicedeskapi/request') && opciones.method === 'POST') {
+        const enviado = JSON.parse(opciones.body);
+        if ('description' in enviado.requestFieldValues && !campos.includes('description')) {
+          return { ok: false, json: async () => ({ errorMessage: "El campo 'description' no es valido" }) };
+        }
+        return { ok: true, json: async () => ({ issueKey: 'UPTI-18', _links: { web: 'https://x/UPTI-18' } }) };
+      }
+      if (url.endsWith('/request/UPTI-18/comment')) {
+        if (!comentarioOk) throw new Error('red caida');
+        return { ok: true, json: async () => ({ id: '1' }) };
+      }
+      throw new Error(`URL inesperada: ${url}`);
+    });
+  }
+
+  const llamadaA = (fin) => global.fetch.mock.calls.find(([url]) => url.endsWith(fin));
+
+  test('si el formulario no tiene Descripcion, el detalle va como comentario interno', async () => {
+    jiraFalso({ campos: ['summary'] });
+
+    const respuesta = await POST(construirRequest(PAYLOAD_VALIDO));
+
+    expect(respuesta.status).toBe(201);
+    const enviado = JSON.parse(llamadaA('/rest/servicedeskapi/request')[1].body);
+    expect(enviado.requestFieldValues).toEqual({ summary: 'Despliegue urbanpulse-api 9f3c1d2' });
+    const comentario = JSON.parse(llamadaA('/request/UPTI-18/comment')[1].body);
+    expect(comentario.public).toBe(false);
+    expect(comentario.body).toMatch(/Commit: 9f3c1d2a/);
+  });
+
+  test('si el formulario tiene Descripcion, va en la solicitud y no hay comentario', async () => {
+    jiraFalso({ campos: ['summary', 'description'] });
+
+    const respuesta = await POST(construirRequest(PAYLOAD_VALIDO));
+
+    expect(respuesta.status).toBe(201);
+    const enviado = JSON.parse(llamadaA('/rest/servicedeskapi/request')[1].body);
+    expect(enviado.requestFieldValues.description).toMatch(/Servicio: urbanpulse-api/);
+    expect(llamadaA('/comment')).toBeUndefined();
+  });
+
+  test('si no se pueden leer los campos, no arriesga la Descripcion', async () => {
+    jiraFalso({ camposOk: false });
+
+    const respuesta = await POST(construirRequest(PAYLOAD_VALIDO));
+
+    expect(respuesta.status).toBe(201);
+    const enviado = JSON.parse(llamadaA('/rest/servicedeskapi/request')[1].body);
+    expect(enviado.requestFieldValues.description).toBeUndefined();
+  });
+
+  test('un comentario que falla no tapa la solicitud ya creada', async () => {
+    jiraFalso({ comentarioOk: false });
+
+    const respuesta = await POST(construirRequest(PAYLOAD_VALIDO));
+    const cuerpo = await respuesta.json();
+
+    expect(respuesta.status).toBe(201);
+    expect(cuerpo.id).toBe('UPTI-18');
   });
 
   test('responde 502 si el proyecto no tiene portal de Service Desk', async () => {

@@ -75,7 +75,7 @@ def get_engine():
 def cargar_predicciones(engine, desde, hasta) -> pd.DataFrame:
     df = pd.read_sql(
         text(
-            "SELECT creado_en, zona_id, franja, fecha_objetivo, variables, nivel "
+            "SELECT creado_en, zona_id, franja, fecha_objetivo, variables, nivel, model_version "
             "FROM prediccion_riesgo WHERE creado_en >= :d AND creado_en < :h"
         ),
         engine, params={"d": desde, "h": hasta},
@@ -91,6 +91,19 @@ def cargar_predicciones(engine, desde, hasta) -> pd.DataFrame:
         df[col] = variables.apply(lambda v, c=col: float(v.get(c, 0.0)))
     df["fecha_objetivo"] = pd.to_datetime(df["fecha_objetivo"])
     return df
+
+
+def version_de_predicciones(pred: pd.DataFrame):
+    """Numero de version del modelo que hizo las predicciones mas recientes.
+
+    La API guarda model_version como "riesgo_vial@<n>" (HT-49 T01). Ese es el
+    modelo que hay que vigilar, sin depender de un alias del Model Registry.
+    """
+    if pred.empty or "model_version" not in pred:
+        return None
+    ultima = str(pred.sort_values("creado_en")["model_version"].iloc[-1]).strip()
+    coincide = re.fullmatch(rf"{MODELO}@(\d+)", ultima)
+    return coincide.group(1) if coincide else None
 
 
 def franja_de(hora: int) -> str:
@@ -231,8 +244,6 @@ def main():
 
     if not os.environ.get("MLFLOW_TRACKING_URI"):
         sys.exit("Falta MLFLOW_TRACKING_URI.")
-    client = MlflowClient()
-    version = client.get_model_version_by_alias(MODELO, ALIAS)
 
     ahora = datetime.now(timezone.utc)
     engine = get_engine()
@@ -242,6 +253,16 @@ def main():
               "no hay base para medir deriva.", file=sys.stderr)
         print("DERIVA_DETECTADA=false")
         sys.exit(0)
+
+    # Se monitorea la version que hizo las predicciones. El alias queda de
+    # respaldo: el Model Registry de DagsHub respondio con un cuerpo vacio a
+    # get_model_version_by_alias desde este workflow.
+    client = MlflowClient()
+    numero = version_de_predicciones(actuales)
+    if numero:
+        version = client.get_model_version(MODELO, numero)
+    else:
+        version = client.get_model_version_by_alias(MODELO, ALIAS)
 
     ref, f1_base, fecha_corte = cargar_referencia(client, version)
     ref["prediccion"] = predecir_referencia(ref, version)

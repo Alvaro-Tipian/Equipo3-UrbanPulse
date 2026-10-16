@@ -104,19 +104,15 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://urbanpulse-ti.atlassian.net/rest/servicedeskapi/request",
+        "url": "=https://urbanpulse-ti.atlassian.net/rest/servicedeskapi/servicedesk/{{ $json.serviceDeskId }}/requesttype/{{ $('Validar aviso de despliegue').first().json.requestTypeId }}/field",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpBasicAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ { serviceDeskId: $json.serviceDeskId, requestTypeId: $('Validar aviso de despliegue').first().json.requestTypeId, requestFieldValues: { summary: $('Validar aviso de despliegue').first().json.resumen, description: $('Validar aviso de despliegue').first().json.descripcion } } }}",
         "options": {
-          "timeout": 15000
+          "timeout": 10000
         }
       },
-      "id": "crear-solicitud",
-      "name": "Crear solicitud en el portal",
+      "id": "campos-tipo",
+      "name": "Campos del tipo de solicitud",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
@@ -132,14 +128,103 @@
     },
     {
       "parameters": {
-        "jsCode": "// HT-41 T03 - Respuesta final.\nconst creado = $input.first().json || {};\n\nif (creado.issueKey) {\n  return [{\n    json: {\n      http_code: 201,\n      response_body: {\n        estado: 'creado',\n        ticket: creado.issueKey,\n        tipo: $('Validar aviso de despliegue').first().json.etiqueta,\n        portal: creado._links && creado._links.web ? creado._links.web : null,\n      },\n    },\n  }];\n}\n\n// Jira contesto algo que no es una solicitud creada: se devuelve tal cual para\n// que quede en el log del despliegue y no haya que adivinar.\nreturn [{\n  json: {\n    http_code: 502,\n    response_body: {\n      error: 'Jira no devolvio una solicitud creada.',\n      detalle: creado.errorMessage || creado.errors || creado,\n    },\n  },\n}];\n"
+        "jsCode": "// HT-41 T03 - Arma la solicitud con los campos que acepta su formulario.\n//\n// El formulario de \"Solicitud de cambio\" del portal UPTI no tiene el campo\n// Descripcion, y Jira rechaza la solicitud entera si se lo manda (400 \"El\n// campo 'description' no es valido para este tipo de solicitud\"). Si el\n// formulario no lo tiene, o no se pudo leer, el detalle va como comentario\n// interno de la solicitud ya creada.\nconst aviso = $('Validar aviso de despliegue').first().json;\nconst portal = $('Resolver portal del proyecto').first().json;\nconst campos = ($input.first().json.requestTypeFields || []).map((c) => c.fieldId);\nconst conDescripcion = campos.includes('description');\n\nconst requestFieldValues = { summary: aviso.resumen };\nif (conDescripcion) requestFieldValues.description = aviso.descripcion;\n\nreturn [{\n  json: {\n    cuerpo: { serviceDeskId: portal.serviceDeskId, requestTypeId: aviso.requestTypeId, requestFieldValues },\n    comentario: conDescripcion ? '' : aviso.descripcion,\n  },\n}];\n"
+      },
+      "id": "armar-solicitud",
+      "name": "Armar solicitud",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1420,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://urbanpulse-ti.atlassian.net/rest/servicedeskapi/request",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.cuerpo }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "crear-solicitud",
+      "name": "Crear solicitud en el portal",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1640,
+        200
+      ],
+      "credentials": {
+        "httpBasicAuth": {
+          "name": "Jira API"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ Boolean($json.issueKey) && Boolean($('Armar solicitud').first().json.comentario) }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-falta-detalle",
+      "name": "Falta el detalle?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1860,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://urbanpulse-ti.atlassian.net/rest/servicedeskapi/request/{{ $json.issueKey }}/comment",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { body: $('Armar solicitud').first().json.comentario, public: false } }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "comentario-detalle",
+      "name": "Agregar detalle como comentario",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        2080,
+        100
+      ],
+      "credentials": {
+        "httpBasicAuth": {
+          "name": "Jira API"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// HT-41 T03 - Respuesta final.\n// Se lee del nodo que crea la solicitud: entre medio puede ir el comentario.\nconst creado = $('Crear solicitud en el portal').first().json || {};\n\nif (creado.issueKey) {\n  return [{\n    json: {\n      http_code: 201,\n      response_body: {\n        estado: 'creado',\n        ticket: creado.issueKey,\n        tipo: $('Validar aviso de despliegue').first().json.etiqueta,\n        portal: creado._links && creado._links.web ? creado._links.web : null,\n      },\n    },\n  }];\n}\n\n// Jira contesto algo que no es una solicitud creada: se devuelve tal cual para\n// que quede en el log del despliegue y no haya que adivinar.\nreturn [{\n  json: {\n    http_code: 502,\n    response_body: {\n      error: 'Jira no devolvio una solicitud creada.',\n      detalle: creado.errorMessage || creado.errors || creado,\n    },\n  },\n}];\n"
       },
       "id": "armar-respuesta",
       "name": "Armar respuesta",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1420,
+        2300,
         200
       ]
     },
@@ -156,7 +241,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        1640,
+        2520,
         300
       ]
     }
@@ -217,7 +302,7 @@
       "main": [
         [
           {
-            "node": "Crear solicitud en el portal",
+            "node": "Campos del tipo de solicitud",
             "type": "main",
             "index": 0
           }
@@ -228,7 +313,7 @@
       "main": [
         [
           {
-            "node": "Armar respuesta",
+            "node": "Falta el detalle?",
             "type": "main",
             "index": 0
           }
@@ -240,6 +325,57 @@
         [
           {
             "node": "Responder al despliegue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Campos del tipo de solicitud": {
+      "main": [
+        [
+          {
+            "node": "Armar solicitud",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar solicitud": {
+      "main": [
+        [
+          {
+            "node": "Crear solicitud en el portal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Falta el detalle?": {
+      "main": [
+        [
+          {
+            "node": "Agregar detalle como comentario",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Armar respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agregar detalle como comentario": {
+      "main": [
+        [
+          {
+            "node": "Armar respuesta",
             "type": "main",
             "index": 0
           }
