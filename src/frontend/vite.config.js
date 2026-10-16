@@ -4,6 +4,7 @@ import { federation } from '@module-federation/vite';
 
 export default defineConfig(() => {
   return {
+    envPrefix: ['VITE_', 'TE_'],
     plugins: [
       react(),
       federation({
@@ -15,6 +16,7 @@ export default defineConfig(() => {
           'react/jsx-runtime': { singleton: true },
           'react/jsx-dev-runtime': { singleton: true },
           '@tanstack/react-query': { singleton: true },
+          '@urbanpulse/shared': { singleton: true },
         },
         dts: false,
       }),

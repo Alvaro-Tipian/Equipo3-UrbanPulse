@@ -5,5 +5,6 @@
   "mf_gestion_incidentes": "https://equipo3-urban-pulse-gestion-inciden.vercel.app/remoteEntry.js",
   "mf_historial_reportes": "https://equipo3-urban-pulse-historial-repor.vercel.app/remoteEntry.js",
   "mf_mapa_urbano": "https://equipo3-urban-pulse-e9i8.vercel.app/remoteEntry.js",
-  "mf_ajustes": "https://equipo3-urban-pulse-ajustes-pi.vercel.app/remoteEntry.js"
+  "mf_ajustes": "https://equipo3-urban-pulse-ajustes-pi.vercel.app/remoteEntry.js",
+  "mf_panel_riesgo":"https://equipo3-urbanpulse-panel-riesgo.vercel.app/remoteEntry.js"
 }

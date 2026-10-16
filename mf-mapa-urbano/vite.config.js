@@ -19,6 +19,7 @@ export default defineConfig({
         'react-dom': { singleton: true },
         'react/jsx-runtime': { singleton: true },
         'react/jsx-dev-runtime': { singleton: true },
+        '@urbanpulse/shared': { singleton: true },
       },
       dts: false,
     }),

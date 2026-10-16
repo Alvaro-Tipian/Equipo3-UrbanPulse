@@ -6,5 +6,5 @@
   "mf_historial_reportes": "http://localhost:5176/remoteEntry.js",
   "mf_mapa_urbano": "http://localhost:5174/remoteEntry.js",
   "mf_ajustes": "http://localhost:5178/remoteEntry.js",
-  "mf_panel_riesgo": "http://localhost:5179/remoteEntry.js"
+  "mf_panel_riesgo": "http://localhost:5181/remoteEntry.js"
 }
