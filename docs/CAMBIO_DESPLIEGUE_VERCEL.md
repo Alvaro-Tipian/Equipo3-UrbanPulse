@@ -45,6 +45,17 @@ temporización.
 | `401` | La firma no coincide o falta la cabecera |
 | `502` | Jira rechazó la solicitud, o el proyecto no tiene portal de Service Desk — se devuelve el detalle tal cual, para no tener que adivinar en el log del despliegue |
 
+## Quién la llama
+
+El paso **Registrar Solicitud de Cambio en Jira Service Desk (HT-41 T06)** de
+`deploy-api-inferencia.yml`, al terminar un despliegue verificado de la API de
+riesgo vial. Firma con el secret `DEPLOY_WEBHOOK_SECRET` de GitHub y llama a
+`https://equipo3-urban-pulse.vercel.app/api/cambio-despliegue` (se puede cambiar
+con la variable de repositorio `CAMBIO_DESPLIEGUE_URL`). Los despliegues de n8n
+siguen yendo al webhook de n8n (HT-41 T03), así que cada despliegue abre un
+solo ticket. Si la respuesta no es `201`, el paso avisa sin bloquear el
+despliegue.
+
 ## Variables de entorno (pido que las registres en Terraform, HT-42 T01)
 
 | Variable | Para qué |
@@ -81,7 +92,7 @@ pipeline.
 - [ ] Deploy del proyecto `host` con la función ya en `main`.
 - [ ] Prueba real con `curl` (firma válida → 201, firma inválida → 401) y
       guardar la salida como evidencia de T06.
-- [ ] Pasar a Álvaro la URL + secreto para el paso del pipeline.
+- [x] Paso del pipeline que llama a la función (`deploy-api-inferencia.yml`). Usa el mismo secret `DEPLOY_WEBHOOK_SECRET` de GitHub que Terraform carga en Vercel.
 
 Pruebas unitarias (firma, campos faltantes, 201, 502, portal inexistente):
 `src/frontend/api/cambio-despliegue.test.js` — `npm test` dentro de
