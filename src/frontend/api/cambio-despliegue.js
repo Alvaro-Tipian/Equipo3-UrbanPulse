@@ -89,6 +89,38 @@ async function resolverServiceDeskId(baseUrl, headers) {
   return String(portal.id);
 }
 
+// El formulario de "Solicitud de cambio" del portal UPTI no tiene el campo
+// Descripcion, y Jira rechaza la solicitud entera si se lo manda (400 "El
+// campo 'description' no es valido para este tipo de solicitud"). Se
+// pregunta que campos acepta el tipo; si no se puede saber, no se arriesga.
+async function aceptaDescripcion(baseUrl, headers, serviceDeskId) {
+  try {
+    const resp = await fetch(
+      `${baseUrl}/rest/servicedeskapi/servicedesk/${serviceDeskId}/requesttype/${REQUEST_TYPE_SOLICITUD_CAMBIO}/field`,
+      { headers },
+    );
+    if (!resp.ok) return false;
+    const data = await resp.json();
+    return (data.requestTypeFields || []).some((campo) => campo.fieldId === 'description');
+  } catch {
+    return false;
+  }
+}
+
+// Sin el campo Descripcion, el detalle del despliegue va como comentario
+// interno. Si el comentario falla, la solicitud ya existe y se responde 201.
+async function agregarComentarioInterno(baseUrl, headers, issueKey, texto) {
+  try {
+    await fetch(`${baseUrl}/rest/servicedeskapi/request/${issueKey}/comment`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ body: texto, public: false }),
+    });
+  } catch {
+    // El ticket ya esta creado; el detalle tambien queda en el log del pipeline.
+  }
+}
+
 export function armarResumenYDescripcion({ servicio, commit, workflow, run_url: runUrl, health_check: healthCheck }) {
   const commitCorto = String(commit).slice(0, 7);
   const resumen = `Despliegue ${servicio} ${commitCorto}`;
@@ -136,6 +168,7 @@ export async function POST(request) {
   try {
     const serviceDeskId = await resolverServiceDeskId(baseUrl, headersJira);
     const { resumen, descripcion } = armarResumenYDescripcion(payload);
+    const conDescripcion = await aceptaDescripcion(baseUrl, headersJira, serviceDeskId);
 
     const resp = await fetch(`${baseUrl}/rest/servicedeskapi/request`, {
       method: 'POST',
@@ -143,10 +176,9 @@ export async function POST(request) {
       body: JSON.stringify({
         serviceDeskId,
         requestTypeId: REQUEST_TYPE_SOLICITUD_CAMBIO,
-        requestFieldValues: {
-          summary: resumen,
-          description: descripcion,
-        },
+        requestFieldValues: conDescripcion
+          ? { summary: resumen, description: descripcion }
+          : { summary: resumen },
       }),
     });
 
@@ -157,6 +189,10 @@ export async function POST(request) {
         error: 'Jira rechazo la solicitud de cambio.',
         detalle: creado?.errorMessage || creado?.errors || creado || (await resp.text().catch(() => null)),
       });
+    }
+
+    if (!conDescripcion) {
+      await agregarComentarioInterno(baseUrl, headersJira, creado.issueKey, descripcion);
     }
 
     return jsonResponse(201, {
