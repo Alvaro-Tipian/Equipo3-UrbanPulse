@@ -5,11 +5,11 @@ import { federation } from '@module-federation/vite';
 import process from 'node:process';
 
 // LoginView y ChatAuthGate leen TE_N8N_BASE_URL directo (no vía @urbanpulse/shared),
-// así que este build también la necesita. Solo se exige en Vercel para no romper el CI.
+// así que este build también la necesita. Solo se exige en el build de Production de Vercel (no en CI ni en Preview de PRs).
 const exigirN8nEnVercel = {
   name: 'exigir-n8n-en-vercel',
   configResolved(config) {
-    if (process.env.VERCEL && config.command === 'build' && !config.env.TE_N8N_BASE_URL) {
+    if (process.env.VERCEL_ENV === 'production' && config.command === 'build' && !config.env.TE_N8N_BASE_URL) {
       throw new Error('Falta TE_N8N_BASE_URL en las variables de entorno de Vercel (mf-auth).');
     }
   },
