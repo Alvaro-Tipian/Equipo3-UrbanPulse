@@ -5,7 +5,14 @@ import process from 'node:process';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), ['VITE_', 'TE_']);
-  const MF_AUTH_URL = env.TE_MF_AUTH_URL || 'http://localhost:5177/remoteEntry.js';
+  // En producción nunca se apunta a localhost: el navegador del usuario no tiene
+  // mf-auth en su máquina y el chat se cae con RUNTIME-008.
+  const MF_AUTH_LOCAL = 'http://localhost:5177/remoteEntry.js';
+  const MF_AUTH_PROD = 'https://equipo3-urban-pulse-auth.vercel.app/remoteEntry.js';
+  const authEnv = env.TE_MF_AUTH_URL;
+  const MF_AUTH_URL = mode === 'production'
+    ? (authEnv && !/localhost|127\.0\.0\.1/.test(authEnv) ? authEnv : MF_AUTH_PROD)
+    : (authEnv || MF_AUTH_LOCAL);
 
   return {
     plugins: [
