@@ -1,0 +1,661 @@
+{
+  "name": "UrbanPulse - Riesgo Predictivo (HU-08 T04)",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "urbanpulse/riesgo-predictivo",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "https://equipo3-urban-pulse.vercel.app,https://equipo3-u-git-cc0c7a-sebastiannnnnnnnnnnnnnnnnnnnnnnns-projects.vercel.app,http://localhost:3000,http://localhost:3003,http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176,http://localhost:5177,http://localhost:5178,http://localhost:5181"
+        }
+      },
+      "id": "f9101024-275d-4165-b6fe-0ca06681cc78",
+      "name": "Webhook GET /riesgo-predictivo",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -640,
+        -1024
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// HU-08 T04 - Valida los query params del webhook GET /urbanpulse/riesgo-predictivo.\n//\n// El ticket pide consultar la API \"por zona y franja\", asi que el unico\n// parametro de entrada es franja (una de las 3 que usa el modelo, ver\n// ml/api/main.py FRANJAS_VALIDAS). \"dia\" no es un parametro del caller: se\n// calcula aqui mismo como \"hoy\" en hora de Lima (UTC-5 fijo, Lima no usa\n// horario de verano) y se usa igual para el campo \"fecha\" de POST /predict\n// y para la clave de cache_riesgo_predictivo -- asi no hay que validar una\n// fecha arbitraria que el caller podria mandar mal formada.\nconst FRANJAS_VALIDAS = ['manana', 'tarde', 'noche'];\n\nconst query = ($json && $json.query) || {};\nconst errores = [];\n\nconst franjaCruda = typeof query.franja === 'string' ? query.franja : '';\nconst franja = franjaCruda.trim().toLowerCase();\nif (!FRANJAS_VALIDAS.includes(franja)) {\n  errores.push(`franja debe ser una de: ${FRANJAS_VALIDAS.join(', ')}`);\n}\n\nconst hoyLimaMs = Date.now() - 5 * 60 * 60 * 1000;\nconst dia = new Date(hoyLimaMs).toISOString().slice(0, 10);\n\nreturn [{\n  json: {\n    valido: errores.length === 0,\n    franja,\n    dia,\n    errores,\n  },\n}];\n"
+      },
+      "id": "634937e8-12c1-4e45-8c8b-ac8125ca930f",
+      "name": "Validar parámetros",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -416,
+        -1024
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.valido }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "bec80d64-c151-4444-8d66-cf9b24e8b954",
+      "name": "¿Parámetros válidos?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -208,
+        -1024
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// HU-08 T04 - Respuesta de error para parametros invalidos.\nreturn [{\n  json: {\n    http_code: 400,\n    response_body: {\n      error: 'parametros_invalidos',\n      detalle: $json.errores,\n    },\n  },\n}];\n"
+      },
+      "id": "5eaccd88-1ebe-4268-a2bc-6ad016df9f24",
+      "name": "Respuesta 400 (parámetros inválidos)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        32,
+        -864
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT payload, generado_en\nFROM cache_riesgo_predictivo\nWHERE franja = $1;",
+        "options": {
+          "queryReplacement": "={{ [$('Validar parámetros').first().json.franja] }}"
+        }
+      },
+      "id": "5d3361f3-facf-4652-acdc-dd776aaf7429",
+      "name": "Leer caché",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        32,
+        -1024
+      ],
+      "alwaysOutputData": false,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// HU-08 T04 - Decide si la fila de cache_riesgo_predictivo (si existe) sigue\n// vigente (menos de 15 min desde que se guardo). \"Leer cache\" corre con\n// onError continueRegularOutput, asi que un fallo de Neon aqui NO rompe el\n// webhook: simplemente se trata como \"no hay cache\" y se sigue al calculo\n// en vivo.\nconst VIGENCIA_MIN = 15;\n\nconst params = $('Validar parámetros').first().json;\nconst filas = $input.all().map((i) => i.json);\nconst fila = filas.find((f) => f && !f.error && f.payload !== undefined && f.payload !== null);\n\nlet vigente = false;\nlet payload = null;\n\nif (fila) {\n  const generado = new Date(fila.generado_en);\n  if (!isNaN(generado.getTime())) {\n    const antiguedadMin = (Date.now() - generado.getTime()) / 60000;\n    vigente = antiguedadMin >= 0 && antiguedadMin < VIGENCIA_MIN;\n  }\n  payload = fila.payload;\n}\n\nreturn [{\n  json: {\n    franja: params.franja,\n    dia: params.dia,\n    cache_vigente: vigente,\n    cache_payload: payload,\n  },\n}];\n"
+      },
+      "id": "62cdaafa-5301-4863-ba76-8d781ca3f2ef",
+      "name": "Evaluar caché",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        -1024
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.cache_vigente }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "8b67e81e-0559-4fe2-83af-11f0a491bb9b",
+      "name": "¿Caché vigente?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        464,
+        -1024
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// HU-08 T04 - Responde con el payload cacheado tal cual se guardo (el\n// contrato 4.2 no cambia por venir de cache: es la misma respuesta que ya se\n// habia calculado hace menos de 15 min).\nreturn [{\n  json: {\n    http_code: 200,\n    response_body: $json.cache_payload,\n  },\n}];\n"
+      },
+      "id": "0e094d08-2232-4616-a73d-44dec08c85d9",
+      "name": "Responder desde caché",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        688,
+        -864
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// HU-08 T04 - Sonda de disponibilidad del modelo, mismo patron que \"Sondar\n// n8n y la API de riesgo\" (HU-13 T01): GET /health sin credenciales (el\n// endpoint es publico, ver ml/api/main.py - no llama a _verificar_api_key),\n// con timeout corto para no colgar el webhook si la API esta caida.\nconst URL_API_RIESGO = 'https://urbanpulse-api.xq33kajky1yy6.us-east-1.cs.amazonlightsail.com';\nconst TIMEOUT_MS = 5000;\n\nlet disponible = false;\nlet salud = null;\nlet error = null;\n\ntry {\n  salud = await this.helpers.httpRequest({\n    method: 'GET',\n    url: `${URL_API_RIESGO}/health`,\n    timeout: TIMEOUT_MS,\n    json: true,\n  });\n  disponible = true;\n} catch (e) {\n  error = String((e && e.message) || e).slice(0, 200);\n}\n\nreturn [{ json: { disponible, salud, error } }];\n"
+      },
+      "id": "3d7ab54e-9907-4ac3-8d0a-2b09a11934e6",
+      "name": "Sondar /health",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        688,
+        -1040
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.disponible }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "b4b8f984-cbe1-4897-a72a-76b871a8f938",
+      "name": "¿Modelo disponible?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        944,
+        -1360
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// HU-08 T04 - El /health de la API de riesgo no respondio (API caida o\n// timeout). No se calcula nada mas: mejor fallar explicito que inventar un\n// panel con datos a medias.\nreturn [{\n  json: {\n    http_code: 503,\n    response_body: {\n      error: 'modelo_no_disponible',\n      detalle: 'La API del modelo de riesgo vial (HT-46) no respondio a /health.',\n    },\n  },\n}];\n"
+      },
+      "id": "0fde3125-5069-4eca-b8a9-48d1eec57755",
+      "name": "Respuesta 503 (modelo no disponible)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1392,
+        -992
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- HU-08 T04 - construye, para cada zona (puntos_monitoreo) y la franja\n-- pedida, las mismas variables que ml/data/build_dataset.py calcula para\n-- entrenar: siniestros_12m, congestion_media, reportes_30d, distrito de\n-- referencia. Radio de asignacion (3 km) y ventanas (12 meses, 30 dias)\n-- identicos al dataset.\n--\n-- El parametro $1 (franja: manana|tarde|noche) ya viene validado por el\n-- nodo \"Validar parámetros\" antes de llegar aqui.\n\nWITH zonas AS (\n  SELECT\n    nombre AS zona_id,\n    latitude,\n    longitude,\n    ST_SetSRID(ST_MakePoint(longitude, latitude), 4326) AS punto\n  FROM puntos_monitoreo\n),\nsiniestros_cercanos AS (\n  -- Asigna cada siniestro a su zona MAS CERCANA (no \"todas las zonas a\n  -- <=3km\"), igual que el BallTree k=1 de build_dataset.py.\n  SELECT\n    s.codigo_siniestro,\n    s.fecha_iso,\n    s.hora_siniestro,\n    s.distrito,\n    nz.zona_id,\n    nz.dist_m\n  FROM siniestros_fatales s\n  CROSS JOIN LATERAL (\n    SELECT z.zona_id,\n           ST_Distance(s.geom::geography, z.punto::geography) AS dist_m\n    FROM zonas z\n    ORDER BY s.geom <-> z.punto\n    LIMIT 1\n  ) nz\n  WHERE s.geom IS NOT NULL\n    AND s.departamento = 'LIMA'\n    AND nz.dist_m <= 3000\n),\nsiniestros_12m AS (\n  SELECT zona_id, count(*) AS siniestros_12m\n  FROM siniestros_cercanos\n    WHERE fecha_iso >  (SELECT max(fecha_iso) FROM siniestros_fatales) - INTERVAL '365 days'\n    AND fecha_iso <= (SELECT max(fecha_iso) FROM siniestros_fatales)\n    AND (\n      ($1 = 'manana' AND split_part(hora_siniestro, ':', 1)::int BETWEEN 6 AND 11)\n      OR ($1 = 'tarde' AND split_part(hora_siniestro, ':', 1)::int BETWEEN 12 AND 17)\n      OR ($1 = 'noche' AND (split_part(hora_siniestro, ':', 1)::int >= 18 OR split_part(hora_siniestro, ':', 1)::int < 6))\n    )\n  GROUP BY zona_id\n),\ndistrito_frecuente AS (\n  -- Moda del distrito entre TODOS los siniestros asignados a la zona (no\n  -- solo los de la franja pedida), igual criterio que build_dataset.py.\n  SELECT DISTINCT ON (zona_id) zona_id, distrito\n  FROM (\n    SELECT zona_id, distrito, count(*) AS cnt\n    FROM siniestros_cercanos\n    WHERE distrito IS NOT NULL\n    GROUP BY zona_id, distrito\n  ) t\n  ORDER BY zona_id, cnt DESC\n),\nreportes_cercanos AS (\n  SELECT\n    r.id,\n    r.created_at,\n    nz.zona_id,\n    nz.dist_m\n  FROM reports r\n  CROSS JOIN LATERAL (\n    SELECT z.zona_id,\n           ST_Distance(\n             ST_SetSRID(ST_MakePoint(r.longitude, r.latitude), 4326)::geography,\n             z.punto::geography\n           ) AS dist_m\n    FROM zonas z\n    ORDER BY ST_SetSRID(ST_MakePoint(r.longitude, r.latitude), 4326) <-> z.punto\n    LIMIT 1\n  ) nz\n  WHERE r.latitude IS NOT NULL AND r.longitude IS NOT NULL\n    AND nz.dist_m <= 3000\n),\nreportes_30d AS (\n  SELECT zona_id, count(*) AS reportes_30d\n  FROM reportes_cercanos\n  WHERE created_at >= (now() - INTERVAL '30 days')\n  GROUP BY zona_id\n),\ncongestion AS (\n  -- Misma logica que build_dataset.py: promedio historico completo de\n  -- traffic_readings por zona x franja (hora en UTC), sin ventana de tiempo.\n  SELECT\n    punto_nombre AS zona_id,\n    avg(porcentaje_congestion) AS congestion_media\n  FROM traffic_readings\n  WHERE porcentaje_congestion IS NOT NULL\n    AND (\n      ($1 = 'manana' AND EXTRACT(HOUR FROM (captured_at AT TIME ZONE 'UTC')) BETWEEN 6 AND 11)\n      OR ($1 = 'tarde' AND EXTRACT(HOUR FROM (captured_at AT TIME ZONE 'UTC')) BETWEEN 12 AND 17)\n      OR ($1 = 'noche' AND (EXTRACT(HOUR FROM (captured_at AT TIME ZONE 'UTC')) >= 18 OR EXTRACT(HOUR FROM (captured_at AT TIME ZONE 'UTC')) < 6))\n    )\n  GROUP BY punto_nombre\n)\nSELECT\n  z.zona_id,\n  z.latitude,\n  z.longitude,\n  df.distrito,\n  COALESCE(s12.siniestros_12m, 0)::int AS siniestros_12m,\n  COALESCE(r30.reportes_30d, 0)::int AS reportes_30d,\n  COALESCE(round(c.congestion_media::numeric, 2), 0) AS congestion_media\nFROM zonas z\nLEFT JOIN siniestros_12m s12 ON s12.zona_id = z.zona_id\nLEFT JOIN reportes_30d r30 ON r30.zona_id = z.zona_id\nLEFT JOIN congestion c ON c.zona_id = z.zona_id\nLEFT JOIN distrito_frecuente df ON df.zona_id = z.zona_id\nORDER BY z.zona_id;",
+        "options": {
+          "queryReplacement": "={{ [$('Validar parámetros').first().json.franja] }}"
+        }
+      },
+      "id": "a787ba38-bb1f-4fda-9fd5-f4f1f70c1bda",
+      "name": "Zonas y variables",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        1168,
+        -1376
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// HU-08 T04 - Junta las filas de \"Zonas y variables\" (una por zona) en el\n// unico cuerpo que espera POST /predict (contrato de ml/api/main.py:\n// PredictRequest = {franja, fecha, zonas: [...]}, con zonas.length entre 1 y\n// MAX_ZONAS=200). tipo_via y severidad_media no se mandan: severidad_media la\n// calcula la API internamente (severidad_por_zona.json) y tipo_via no se usa\n// en el modelo actual.\n//\n// zonas_meta guarda, por zona_id, los datos crudos (lat/lng/distrito y las\n// 3 variables) que \"Armar respuesta contrato 4.2\" necesita para el contrato\n// final y para traducir \"motivos\" a texto legible -- /predict no los\n// devuelve, solo nivel/probabilidad/motivos genericos.\nconst MAX_ZONAS = 200;\n\nconst params = $('Validar parámetros').first().json;\nconst filas = $input.all().map((i) => i.json).filter((f) => f && !f.error);\n\nconst zonas = filas.map((f) => ({\n  zona_id: f.zona_id,\n  distrito: f.distrito || null,\n  siniestros_12m: Number(f.siniestros_12m) || 0,\n  congestion_media: Number(f.congestion_media) || 0,\n  reportes_30d: Number(f.reportes_30d) || 0,\n}));\n\nconst zonasMeta = {};\nfor (const f of filas) {\n  zonasMeta[f.zona_id] = {\n    latitude: typeof f.latitude === 'number' ? f.latitude : Number(f.latitude),\n    longitude: typeof f.longitude === 'number' ? f.longitude : Number(f.longitude),\n    distrito: f.distrito || null,\n    siniestros_12m: Number(f.siniestros_12m) || 0,\n    congestion_media: Number(f.congestion_media) || 0,\n    reportes_30d: Number(f.reportes_30d) || 0,\n  };\n}\n\nreturn [{\n  json: {\n    franja: params.franja,\n    dia: params.dia,\n    zonas,\n    zonas_meta: zonasMeta,\n    zonas_invalido: zonas.length === 0 || zonas.length > MAX_ZONAS,\n    zonas_motivo_invalido: zonas.length === 0\n      ? 'catalogo_vacio'\n      : (zonas.length > MAX_ZONAS ? 'catalogo_excede_limite' : null),\n  },\n}];\n"
+      },
+      "id": "96d5daee-e782-4907-918e-1ea00c5ce9d0",
+      "name": "Preparar payload /predict",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1392,
+        -1376
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.zonas_invalido }}"
+            }
+          ]
+        }
+      },
+      "id": "4956aba5-029c-4a24-ad32-646efeef6a02",
+      "name": "¿Catálogo dentro del límite?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1616,
+        -1376
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// HU-08 T04 - El catalogo de zonas (puntos_monitoreo) esta vacio o supera el\n// limite de /predict (MAX_ZONAS=200, ver ml/api/main.py). Hoy la tabla tiene\n// muy pocas filas (catalogo curado a mano), asi que este camino no deberia\n// dispararse en la practica -- pero si se dispara, es mejor un 500 explicito\n// que un 422 crudo de la API o un panel incompleto.\nconst motivo = $json.zonas_motivo_invalido;\n\nconst detalle = motivo === 'catalogo_vacio'\n  ? 'La tabla puntos_monitoreo no tiene zonas registradas.'\n  : 'La tabla puntos_monitoreo supera el limite de 200 zonas que acepta POST /predict.';\n\nreturn [{\n  json: {\n    http_code: 500,\n    response_body: {\n      error: 'catalogo_de_zonas_invalido',\n      detalle,\n    },\n  },\n}];\n"
+      },
+      "id": "05847f23-a873-44ba-ade8-1446dd7d3289",
+      "name": "Respuesta 500 (catálogo de zonas)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1872,
+        -1104
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://urbanpulse-api.xq33kajky1yy6.us-east-1.cs.amazonlightsail.com/predict",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { franja: $json.franja, fecha: $json.dia, zonas: $json.zonas } }}",
+        "options": {
+          "timeout": 8000
+        }
+      },
+      "id": "c68add89-57b3-4d2d-b71e-6b1c75b88919",
+      "name": "Llamar /predict",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1840,
+        -1392
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 500,
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "API Riesgo Vial"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// HU-08 T04 - POST /predict fallo (API caida, timeout tras reintentos, o\n// X-API-Key invalida/ausente -> 401, o 400/422 de validacion). \"Llamar\n// /predict\" corre con onError continueErrorOutput, asi que llegar aqui\n// significa que la rama de error de ese nodo se disparo.\nreturn [{\n  json: {\n    http_code: 503,\n    response_body: {\n      error: 'prediccion_no_disponible',\n      detalle: 'POST /predict de la API del modelo de riesgo vial (HT-46) fallo o no respondio a tiempo.',\n    },\n  },\n}];\n"
+      },
+      "id": "8cddaec6-082c-4dfd-bff8-a2d93d7cc982",
+      "name": "Respuesta 503 (predicción)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2208,
+        -1200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT 1 AS ok,\n       m.tipo,\n       m.fecha,\n       m.datos\nFROM (SELECT 1) AS ping\nLEFT JOIN LATERAL (\n  SELECT tipo, fecha, datos\n  FROM eventos\n  WHERE tipo IN ('modelo.monitoreado', 'modelo.deriva_detectada')\n  ORDER BY fecha DESC\n  LIMIT 1\n) AS m ON true;",
+        "options": {}
+      },
+      "id": "2ce5df01-e263-43ea-8190-89a88176e09c",
+      "name": "Último evento de monitoreo",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        2064,
+        -1408
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// HU-08 T04 - Arma la respuesta final (contrato 4.2, ver\n// Guia_Trabajo_por_Integrante_Sprint3_UrbanPulse_1.docx) juntando:\n//   - \"Preparar payload /predict\": lat/lng/distrito y las 3 variables por\n//     zona (zonas_meta) -- /predict no las devuelve.\n//   - \"Llamar /predict\": model_version y predicciones (zona_id, nivel,\n//     probabilidad). OJO: Prediccion.motivos en ml/api/main.py es\n//     _motivos_globales = [\"siniestros_12m\", \"congestion_media\"], el MISMO\n//     array fijo para cualquier zona (ver ml/api/main.py linea 140) -- no\n//     son motivos reales por zona, son nombres de features. Por eso aqui se\n//     ignoran y se traducen los motivos de verdad a partir de zonas_meta.\n//   - \"Último evento de monitoreo\": igual consulta que\n//     urbanpulse-estado-plataforma.json, mismo criterio \"null si no hay\n//     evento, no false\" (no inventar que no hay deriva si no se sabe).\n//\n// sesgo_ok queda en null a proposito: ningun job de CI escribe ese tag en\n// MLflow todavia (HT-48 calidad-y-sesgo corre 100% offline contra fixtures\n// sinteticas, ver .github/workflows/mlops-tests.yml) -- Fabio (QA) esta\n// trabajando en agregarlo. Cuando exista, se reemplaza este placeholder por\n// el valor real en vez de inventar true/false.\nconst leer = (nodo) => {\n  try { return $(nodo).first().json || {}; } catch (e) { return {}; }\n};\n\nconst UMBRAL_CONGESTION_ALTA = 30; // igual que ml/api/main.py: congestion_alta = congestion_media > 30\n\nconst pad = (n) => String(n).padStart(2, '0');\nconst isoLima = (d) => {\n  const limaMs = d.getTime() - 5 * 60 * 60 * 1000;\n  const l = new Date(limaMs);\n  return `${l.getUTCFullYear()}-${pad(l.getUTCMonth() + 1)}-${pad(l.getUTCDate())}`\n    + `T${pad(l.getUTCHours())}:${pad(l.getUTCMinutes())}:${pad(l.getUTCSeconds())}-05:00`;\n};\n\nconst traducirMotivos = (meta) => {\n  const motivos = [];\n  const siniestros = meta.siniestros_12m || 0;\n  const reportes = meta.reportes_30d || 0;\n\n  if (siniestros > 0) {\n    motivos.push(`${siniestros} siniestro${siniestros === 1 ? '' : 's'} fatal${siniestros === 1 ? '' : 'es'} en el último año`);\n  }\n  if ((meta.congestion_media || 0) > UMBRAL_CONGESTION_ALTA) {\n    motivos.push('congestión alta');\n  }\n  if (reportes > 0) {\n    motivos.push(`${reportes} reporte${reportes === 1 ? '' : 's'} ciudadano${reportes === 1 ? '' : 's'} en los últimos 30 días`);\n  }\n  if (motivos.length === 0) {\n    motivos.push('sin factores de riesgo relevantes detectados');\n  }\n  return motivos;\n};\n\nconst prep = leer('Preparar payload /predict');\nconst pred = leer('Llamar /predict');\nconst salud = (leer('Sondar /health').salud) || {};\n\nconst zonasMeta = prep.zonas_meta || {};\nconst predicciones = Array.isArray(pred.predicciones) ? pred.predicciones : [];\n\nconst eventoFilas = $input.all().map((i) => i.json).filter((f) => f && !f.error);\nconst evento = eventoFilas.find((f) => Number(f.ok) === 1 && f.tipo) || null;\n\nconst fechaEvento = evento && evento.fecha ? new Date(evento.fecha) : null;\nconst fechaEventoValida = fechaEvento && !isNaN(fechaEvento.getTime());\nconst datosEvento = (evento && evento.datos && typeof evento.datos === 'object') ? evento.datos : null;\n\n// HU-10 T05 - f1_macro del modelo en produccion, leido de MLflow. La cadena\n// de origen es: ml/train/train.py lo loguea como metrica del run ->\n// ml/api/export_model.py lo copia del run a metadata.json al hornear la\n// imagen -> GET /health lo expone junto a model_version. Asi el F1 siempre\n// corresponde a la version que esta respondiendo /predict, sin que n8n tenga\n// que hablar con MLflow (ni guardar sus credenciales) en el camino caliente.\n//\n// Respaldo: si la imagen desplegada todavia no trae el campo (se agrega\n// recien al reconstruirla), se usa el f1_real del ultimo evento de monitoreo\n// (HT-51/ml-monitoring.yml). Si tampoco hay, queda null -- nunca se inventa.\nconst aNumero = (v) => {\n  if (v === undefined || v === null || v === '') return null;\n  const n = Number(v);\n  return Number.isFinite(n) ? n : null;\n};\nconst f1DeMlflow = aNumero(salud.f1_macro);\nconst f1DeMonitoreo = aNumero(datosEvento ? datosEvento.f1_real : null);\n\nconst zonas = predicciones.map((p) => {\n  const meta = zonasMeta[p.zona_id] || {};\n  return {\n    zona_id: p.zona_id,\n    // puntos_monitoreo no tiene un codigo corto separado del nombre (ver\n    // ml/README.md y build_dataset.py: zona_id = nombre); \"nombre\" repite el\n    // mismo valor en vez de inventar un codigo que no existe en la BD.\n    nombre: p.zona_id,\n    distrito: meta.distrito || null,\n    lat: Number.isFinite(meta.latitude) ? meta.latitude : null,\n    lng: Number.isFinite(meta.longitude) ? meta.longitude : null,\n    nivel: p.nivel,\n    probabilidad: p.probabilidad,\n    motivos: traducirMotivos(meta),\n  };\n});\n\nconst tag = String(pred.model_version || '');\n\nconst contrato = {\n  generado: isoLima(new Date()),\n  modelo: {\n    version: tag || null,\n    // Ver la nota de HU-10 T05 arriba: MLflow (via /health) primero,\n    // evento de monitoreo como respaldo.\n    f1_macro: f1DeMlflow !== null ? f1DeMlflow : f1DeMonitoreo,\n    f1_macro_origen: f1DeMlflow !== null ? 'mlflow' : (f1DeMonitoreo !== null ? 'monitoreo' : null),\n    entrenado: salud.entrenado || null,\n    sesgo_ok: null,\n    monitoreo: fechaEventoValida ? {\n      fecha: fechaEvento.toISOString().slice(0, 10),\n      deriva: evento.tipo === 'modelo.deriva_detectada',\n    } : null,\n  },\n  zonas,\n};\n\nreturn [{\n  json: {\n    franja: prep.franja,\n    dia: prep.dia,\n    contrato,\n  },\n}];\n"
+      },
+      "id": "46b2d800-1155-4cf4-9cac-5a3208c28436",
+      "name": "Armar respuesta contrato 4.2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2272,
+        -1408
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO cache_riesgo_predictivo (franja, dia, payload, generado_en)\nVALUES ($1, $2, $3::jsonb, now())\nON CONFLICT (franja) DO UPDATE SET\n  dia = EXCLUDED.dia,\n  payload = EXCLUDED.payload,\n  generado_en = EXCLUDED.generado_en;",
+        "options": {
+          "queryReplacement": "={{ [$json.franja, $json.dia, JSON.stringify($json.contrato)] }}"
+        }
+      },
+      "id": "296c28c1-e776-4fcc-93d9-a688a9033cdd",
+      "name": "Guardar en caché",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        2480,
+        -1408
+      ],
+      "alwaysOutputData": false,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// HU-08 T04 - Responde 200 con el contrato recien calculado, sin importar si\n// \"Guardar en cache\" pudo escribir o no (ese Postgres corre con onError\n// continueRegularOutput: un fallo de cache nunca debe tumbar una respuesta\n// ya calculada). Por eso el contrato se relee de \"Armar respuesta contrato\n// 4.2\" por nombre, no del $json de entrada (que aqui es la salida, variable,\n// del INSERT/UPSERT).\nconst previo = $('Armar respuesta contrato 4.2').first().json;\n\nreturn [{\n  json: {\n    http_code: 200,\n    response_body: previo.contrato,\n  },\n}];\n"
+      },
+      "id": "052943bb-3b6c-46cd-a1b5-a2d8e173daaf",
+      "name": "Responder 200",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2672,
+        -1408
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.response_body) }}",
+        "options": {
+          "responseCode": "={{ $json.http_code }}"
+        }
+      },
+      "id": "26d5165c-5f7c-47e7-96d0-2fda58a23d0f",
+      "name": "Responder",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2848,
+        -848
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook GET /riesgo-predictivo": {
+      "main": [
+        [
+          {
+            "node": "Validar parámetros",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar parámetros": {
+      "main": [
+        [
+          {
+            "node": "¿Parámetros válidos?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Parámetros válidos?": {
+      "main": [
+        [
+          {
+            "node": "Leer caché",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respuesta 400 (parámetros inválidos)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respuesta 400 (parámetros inválidos)": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer caché": {
+      "main": [
+        [
+          {
+            "node": "Evaluar caché",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluar caché": {
+      "main": [
+        [
+          {
+            "node": "¿Caché vigente?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Caché vigente?": {
+      "main": [
+        [
+          {
+            "node": "Responder desde caché",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sondar /health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Responder desde caché": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sondar /health": {
+      "main": [
+        [
+          {
+            "node": "¿Modelo disponible?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Modelo disponible?": {
+      "main": [
+        [
+          {
+            "node": "Zonas y variables",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respuesta 503 (modelo no disponible)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respuesta 503 (modelo no disponible)": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Zonas y variables": {
+      "main": [
+        [
+          {
+            "node": "Preparar payload /predict",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar payload /predict": {
+      "main": [
+        [
+          {
+            "node": "¿Catálogo dentro del límite?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Catálogo dentro del límite?": {
+      "main": [
+        [
+          {
+            "node": "Llamar /predict",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respuesta 500 (catálogo de zonas)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respuesta 500 (catálogo de zonas)": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Llamar /predict": {
+      "main": [
+        [
+          {
+            "node": "Último evento de monitoreo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respuesta 503 (predicción)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respuesta 503 (predicción)": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Último evento de monitoreo": {
+      "main": [
+        [
+          {
+            "node": "Armar respuesta contrato 4.2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar respuesta contrato 4.2": {
+      "main": [
+        [
+          {
+            "node": "Guardar en caché",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar en caché": {
+      "main": [
+        [
+          {
+            "node": "Responder 200",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Responder 200": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "vPbn1fp5YIuktC25",
+    "callerPolicy": "workflowsFromSameOwner",
+    "saveDataSuccessExecution": "all"
+  }
+}
