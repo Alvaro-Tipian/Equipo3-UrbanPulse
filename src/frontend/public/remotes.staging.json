@@ -1,9 +1,10 @@
 {
-  "mf_auth": " ",
-  "mf_dashboard": "",
-  "mf_chatbot": " ",
-  "mf_gestion_incidentes": " ",
-  "mf_historial_reportes": " ",
-  "mf_mapa_urbano": " ",
-  "mf_ajustes": " "
+  "mf_auth": "https://equipo3-u-git-b725fd-sebastiannnnnnnnnnnnnnnnnnnnnnnns-projects.vercel.app/remoteEntry.js",
+  "mf_dashboard": "https://equipo3-u-git-a1f9d8-sebastiannnnnnnnnnnnnnnnnnnnnnnns-projects.vercel.app/remoteEntry.js",
+  "mf_chatbot": "https://equipo3-u-git-4a1be3-sebastiannnnnnnnnnnnnnnnnnnnnnnns-projects.vercel.app/remoteEntry.js",
+  "mf_gestion_incidentes": "https://equipo3-u-git-20071a-sebastiannnnnnnnnnnnnnnnnnnnnnnns-projects.vercel.app/remoteEntry.js",
+  "mf_historial_reportes": "https://equipo3-u-git-6e4baf-sebastiannnnnnnnnnnnnnnnnnnnnnnns-projects.vercel.app/remoteEntry.js",
+  "mf_mapa_urbano": "https://equipo3-u-git-c9d258-sebastiannnnnnnnnnnnnnnnnnnnnnnns-projects.vercel.app/remoteEntry.js",
+  "mf_ajustes": "https://equipo3-u-git-20fea2-sebastiannnnnnnnnnnnnnnnnnnnnnnns-projects.vercel.app/remoteEntry.js",
+  "mf_panel_riesgo": "https://equipo3-u-git-89eec9-sebastiannnnnnnnnnnnnnnnnnnnnnnns-projects.vercel.app/remoteEntry.js"
 }

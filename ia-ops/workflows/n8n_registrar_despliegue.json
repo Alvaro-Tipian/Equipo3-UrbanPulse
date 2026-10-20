@@ -1,0 +1,389 @@
+{
+  "name": "UrbanPulse - Registrar Despliegue en Service Desk (HT-41 T03)",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "urbanpulse/despliegue",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-despliegue",
+      "name": "Webhook POST /urbanpulse/despliegue",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "UrbanPulse Deploy Webhook Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// HT-41 T03 - Valida el aviso de despliegue y arma el ticket.\n//\n// Lo mandan deploy-lightsail-n8n.yml (despliegues) y ml-monitoring.yml\n// (deriva del modelo, HT-49 T03) con la cabecera\n// Authorization: Bearer <DEPLOY_WEBHOOK_SECRET>. El sobre es:\n//   { eventType, projectKey, commitSha, repository, runId, message }\n// y, para model_drift, ademas { modelName, modelVersion, psi }.\n//\n// Los IDs de tipo de solicitud son los del portal de Service Desk del equipo.\nconst TIPOS = {\n  deployment_success: { requestTypeId: '19', etiqueta: 'Solicitud de cambio' },\n  deployment_failure: { requestTypeId: '16', etiqueta: 'Fallo de la plataforma' },\n  // La deriva es un incidente de la plataforma: va al mismo tipo de solicitud,\n  // con su propia etiqueta en el resumen para distinguirla en el portal.\n  model_drift: { requestTypeId: '16', etiqueta: 'Deriva del modelo' },\n};\n\nconst body = $input.item.json.body || $input.item.json;\nconst falta = (v) => v === undefined || v === null || String(v).trim() === '';\n\nlet error = '';\nif (falta(body.eventType) || !TIPOS[body.eventType]) {\n  error = `\"eventType\" debe ser uno de: ${Object.keys(TIPOS).join(', ')}.`;\n} else if (falta(body.projectKey)) {\n  error = 'Falta \"projectKey\".';\n} else if (falta(body.commitSha)) {\n  error = 'Falta \"commitSha\".';\n} else if (falta(body.repository)) {\n  error = 'Falta \"repository\".';\n} else if (falta(body.runId)) {\n  error = 'Falta \"runId\".';\n}\n\nif (error) {\n  return [{ json: { es_valido: false, http_code: 400, response_body: { error } } }];\n}\n\nconst tipo = TIPOS[body.eventType];\nconst sha = String(body.commitSha);\nconst corto = sha.slice(0, 7);\nconst urlEjecucion = `https://github.com/${body.repository}/actions/runs/${body.runId}`;\n\n// El runId va en el resumen a proposito: si el mismo despliegue reintenta el\n// aviso, el ticket repetido se reconoce de un vistazo en el portal.\nconst esDeriva = body.eventType === 'model_drift';\nconst modelo = String(body.modelName || '').trim() || 'modelo';\nconst versionModelo = falta(body.modelVersion) ? '?' : String(body.modelVersion);\nconst resumen = esDeriva\n  ? `[${tipo.etiqueta}] ${modelo} v${versionModelo} (run ${body.runId})`\n  : `[${tipo.etiqueta}] ${body.repository} @ ${corto} (run ${body.runId})`;\n\nconst descripcion = [\n  String(body.message || '').trim() || 'Sin mensaje.',\n  '',\n  ...(esDeriva ? [\n    `Modelo: ${modelo}`,\n    `Version: ${versionModelo}`,\n    `PSI maximo: ${falta(body.psi) ? 'no disponible' : body.psi}`,\n  ] : []),\n  `Repositorio: ${body.repository}`,\n  `Commit: ${sha}`,\n  `Ejecucion: ${urlEjecucion}`,\n].join('\\n');\n\nreturn [{\n  json: {\n    es_valido: true,\n    http_code: 201,\n    projectKey: String(body.projectKey),\n    requestTypeId: tipo.requestTypeId,\n    etiqueta: tipo.etiqueta,\n    resumen,\n    descripcion,\n    url_ejecucion: urlEjecucion,\n  },\n}];\n"
+      },
+      "id": "validar-aviso",
+      "name": "Validar aviso de despliegue",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.es_valido }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-valido",
+      "name": "Aviso valido?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        540,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://urbanpulse-ti.atlassian.net/rest/servicedeskapi/servicedesk",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "limit",
+              "value": "50"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "listar-portales",
+      "name": "Listar portales de Service Desk",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        760,
+        200
+      ],
+      "credentials": {
+        "httpBasicAuth": {
+          "name": "Jira API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// HT-41 T03 - Busca el serviceDeskId del proyecto.\n//\n// La API del portal (/rest/servicedeskapi/request) pide el serviceDeskId\n// numerico, que no es la clave del proyecto. Se resuelve una vez por llamada\n// en vez de dejarlo escrito a mano: si alguien recrea el proyecto, el id\n// cambia y esto sigue funcionando.\nconst clave = $('Validar aviso de despliegue').first().json.projectKey;\nconst valores = $input.first().json.values || [];\nconst encontrado = valores.find((sd) => sd.projectKey === clave);\n\nif (!encontrado) {\n  const claves = valores.map((sd) => sd.projectKey).join(', ') || 'ninguno';\n  return [{\n    json: {\n      es_valido: false,\n      http_code: 502,\n      response_body: {\n        error: `El proyecto \"${clave}\" no tiene portal de Service Desk. Portales visibles: ${claves}.`,\n      },\n    },\n  }];\n}\n\nreturn [{ json: { es_valido: true, serviceDeskId: String(encontrado.id) } }];\n"
+      },
+      "id": "resolver-portal",
+      "name": "Resolver portal del proyecto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        980,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://urbanpulse-ti.atlassian.net/rest/servicedeskapi/servicedesk/{{ $json.serviceDeskId }}/requesttype/{{ $('Validar aviso de despliegue').first().json.requestTypeId }}/field",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "campos-tipo",
+      "name": "Campos del tipo de solicitud",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1200,
+        200
+      ],
+      "credentials": {
+        "httpBasicAuth": {
+          "name": "Jira API"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// HT-41 T03 - Arma la solicitud con los campos que acepta su formulario.\n//\n// El formulario de \"Solicitud de cambio\" del portal UPTI no tiene el campo\n// Descripcion, y Jira rechaza la solicitud entera si se lo manda (400 \"El\n// campo 'description' no es valido para este tipo de solicitud\"). Si el\n// formulario no lo tiene, o no se pudo leer, el detalle va como comentario\n// interno de la solicitud ya creada.\nconst aviso = $('Validar aviso de despliegue').first().json;\nconst portal = $('Resolver portal del proyecto').first().json;\nconst campos = ($input.first().json.requestTypeFields || []).map((c) => c.fieldId);\nconst conDescripcion = campos.includes('description');\n\nconst requestFieldValues = { summary: aviso.resumen };\nif (conDescripcion) requestFieldValues.description = aviso.descripcion;\n\nreturn [{\n  json: {\n    cuerpo: { serviceDeskId: portal.serviceDeskId, requestTypeId: aviso.requestTypeId, requestFieldValues },\n    comentario: conDescripcion ? '' : aviso.descripcion,\n  },\n}];\n"
+      },
+      "id": "armar-solicitud",
+      "name": "Armar solicitud",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1420,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://urbanpulse-ti.atlassian.net/rest/servicedeskapi/request",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.cuerpo }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "crear-solicitud",
+      "name": "Crear solicitud en el portal",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1640,
+        200
+      ],
+      "credentials": {
+        "httpBasicAuth": {
+          "name": "Jira API"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ Boolean($json.issueKey) && Boolean($('Armar solicitud').first().json.comentario) }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-falta-detalle",
+      "name": "Falta el detalle?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1860,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://urbanpulse-ti.atlassian.net/rest/servicedeskapi/request/{{ $json.issueKey }}/comment",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { body: $('Armar solicitud').first().json.comentario, public: false } }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "comentario-detalle",
+      "name": "Agregar detalle como comentario",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        2080,
+        100
+      ],
+      "credentials": {
+        "httpBasicAuth": {
+          "name": "Jira API"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// HT-41 T03 - Respuesta final.\n// Se lee del nodo que crea la solicitud: entre medio puede ir el comentario.\nconst creado = $('Crear solicitud en el portal').first().json || {};\n\nif (creado.issueKey) {\n  return [{\n    json: {\n      http_code: 201,\n      response_body: {\n        estado: 'creado',\n        ticket: creado.issueKey,\n        tipo: $('Validar aviso de despliegue').first().json.etiqueta,\n        portal: creado._links && creado._links.web ? creado._links.web : null,\n      },\n    },\n  }];\n}\n\n// Jira contesto algo que no es una solicitud creada: se devuelve tal cual para\n// que quede en el log del despliegue y no haya que adivinar.\nreturn [{\n  json: {\n    http_code: 502,\n    response_body: {\n      error: 'Jira no devolvio una solicitud creada.',\n      detalle: creado.errorMessage || creado.errors || creado,\n    },\n  },\n}];\n"
+      },
+      "id": "armar-respuesta",
+      "name": "Armar respuesta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.response_body) }}",
+        "options": {
+          "responseCode": "={{ $json.http_code }}"
+        }
+      },
+      "id": "responder",
+      "name": "Responder al despliegue",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2520,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook POST /urbanpulse/despliegue": {
+      "main": [
+        [
+          {
+            "node": "Validar aviso de despliegue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar aviso de despliegue": {
+      "main": [
+        [
+          {
+            "node": "Aviso valido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aviso valido?": {
+      "main": [
+        [
+          {
+            "node": "Listar portales de Service Desk",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder al despliegue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Listar portales de Service Desk": {
+      "main": [
+        [
+          {
+            "node": "Resolver portal del proyecto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolver portal del proyecto": {
+      "main": [
+        [
+          {
+            "node": "Campos del tipo de solicitud",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear solicitud en el portal": {
+      "main": [
+        [
+          {
+            "node": "Falta el detalle?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar respuesta": {
+      "main": [
+        [
+          {
+            "node": "Responder al despliegue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Campos del tipo de solicitud": {
+      "main": [
+        [
+          {
+            "node": "Armar solicitud",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar solicitud": {
+      "main": [
+        [
+          {
+            "node": "Crear solicitud en el portal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Falta el detalle?": {
+      "main": [
+        [
+          {
+            "node": "Agregar detalle como comentario",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Armar respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agregar detalle como comentario": {
+      "main": [
+        [
+          {
+            "node": "Armar respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

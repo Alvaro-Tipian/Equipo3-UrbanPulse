@@ -1,9 +1,21 @@
+# Dependencias de EJECUCION de la API (etapa final de la imagen).
+# Lo que necesita main.py y nada mas. Las herramientas que solo corren
+# durante el build (descarga del modelo y tabla de severidad) viven en
+# requirements-build.txt, para que no viajen dentro del contenedor que
+# queda expuesto en Lightsail.
+#
+# mlflow-skinny es la distribucion cliente de MLflow: trae mlflow.sklearn
+# (lo unico que usa main.py: load_model sobre la carpeta local horneada en
+# la imagen) y deja fuera el servidor de tracking, el AI gateway y el
+# "model serving", que son las piezas sobre las que se publican casi todas
+# las CVE de mlflow y que esta API nunca levanta.
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
 pydantic==2.10.4
 pandas==2.2.3
 scikit-learn==1.5.2
-mlflow==2.19.0
-python-dotenv==1.0.1
-sqlalchemy==2.0.36
+mlflow-skinny==2.19.0
+# HT-49 T01: main.py guarda cada prediccion en prediccion_riesgo (Neon).
+# Sin esto el contenedor se caia al arrancar ("No module named 'psycopg2'")
+# y Lightsail marcaba el deployment como FAILED.
 psycopg2-binary==2.9.10

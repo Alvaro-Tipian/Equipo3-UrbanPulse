@@ -1,10 +1,26 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { federation } from '@module-federation/vite';
+import process from 'node:process';
+
+// Vite pega las variables TE_ en el JS al compilar: si falta TE_N8N_BASE_URL en
+// Vercel, el deploy sale "verde" pero ninguna llamada a n8n funciona. Como el
+// host sirve @urbanpulse/shared (singleton) a todos los remotos, aquí es obligatoria.
+// Solo se exige en el build de Production de Vercel (no en CI ni en Preview de PRs).
+const exigirN8nEnVercel = {
+  name: 'exigir-n8n-en-vercel',
+  configResolved(config) {
+    if (process.env.VERCEL_ENV === 'production' && config.command === 'build' && !config.env.TE_N8N_BASE_URL) {
+      throw new Error('Falta TE_N8N_BASE_URL en las variables de entorno de Vercel (host).');
+    }
+  },
+};
 
 export default defineConfig(() => {
   return {
+    envPrefix: ['VITE_', 'TE_'],
     plugins: [
+      exigirN8nEnVercel,
       react(),
       federation({
         name: 'host_urbanpulse',
@@ -15,6 +31,7 @@ export default defineConfig(() => {
           'react/jsx-runtime': { singleton: true },
           'react/jsx-dev-runtime': { singleton: true },
           '@tanstack/react-query': { singleton: true },
+          '@urbanpulse/shared': { singleton: true },
         },
         dts: false,
       }),

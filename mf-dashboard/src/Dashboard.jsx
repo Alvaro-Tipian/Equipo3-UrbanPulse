@@ -5,12 +5,13 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, Legend,
 } from 'recharts';
+import { fetchN8n } from '@urbanpulse/shared';
 
 // Colores para los gráficos (codificación de datos, no cromática de UI — no cambia con el tema)
 const COLORS = ['#A855F7', '#C084FC', '#6366f1', '#14b8a6'];
 
-// Fallback si TE_N8N_DASHBOARD_KPIS_URL no está configurada en el entorno de despliegue
-const N8N_DASHBOARD_KPIS_URL = 'https://urbanpulse-n8n.xq33kajky1yy6.us-east-1.cs.amazonlightsail.com/webhook/urbanpulse/dashboard-kpis';
+// HT-39 / T02: sin URLs fijas; la base sale de TE_N8N_BASE_URL vía fetchN8n (@urbanpulse/shared)
+const RUTA_DASHBOARD_KPIS = '/urbanpulse/dashboard-kpis';
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
@@ -62,16 +63,7 @@ export default function Dashboard() {
 
   // Solo hace la petición: no toca el estado, para poder llamarla desde el
   // efecto sin disparar setState de forma síncrona (react-hooks/set-state-in-effect).
-  const pedirKpis = useCallback(async () => {
-    const webhookUrl = import.meta.env.TE_N8N_DASHBOARD_KPIS_URL || N8N_DASHBOARD_KPIS_URL;
-    const response = await fetch(webhookUrl);
-
-    if (!response.ok) {
-      throw new Error(`Error de conexión con n8n: ${response.status}`);
-    }
-
-    return response.json();
-  }, []);
+  const pedirKpis = useCallback(() => fetchN8n(RUTA_DASHBOARD_KPIS), []);
 
   const manejarError = useCallback((err) => {
     console.error('Error cargando KPIs del dashboard:', err);

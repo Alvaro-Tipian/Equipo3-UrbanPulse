@@ -31,8 +31,8 @@ Todo evento enviado a `POST /urbanpulse/eventos` debe cumplir con el siguiente e
   "fecha": "2026-10-06T15:02:11-05:00",
   "origen": "n8n/central-vr5",
   "datos": {
-    "reporte_id": 1842,
-    "distrito": "Miraflores",
+    "reporte_id": "a3f1c2e4-9b7d-4e2a-9c51-0d8f2b7a1e44",
+    "distrito": "MIRAFLORES",
     "franja": "tarde",
     "tipo_incidente": "choque"
   }
@@ -46,7 +46,32 @@ Todo evento enviado a `POST /urbanpulse/eventos` debe cumplir con el siguiente e
    - `reporte.estado_cambiado`
    - `n8n.flujo_fallido`
    - `modelo.deriva_detectada`
-3. **Respuesta Exitosos:** HTTP `202 Accepted`
+   - `modelo.monitoreado`
+
+   Los dos del modelo llevan los mismos `datos` (`modelo`, `version`,
+   `psi_max`, `f1_real`, `reporte_url`) y los publica el mismo paso de
+   `ml-monitoring.yml`: cuando hay deriva el tipo es `modelo.deriva_detectada`
+   y cuando no, `modelo.monitoreado`. El monitoreo deja constancia **en cada
+   ejecución**, no solo cuando hay deriva, que es de donde el webhook de estado
+   de plataforma (HU-13 T01) saca el F1 real y la fecha del último monitoreo.
+   Si no hay predicciones suficientes para medir, se publica igual con
+   `version`, `psi_max` y `f1_real` en `null` y el campo opcional `motivo`.
+3. **Catálogos: los valores son los de la base, no los bonitos.**
+
+   | Campo | Valores admitidos | De dónde salen |
+   |---|---|---|
+   | `datos.franja` | `manana` · `tarde` · `noche` | Las franjas de `conocimiento_vial`, del dataset de HT-46 y de la ingesta de HT-50. **Sin eñe** |
+   | `datos.estado_anterior` / `estado_nuevo` | `pending` · `en_proceso` · `resuelto` | La restricción `reports_status_check` (migración `20260914000001`) |
+   | `datos.reporte_id` | UUID | `reports.id` es `UUID`, no un entero |
+
+   Esto no es un detalle de estilo. El validador pedía antes `mañana` con eñe y
+   `Pendiente`/`En Proceso`/`Resuelto`, valores que **no existen en ninguna
+   tabla**: un productor que publicara lo que de verdad tiene en la base se
+   habría llevado un `400`, y uno que publicara lo que pedía el contrato habría
+   pasado la validación para después no casar con ninguna ficha de
+   `conocimiento_vial`. Ahora el contrato habla el idioma de la base.
+
+4. **Respuesta Exitosos:** HTTP `202 Accepted`
    ```json
    {
      "estado": "recibido",
@@ -55,7 +80,7 @@ Todo evento enviado a `POST /urbanpulse/eventos` debe cumplir con el siguiente e
      "timestamp": "2026-10-05T20:13:00.000Z"
    }
    ```
-4. **Respuesta Evento Inválido:** HTTP `400 Bad Request`
+5. **Respuesta Evento Inválido:** HTTP `400 Bad Request`
    ```json
    {
      "error": "Validación de sobre o datos fallida",
@@ -73,12 +98,36 @@ Después de persistir un evento válido (estado `recibido`), el router lo entreg
 
 | Tipo de evento | Suscriptor destino | Estado |
 |---|---|---|
-| `reporte.creado` | Ingesta RAG (HT-50) | Pendiente de implementar como subworkflow |
-| `reporte.estado_cambiado` | Ingesta RAG (HT-50) | Pendiente de implementar como subworkflow |
-| `n8n.flujo_fallido` | Service Desk (HT-41) | Pendiente de implementar en n8n |
-| `modelo.deriva_detectada` | Service Desk (HT-41) | Pendiente de implementar en n8n |
+| `reporte.creado` | Ingesta RAG (HT-50 T01) | **Enrutado** |
+| `reporte.estado_cambiado` | Ingesta RAG (HT-50 T01) | **Enrutado** |
+| `n8n.flujo_fallido` | Service Desk (HT-41) | Pendiente: va al Suscriptor de Prueba |
+| `modelo.deriva_detectada` | Service Desk (HT-41) | Pendiente: va al Suscriptor de Prueba |
+| `modelo.monitoreado` | Ninguno; se persiste y se consulta | Va al Suscriptor de Prueba; lo lee HU-13 T01 desde `eventos` |
 
-> **Suscriptor de Prueba (solo staging).** Mientras los flujos de Ingesta RAG y Service Desk no existan como subworkflows, **todos** los tipos se entregan al workflow `Suscriptor de Prueba`. No debe usarse en producción. Al implementar los reales, se reemplaza el nodo de entrega del despachador por un Switch por `tipo` según la tabla anterior.
+El despachador decide con el nodo **¿Es evento de reporte?**: los tipos que
+empiezan por `reporte.` van a la Ingesta RAG y el resto al Suscriptor de Prueba.
+
+> **Por qué el Service Desk todavía no recibe eventos.** El workflow
+> *UrbanPulse - Errores a Service Desk* (HT-41 T02) arranca con un **Error
+> Trigger**, que n8n solo dispara cuando otro workflow falla: no se puede
+> invocar con Execute Workflow. Para enrutarle `n8n.flujo_fallido` y
+> `modelo.deriva_detectada` hace falta un subworkflow con
+> `executeWorkflowTrigger` que cree el ticket en Jira (HT-41). Mientras tanto
+> esos eventos **sí quedan registrados** en la tabla `eventos`, y el ticket de
+> deriva lo sigue creando directamente `ml-monitoring.yml`.
+
+### Puesta en marcha del enrutamiento en n8n
+
+Los JSON no llevan el id interno de los workflows destino, porque cambia en
+cada instancia. Al importar *Despachar Evento*:
+
+1. Abrir el nodo **Call 'UrbanPulse - Ingesta RAG conocimiento vial (HT-50 T01)'**
+   y seleccionar ese workflow en la lista (viene con el marcador
+   `REEMPLAZAR_CON_ID_DE_INGESTA_RAG`).
+2. Comprobar que el nodo **Call 'UrbanPulse - Suscriptor de Prueba'** sigue
+   apuntando al suscriptor de prueba.
+3. En los dos nodos Execute Workflow, la salida de error (la roja) va a
+   *Marcar Evento Fallido* y la de éxito a *Marcar Evento Entregado*.
 
 ### Estados e intentos
 

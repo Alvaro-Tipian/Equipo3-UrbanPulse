@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite';
 import { federation } from '@module-federation/vite';
 
 export default defineConfig({
+  envPrefix: ['VITE_', 'TE_'],
   plugins: [
     react(),
     tailwindcss(),
@@ -19,6 +20,7 @@ export default defineConfig({
         'react-dom': { singleton: true },
         'react/jsx-runtime': { singleton: true },
         'react/jsx-dev-runtime': { singleton: true },
+        '@urbanpulse/shared': { singleton: true },
       },
       dts: false,
     }),

@@ -5,6 +5,11 @@
 # las migraciones y corre ia-ops/workflows/tests: las consultas SQL exactas
 # del workflow n8n_ingesta_rag.json, sus nodos Code ejecutados en Node.js y
 # una respuesta simulada de Gemini (no consume cuota).
+#
+# Aqui corre tambien tests/test_router_eventos.py (HT-51 T02): el validador del
+# enrutador se ejecuta en el mismo Node.js y no necesita base de datos, asi que
+# comparte esta ejecucion en vez de levantar un job propio. Por eso el disparo
+# incluye n8n_event_router.json.
 # ==============================================================================
 
 name: RAG - Ingesta de conocimiento vial
@@ -14,6 +19,9 @@ on:
     branches: [ main ]
     paths:
       - 'ia-ops/workflows/n8n_ingesta_rag.json'
+      - 'ia-ops/workflows/n8n_registrar_despliegue.json'
+      - 'ia-ops/workflows/n8n_estado_plataforma.json'
+      - 'ia-ops/workflows/n8n_event_router.json'
       - 'ia-ops/workflows/tests/**'
       - 'database/migrations/**'
       - '.github/workflows/rag-ingesta-ci.yml'
@@ -21,6 +29,9 @@ on:
     branches: [ main ]
     paths:
       - 'ia-ops/workflows/n8n_ingesta_rag.json'
+      - 'ia-ops/workflows/n8n_registrar_despliegue.json'
+      - 'ia-ops/workflows/n8n_estado_plataforma.json'
+      - 'ia-ops/workflows/n8n_event_router.json'
       - 'ia-ops/workflows/tests/**'
       - 'database/migrations/**'
       - '.github/workflows/rag-ingesta-ci.yml'
@@ -41,10 +52,15 @@ jobs:
       - name: Levantar Postgres (PostGIS + pgvector)
         run: ${COMPOSE} up -d postgres
 
+      # La imagen arranca primero un servidor TEMPORAL, solo por socket, para
+      # correr sus scripts de inicio (crean PostGIS); luego lo apaga y arranca
+      # el definitivo. Consultar por el socket daba "listo" contra el temporal y
+      # la primera migracion chocaba con el reinicio ("server closed the
+      # connection unexpectedly"). Por TCP solo responde el definitivo.
       - name: Esperar a que PostGIS este listo
         run: |
           for _ in $(seq 1 30); do
-            if ${COMPOSE} exec -T postgres psql -U urban_admin -d urbanpulse_db -tAc "SELECT postgis_version();" > /dev/null 2>&1; then
+            if ${COMPOSE} exec -T postgres psql -h 127.0.0.1 -U urban_admin -d urbanpulse_db -tAc "SELECT postgis_version();" > /dev/null 2>&1; then
               exit 0
             fi
             sleep 2
@@ -56,7 +72,7 @@ jobs:
         run: |
           set -o pipefail
           for archivo in $(find database/migrations -name '*.sql' | sort); do
-            if ! ${COMPOSE} exec -T postgres psql -U urban_admin -d urbanpulse_db -v ON_ERROR_STOP=1 -q -f - < "$archivo"; then
+            if ! ${COMPOSE} exec -T postgres psql -h 127.0.0.1 -U urban_admin -d urbanpulse_db -v ON_ERROR_STOP=1 -q -f - < "$archivo"; then
               echo "::error::Fallo aplicando $(basename "$archivo")"
               exit 1
             fi

@@ -1,0 +1,1070 @@
+{
+  "manana-hoy": {
+    "generado": "2026-10-07T15:02:00-05:00",
+    "modelo": {
+      "version": "riesgo_vial@4",
+      "f1_macro": 0.74,
+      "entrenado": "2026-10-03",
+      "sesgo_ok": true,
+      "monitoreo": {
+        "fecha": "2026-10-05",
+        "deriva": false
+      }
+    },
+    "zonas": [
+      {
+        "zona_id": "MIR-014",
+        "nombre": "Av. Larco - Benavides",
+        "distrito": "Miraflores",
+        "lat": -12.1263,
+        "lng": -77.0297,
+        "nivel": "medio",
+        "probabilidad": 0.42,
+        "motivos": [
+          "12 siniestros en el último año",
+          "congestión alta",
+          "3 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "CER-003",
+        "nombre": "Av. Abancay - Jr. Ucayali",
+        "distrito": "Cercado de Lima",
+        "lat": -12.0507,
+        "lng": -77.03,
+        "nivel": "alto",
+        "probabilidad": 0.74,
+        "motivos": [
+          "21 siniestros en el último año",
+          "congestión alta",
+          "7 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "VIC-021",
+        "nombre": "Av. México - Gamarra",
+        "distrito": "La Victoria",
+        "lat": -12.067,
+        "lng": -77.016,
+        "nivel": "medio",
+        "probabilidad": 0.61,
+        "motivos": [
+          "17 siniestros en el último año",
+          "congestión alta",
+          "9 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "SJL-007",
+        "nombre": "Av. Próceres - Wiese",
+        "distrito": "San Juan de Lurigancho",
+        "lat": -11.993,
+        "lng": -77.006,
+        "nivel": "alto",
+        "probabilidad": 0.83,
+        "motivos": [
+          "15 siniestros en el último año",
+          "congestión media",
+          "6 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "ATE-011",
+        "nombre": "Carretera Central - Puruchuco",
+        "distrito": "Ate",
+        "lat": -12.042,
+        "lng": -76.932,
+        "nivel": "alto",
+        "probabilidad": 0.86,
+        "motivos": [
+          "19 siniestros en el último año",
+          "congestión alta",
+          "4 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "COM-005",
+        "nombre": "Av. Túpac Amaru - Belaúnde",
+        "distrito": "Comas",
+        "lat": -11.942,
+        "lng": -77.06,
+        "nivel": "alto",
+        "probabilidad": 0.71,
+        "motivos": [
+          "14 siniestros en el último año",
+          "congestión media",
+          "5 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "CAL-002",
+        "nombre": "Av. Faucett - Venezuela",
+        "distrito": "Callao",
+        "lat": -12.055,
+        "lng": -77.108,
+        "nivel": "medio",
+        "probabilidad": 0.4,
+        "motivos": [
+          "11 siniestros en el último año",
+          "congestión media",
+          "8 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "SUR-009",
+        "nombre": "Av. Primavera - Panamericana Sur",
+        "distrito": "Santiago de Surco",
+        "lat": -12.11,
+        "lng": -76.993,
+        "nivel": "alto",
+        "probabilidad": 0.68,
+        "motivos": [
+          "9 siniestros en el último año",
+          "congestión alta"
+        ]
+      },
+      {
+        "zona_id": "SIS-004",
+        "nombre": "Av. Javier Prado - Las Begonias",
+        "distrito": "San Isidro",
+        "lat": -12.09,
+        "lng": -77.023,
+        "nivel": "medio",
+        "probabilidad": 0.57,
+        "motivos": [
+          "8 siniestros en el último año",
+          "congestión alta"
+        ]
+      },
+      {
+        "zona_id": "SMI-006",
+        "nombre": "Av. La Marina - Universitaria",
+        "distrito": "San Miguel",
+        "lat": -12.078,
+        "lng": -77.085,
+        "nivel": "bajo",
+        "probabilidad": 0.3,
+        "motivos": [
+          "7 siniestros en el último año",
+          "congestión media",
+          "3 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "OLI-008",
+        "nombre": "Panamericana Norte - Naranjal",
+        "distrito": "Los Olivos",
+        "lat": -11.975,
+        "lng": -77.07,
+        "nivel": "alto",
+        "probabilidad": 0.72,
+        "motivos": [
+          "10 siniestros en el último año",
+          "congestión media"
+        ]
+      },
+      {
+        "zona_id": "CHO-010",
+        "nombre": "Av. Huaylas - Defensores",
+        "distrito": "Chorrillos",
+        "lat": -12.17,
+        "lng": -77.013,
+        "nivel": "bajo",
+        "probabilidad": 0.18,
+        "motivos": [
+          "5 siniestros en el último año"
+        ]
+      }
+    ]
+  },
+  "tarde-hoy": {
+    "generado": "2026-10-07T15:02:00-05:00",
+    "modelo": {
+      "version": "riesgo_vial@4",
+      "f1_macro": 0.74,
+      "entrenado": "2026-10-03",
+      "sesgo_ok": true,
+      "monitoreo": {
+        "fecha": "2026-10-05",
+        "deriva": false
+      }
+    },
+    "zonas": [
+      {
+        "zona_id": "MIR-014",
+        "nombre": "Av. Larco - Benavides",
+        "distrito": "Miraflores",
+        "lat": -12.1263,
+        "lng": -77.0297,
+        "nivel": "alto",
+        "probabilidad": 0.81,
+        "motivos": [
+          "12 siniestros en el último año",
+          "congestión alta",
+          "3 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "CER-003",
+        "nombre": "Av. Abancay - Jr. Ucayali",
+        "distrito": "Cercado de Lima",
+        "lat": -12.0507,
+        "lng": -77.03,
+        "nivel": "alto",
+        "probabilidad": 0.88,
+        "motivos": [
+          "21 siniestros en el último año",
+          "congestión alta",
+          "7 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "VIC-021",
+        "nombre": "Av. México - Gamarra",
+        "distrito": "La Victoria",
+        "lat": -12.067,
+        "lng": -77.016,
+        "nivel": "alto",
+        "probabilidad": 0.7,
+        "motivos": [
+          "17 siniestros en el último año",
+          "congestión alta",
+          "9 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "SJL-007",
+        "nombre": "Av. Próceres - Wiese",
+        "distrito": "San Juan de Lurigancho",
+        "lat": -11.993,
+        "lng": -77.006,
+        "nivel": "medio",
+        "probabilidad": 0.52,
+        "motivos": [
+          "15 siniestros en el último año",
+          "congestión media",
+          "6 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "ATE-011",
+        "nombre": "Carretera Central - Puruchuco",
+        "distrito": "Ate",
+        "lat": -12.042,
+        "lng": -76.932,
+        "nivel": "medio",
+        "probabilidad": 0.58,
+        "motivos": [
+          "19 siniestros en el último año",
+          "congestión alta",
+          "4 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "COM-005",
+        "nombre": "Av. Túpac Amaru - Belaúnde",
+        "distrito": "Comas",
+        "lat": -11.942,
+        "lng": -77.06,
+        "nivel": "medio",
+        "probabilidad": 0.45,
+        "motivos": [
+          "14 siniestros en el último año",
+          "congestión media",
+          "5 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "CAL-002",
+        "nombre": "Av. Faucett - Venezuela",
+        "distrito": "Callao",
+        "lat": -12.055,
+        "lng": -77.108,
+        "nivel": "medio",
+        "probabilidad": 0.55,
+        "motivos": [
+          "11 siniestros en el último año",
+          "congestión media",
+          "8 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "SUR-009",
+        "nombre": "Av. Primavera - Panamericana Sur",
+        "distrito": "Santiago de Surco",
+        "lat": -12.11,
+        "lng": -76.993,
+        "nivel": "medio",
+        "probabilidad": 0.37,
+        "motivos": [
+          "9 siniestros en el último año",
+          "congestión alta"
+        ]
+      },
+      {
+        "zona_id": "SIS-004",
+        "nombre": "Av. Javier Prado - Las Begonias",
+        "distrito": "San Isidro",
+        "lat": -12.09,
+        "lng": -77.023,
+        "nivel": "medio",
+        "probabilidad": 0.63,
+        "motivos": [
+          "8 siniestros en el último año",
+          "congestión alta"
+        ]
+      },
+      {
+        "zona_id": "SMI-006",
+        "nombre": "Av. La Marina - Universitaria",
+        "distrito": "San Miguel",
+        "lat": -12.078,
+        "lng": -77.085,
+        "nivel": "medio",
+        "probabilidad": 0.64,
+        "motivos": [
+          "7 siniestros en el último año",
+          "congestión media",
+          "3 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "OLI-008",
+        "nombre": "Panamericana Norte - Naranjal",
+        "distrito": "Los Olivos",
+        "lat": -11.975,
+        "lng": -77.07,
+        "nivel": "medio",
+        "probabilidad": 0.49,
+        "motivos": [
+          "10 siniestros en el último año",
+          "congestión media"
+        ]
+      },
+      {
+        "zona_id": "CHO-010",
+        "nombre": "Av. Huaylas - Defensores",
+        "distrito": "Chorrillos",
+        "lat": -12.17,
+        "lng": -77.013,
+        "nivel": "bajo",
+        "probabilidad": 0.24,
+        "motivos": [
+          "5 siniestros en el último año"
+        ]
+      }
+    ]
+  },
+  "noche-hoy": {
+    "generado": "2026-10-07T15:02:00-05:00",
+    "modelo": {
+      "version": "riesgo_vial@4",
+      "f1_macro": 0.74,
+      "entrenado": "2026-10-03",
+      "sesgo_ok": true,
+      "monitoreo": {
+        "fecha": "2026-10-05",
+        "deriva": false
+      }
+    },
+    "zonas": [
+      {
+        "zona_id": "MIR-014",
+        "nombre": "Av. Larco - Benavides",
+        "distrito": "Miraflores",
+        "lat": -12.1263,
+        "lng": -77.0297,
+        "nivel": "alto",
+        "probabilidad": 0.66,
+        "motivos": [
+          "12 siniestros en el último año",
+          "congestión alta",
+          "3 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "CER-003",
+        "nombre": "Av. Abancay - Jr. Ucayali",
+        "distrito": "Cercado de Lima",
+        "lat": -12.0507,
+        "lng": -77.03,
+        "nivel": "alto",
+        "probabilidad": 0.79,
+        "motivos": [
+          "21 siniestros en el último año",
+          "congestión alta",
+          "7 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "VIC-021",
+        "nombre": "Av. México - Gamarra",
+        "distrito": "La Victoria",
+        "lat": -12.067,
+        "lng": -77.016,
+        "nivel": "alto",
+        "probabilidad": 0.9,
+        "motivos": [
+          "17 siniestros en el último año",
+          "congestión alta",
+          "9 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "SJL-007",
+        "nombre": "Av. Próceres - Wiese",
+        "distrito": "San Juan de Lurigancho",
+        "lat": -11.993,
+        "lng": -77.006,
+        "nivel": "alto",
+        "probabilidad": 0.77,
+        "motivos": [
+          "15 siniestros en el último año",
+          "congestión media",
+          "6 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "ATE-011",
+        "nombre": "Carretera Central - Puruchuco",
+        "distrito": "Ate",
+        "lat": -12.042,
+        "lng": -76.932,
+        "nivel": "alto",
+        "probabilidad": 0.69,
+        "motivos": [
+          "19 siniestros en el último año",
+          "congestión alta",
+          "4 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "COM-005",
+        "nombre": "Av. Túpac Amaru - Belaúnde",
+        "distrito": "Comas",
+        "lat": -11.942,
+        "lng": -77.06,
+        "nivel": "alto",
+        "probabilidad": 0.73,
+        "motivos": [
+          "14 siniestros en el último año",
+          "congestión media",
+          "5 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "CAL-002",
+        "nombre": "Av. Faucett - Venezuela",
+        "distrito": "Callao",
+        "lat": -12.055,
+        "lng": -77.108,
+        "nivel": "alto",
+        "probabilidad": 0.84,
+        "motivos": [
+          "11 siniestros en el último año",
+          "congestión media",
+          "8 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "SUR-009",
+        "nombre": "Av. Primavera - Panamericana Sur",
+        "distrito": "Santiago de Surco",
+        "lat": -12.11,
+        "lng": -76.993,
+        "nivel": "medio",
+        "probabilidad": 0.48,
+        "motivos": [
+          "9 siniestros en el último año",
+          "congestión alta"
+        ]
+      },
+      {
+        "zona_id": "SIS-004",
+        "nombre": "Av. Javier Prado - Las Begonias",
+        "distrito": "San Isidro",
+        "lat": -12.09,
+        "lng": -77.023,
+        "nivel": "bajo",
+        "probabilidad": 0.21,
+        "motivos": [
+          "8 siniestros en el último año",
+          "congestión alta"
+        ]
+      },
+      {
+        "zona_id": "SMI-006",
+        "nombre": "Av. La Marina - Universitaria",
+        "distrito": "San Miguel",
+        "lat": -12.078,
+        "lng": -77.085,
+        "nivel": "medio",
+        "probabilidad": 0.4,
+        "motivos": [
+          "7 siniestros en el último año",
+          "congestión media",
+          "3 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "OLI-008",
+        "nombre": "Panamericana Norte - Naranjal",
+        "distrito": "Los Olivos",
+        "lat": -11.975,
+        "lng": -77.07,
+        "nivel": "medio",
+        "probabilidad": 0.51,
+        "motivos": [
+          "10 siniestros en el último año",
+          "congestión media"
+        ]
+      },
+      {
+        "zona_id": "CHO-010",
+        "nombre": "Av. Huaylas - Defensores",
+        "distrito": "Chorrillos",
+        "lat": -12.17,
+        "lng": -77.013,
+        "nivel": "medio",
+        "probabilidad": 0.58,
+        "motivos": [
+          "5 siniestros en el último año"
+        ]
+      }
+    ]
+  },
+  "manana-manana": {
+    "generado": "2026-10-07T15:02:00-05:00",
+    "modelo": {
+      "version": "riesgo_vial@4",
+      "f1_macro": 0.74,
+      "entrenado": "2026-10-03",
+      "sesgo_ok": true,
+      "monitoreo": {
+        "fecha": "2026-10-05",
+        "deriva": false
+      }
+    },
+    "zonas": [
+      {
+        "zona_id": "MIR-014",
+        "nombre": "Av. Larco - Benavides",
+        "distrito": "Miraflores",
+        "lat": -12.1263,
+        "lng": -77.0297,
+        "nivel": "medio",
+        "probabilidad": 0.46,
+        "motivos": [
+          "12 siniestros en el último año",
+          "congestión alta",
+          "3 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "CER-003",
+        "nombre": "Av. Abancay - Jr. Ucayali",
+        "distrito": "Cercado de Lima",
+        "lat": -12.0507,
+        "lng": -77.03,
+        "nivel": "alto",
+        "probabilidad": 0.78,
+        "motivos": [
+          "21 siniestros en el último año",
+          "congestión alta",
+          "7 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "VIC-021",
+        "nombre": "Av. México - Gamarra",
+        "distrito": "La Victoria",
+        "lat": -12.067,
+        "lng": -77.016,
+        "nivel": "medio",
+        "probabilidad": 0.65,
+        "motivos": [
+          "17 siniestros en el último año",
+          "congestión alta",
+          "9 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "SJL-007",
+        "nombre": "Av. Próceres - Wiese",
+        "distrito": "San Juan de Lurigancho",
+        "lat": -11.993,
+        "lng": -77.006,
+        "nivel": "alto",
+        "probabilidad": 0.87,
+        "motivos": [
+          "15 siniestros en el último año",
+          "congestión media",
+          "6 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "ATE-011",
+        "nombre": "Carretera Central - Puruchuco",
+        "distrito": "Ate",
+        "lat": -12.042,
+        "lng": -76.932,
+        "nivel": "alto",
+        "probabilidad": 0.9,
+        "motivos": [
+          "19 siniestros en el último año",
+          "congestión alta",
+          "4 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "COM-005",
+        "nombre": "Av. Túpac Amaru - Belaúnde",
+        "distrito": "Comas",
+        "lat": -11.942,
+        "lng": -77.06,
+        "nivel": "alto",
+        "probabilidad": 0.75,
+        "motivos": [
+          "14 siniestros en el último año",
+          "congestión media",
+          "5 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "CAL-002",
+        "nombre": "Av. Faucett - Venezuela",
+        "distrito": "Callao",
+        "lat": -12.055,
+        "lng": -77.108,
+        "nivel": "medio",
+        "probabilidad": 0.44,
+        "motivos": [
+          "11 siniestros en el último año",
+          "congestión media",
+          "8 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "SUR-009",
+        "nombre": "Av. Primavera - Panamericana Sur",
+        "distrito": "Santiago de Surco",
+        "lat": -12.11,
+        "lng": -76.993,
+        "nivel": "alto",
+        "probabilidad": 0.72,
+        "motivos": [
+          "9 siniestros en el último año",
+          "congestión alta"
+        ]
+      },
+      {
+        "zona_id": "SIS-004",
+        "nombre": "Av. Javier Prado - Las Begonias",
+        "distrito": "San Isidro",
+        "lat": -12.09,
+        "lng": -77.023,
+        "nivel": "medio",
+        "probabilidad": 0.61,
+        "motivos": [
+          "8 siniestros en el último año",
+          "congestión alta"
+        ]
+      },
+      {
+        "zona_id": "SMI-006",
+        "nombre": "Av. La Marina - Universitaria",
+        "distrito": "San Miguel",
+        "lat": -12.078,
+        "lng": -77.085,
+        "nivel": "medio",
+        "probabilidad": 0.34,
+        "motivos": [
+          "7 siniestros en el último año",
+          "congestión media",
+          "3 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "OLI-008",
+        "nombre": "Panamericana Norte - Naranjal",
+        "distrito": "Los Olivos",
+        "lat": -11.975,
+        "lng": -77.07,
+        "nivel": "alto",
+        "probabilidad": 0.76,
+        "motivos": [
+          "10 siniestros en el último año",
+          "congestión media"
+        ]
+      },
+      {
+        "zona_id": "CHO-010",
+        "nombre": "Av. Huaylas - Defensores",
+        "distrito": "Chorrillos",
+        "lat": -12.17,
+        "lng": -77.013,
+        "nivel": "bajo",
+        "probabilidad": 0.22,
+        "motivos": [
+          "5 siniestros en el último año"
+        ]
+      }
+    ]
+  },
+  "tarde-manana": {
+    "generado": "2026-10-07T15:02:00-05:00",
+    "modelo": {
+      "version": "riesgo_vial@4",
+      "f1_macro": 0.74,
+      "entrenado": "2026-10-03",
+      "sesgo_ok": true,
+      "monitoreo": {
+        "fecha": "2026-10-05",
+        "deriva": false
+      }
+    },
+    "zonas": [
+      {
+        "zona_id": "MIR-014",
+        "nombre": "Av. Larco - Benavides",
+        "distrito": "Miraflores",
+        "lat": -12.1263,
+        "lng": -77.0297,
+        "nivel": "alto",
+        "probabilidad": 0.77,
+        "motivos": [
+          "12 siniestros en el último año",
+          "congestión alta",
+          "3 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "CER-003",
+        "nombre": "Av. Abancay - Jr. Ucayali",
+        "distrito": "Cercado de Lima",
+        "lat": -12.0507,
+        "lng": -77.03,
+        "nivel": "alto",
+        "probabilidad": 0.84,
+        "motivos": [
+          "21 siniestros en el último año",
+          "congestión alta",
+          "7 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "VIC-021",
+        "nombre": "Av. México - Gamarra",
+        "distrito": "La Victoria",
+        "lat": -12.067,
+        "lng": -77.016,
+        "nivel": "alto",
+        "probabilidad": 0.66,
+        "motivos": [
+          "17 siniestros en el último año",
+          "congestión alta",
+          "9 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "SJL-007",
+        "nombre": "Av. Próceres - Wiese",
+        "distrito": "San Juan de Lurigancho",
+        "lat": -11.993,
+        "lng": -77.006,
+        "nivel": "medio",
+        "probabilidad": 0.48,
+        "motivos": [
+          "15 siniestros en el último año",
+          "congestión media",
+          "6 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "ATE-011",
+        "nombre": "Carretera Central - Puruchuco",
+        "distrito": "Ate",
+        "lat": -12.042,
+        "lng": -76.932,
+        "nivel": "medio",
+        "probabilidad": 0.54,
+        "motivos": [
+          "19 siniestros en el último año",
+          "congestión alta",
+          "4 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "COM-005",
+        "nombre": "Av. Túpac Amaru - Belaúnde",
+        "distrito": "Comas",
+        "lat": -11.942,
+        "lng": -77.06,
+        "nivel": "medio",
+        "probabilidad": 0.41,
+        "motivos": [
+          "14 siniestros en el último año",
+          "congestión media",
+          "5 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "CAL-002",
+        "nombre": "Av. Faucett - Venezuela",
+        "distrito": "Callao",
+        "lat": -12.055,
+        "lng": -77.108,
+        "nivel": "medio",
+        "probabilidad": 0.51,
+        "motivos": [
+          "11 siniestros en el último año",
+          "congestión media",
+          "8 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "SUR-009",
+        "nombre": "Av. Primavera - Panamericana Sur",
+        "distrito": "Santiago de Surco",
+        "lat": -12.11,
+        "lng": -76.993,
+        "nivel": "medio",
+        "probabilidad": 0.33,
+        "motivos": [
+          "9 siniestros en el último año",
+          "congestión alta"
+        ]
+      },
+      {
+        "zona_id": "SIS-004",
+        "nombre": "Av. Javier Prado - Las Begonias",
+        "distrito": "San Isidro",
+        "lat": -12.09,
+        "lng": -77.023,
+        "nivel": "medio",
+        "probabilidad": 0.59,
+        "motivos": [
+          "8 siniestros en el último año",
+          "congestión alta"
+        ]
+      },
+      {
+        "zona_id": "SMI-006",
+        "nombre": "Av. La Marina - Universitaria",
+        "distrito": "San Miguel",
+        "lat": -12.078,
+        "lng": -77.085,
+        "nivel": "medio",
+        "probabilidad": 0.6,
+        "motivos": [
+          "7 siniestros en el último año",
+          "congestión media",
+          "3 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "OLI-008",
+        "nombre": "Panamericana Norte - Naranjal",
+        "distrito": "Los Olivos",
+        "lat": -11.975,
+        "lng": -77.07,
+        "nivel": "medio",
+        "probabilidad": 0.45,
+        "motivos": [
+          "10 siniestros en el último año",
+          "congestión media"
+        ]
+      },
+      {
+        "zona_id": "CHO-010",
+        "nombre": "Av. Huaylas - Defensores",
+        "distrito": "Chorrillos",
+        "lat": -12.17,
+        "lng": -77.013,
+        "nivel": "bajo",
+        "probabilidad": 0.2,
+        "motivos": [
+          "5 siniestros en el último año"
+        ]
+      }
+    ]
+  },
+  "noche-manana": {
+    "generado": "2026-10-07T15:02:00-05:00",
+    "modelo": {
+      "version": "riesgo_vial@4",
+      "f1_macro": 0.74,
+      "entrenado": "2026-10-03",
+      "sesgo_ok": true,
+      "monitoreo": {
+        "fecha": "2026-10-05",
+        "deriva": false
+      }
+    },
+    "zonas": [
+      {
+        "zona_id": "MIR-014",
+        "nombre": "Av. Larco - Benavides",
+        "distrito": "Miraflores",
+        "lat": -12.1263,
+        "lng": -77.0297,
+        "nivel": "alto",
+        "probabilidad": 0.7,
+        "motivos": [
+          "12 siniestros en el último año",
+          "congestión alta",
+          "3 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "CER-003",
+        "nombre": "Av. Abancay - Jr. Ucayali",
+        "distrito": "Cercado de Lima",
+        "lat": -12.0507,
+        "lng": -77.03,
+        "nivel": "alto",
+        "probabilidad": 0.83,
+        "motivos": [
+          "21 siniestros en el último año",
+          "congestión alta",
+          "7 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "VIC-021",
+        "nombre": "Av. México - Gamarra",
+        "distrito": "La Victoria",
+        "lat": -12.067,
+        "lng": -77.016,
+        "nivel": "alto",
+        "probabilidad": 0.94,
+        "motivos": [
+          "17 siniestros en el último año",
+          "congestión alta",
+          "9 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "SJL-007",
+        "nombre": "Av. Próceres - Wiese",
+        "distrito": "San Juan de Lurigancho",
+        "lat": -11.993,
+        "lng": -77.006,
+        "nivel": "alto",
+        "probabilidad": 0.81,
+        "motivos": [
+          "15 siniestros en el último año",
+          "congestión media",
+          "6 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "ATE-011",
+        "nombre": "Carretera Central - Puruchuco",
+        "distrito": "Ate",
+        "lat": -12.042,
+        "lng": -76.932,
+        "nivel": "alto",
+        "probabilidad": 0.73,
+        "motivos": [
+          "19 siniestros en el último año",
+          "congestión alta",
+          "4 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "COM-005",
+        "nombre": "Av. Túpac Amaru - Belaúnde",
+        "distrito": "Comas",
+        "lat": -11.942,
+        "lng": -77.06,
+        "nivel": "alto",
+        "probabilidad": 0.77,
+        "motivos": [
+          "14 siniestros en el último año",
+          "congestión media",
+          "5 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "CAL-002",
+        "nombre": "Av. Faucett - Venezuela",
+        "distrito": "Callao",
+        "lat": -12.055,
+        "lng": -77.108,
+        "nivel": "alto",
+        "probabilidad": 0.88,
+        "motivos": [
+          "11 siniestros en el último año",
+          "congestión media",
+          "8 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "SUR-009",
+        "nombre": "Av. Primavera - Panamericana Sur",
+        "distrito": "Santiago de Surco",
+        "lat": -12.11,
+        "lng": -76.993,
+        "nivel": "medio",
+        "probabilidad": 0.52,
+        "motivos": [
+          "9 siniestros en el último año",
+          "congestión alta"
+        ]
+      },
+      {
+        "zona_id": "SIS-004",
+        "nombre": "Av. Javier Prado - Las Begonias",
+        "distrito": "San Isidro",
+        "lat": -12.09,
+        "lng": -77.023,
+        "nivel": "bajo",
+        "probabilidad": 0.25,
+        "motivos": [
+          "8 siniestros en el último año",
+          "congestión alta"
+        ]
+      },
+      {
+        "zona_id": "SMI-006",
+        "nombre": "Av. La Marina - Universitaria",
+        "distrito": "San Miguel",
+        "lat": -12.078,
+        "lng": -77.085,
+        "nivel": "medio",
+        "probabilidad": 0.44,
+        "motivos": [
+          "7 siniestros en el último año",
+          "congestión media",
+          "3 reportes recientes cercanos"
+        ]
+      },
+      {
+        "zona_id": "OLI-008",
+        "nombre": "Panamericana Norte - Naranjal",
+        "distrito": "Los Olivos",
+        "lat": -11.975,
+        "lng": -77.07,
+        "nivel": "medio",
+        "probabilidad": 0.55,
+        "motivos": [
+          "10 siniestros en el último año",
+          "congestión media"
+        ]
+      },
+      {
+        "zona_id": "CHO-010",
+        "nombre": "Av. Huaylas - Defensores",
+        "distrito": "Chorrillos",
+        "lat": -12.17,
+        "lng": -77.013,
+        "nivel": "medio",
+        "probabilidad": 0.62,
+        "motivos": [
+          "5 siniestros en el último año"
+        ]
+      }
+    ]
+  }
+}

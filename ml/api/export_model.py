@@ -21,7 +21,11 @@ from mlflow.tracking import MlflowClient
 load_dotenv()
 
 MODEL_NAME = "riesgo_vial"
-MODEL_ALIAS = "challenger"
+# El alias se elige al construir la imagen: el pipeline MLOps (HT-47 T03)
+# construye con MODEL_ALIAS=champion para hornear la version ya promovida.
+# Por defecto sigue siendo "challenger", asi que el build manual de HT-46 T03
+# no cambia.
+MODEL_ALIAS = os.environ.get("MODEL_ALIAS", "challenger")
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "model")
 
 

@@ -28,12 +28,78 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      security-events: write   # subir el SARIF de IaC (HT-44 T02)
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.TF_AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.TF_AWS_SECRET_ACCESS_KEY }}
       VERCEL_API_TOKEN: ${{ secrets.TF_VERCEL_API_TOKEN }}
+      # HT-42 T01: variables del host de Vercel (cambio-despliegue), desde secrets.
+      TF_VAR_deploy_webhook_secret: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}
+      TF_VAR_jira_base_url: ${{ secrets.JIRA_BASE_URL }}
+      TF_VAR_jira_email: ${{ secrets.JIRA_EMAIL }}
+      TF_VAR_jira_api_token: ${{ secrets.JIRA_API_TOKEN }}
     steps:
       - uses: actions/checkout@v4
+
+      # HT-44 T02: analisis de seguridad del codigo Terraform ANTES del plan.
+      #
+      # Va antes de "terraform init" a proposito: Trivy lee los .tf del disco y
+      # no necesita credenciales de AWS ni de Vercel. Si estuviera despues del
+      # init, un PR desde un fork (donde GitHub no entrega los secrets) moriria
+      # en el init y el analisis de seguridad no llegaria a ejecutarse nunca.
+      #
+      # Se usa Trivy en modo config, que es donde Aqua Security fusiono tfsec
+      # (tfsec quedo en mantenimiento y su propio README remite a Trivy). Asi
+      # el analisis de IaC usa el mismo motor y las mismas reglas que el
+      # escaneo de imagenes de HT-44 T01, en vez de dos herramientas distintas.
+      #
+      # Se usa @master, igual que trivy-scan.yml: es la unica referencia de
+      # esta accion que el repositorio ya tiene probada. Lo correcto seria
+      # fijar una version exacta, pero hay que comprobar antes que el tag
+      # exista (un tag inventado hace fallar el job entero en "Set up job",
+      # antes de ejecutar nada).
+      #
+      # Informe completo (CRITICAL, HIGH y MEDIUM) a la pestana Security, sin
+      # bloquear: sirve para ver el inventario de hallazgos.
+      - name: Analisis de seguridad de IaC - informe (Trivy/tfsec)
+        if: ${{ !cancelled() }}
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: config
+          scan-ref: ${{ env.TF_DIR }}
+          format: sarif
+          output: trivy-iac.sarif
+          severity: CRITICAL,HIGH,MEDIUM
+          exit-code: '0'
+
+      # En un PR que viene de un fork, GitHub entrega un GITHUB_TOKEN de solo
+      # lectura y la subida del SARIF falla con "Resource not accessible by
+      # integration". Es un problema de publicacion del informe, no un hallazgo
+      # de seguridad: no debe tumbar el job. El gate de abajo si bloquea.
+      - name: Subir SARIF de IaC a GitHub Security
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-iac.sarif
+          category: trivy-iac
+
+      # Gate que corre ANTES del plan: un hallazgo CRITICAL falla el job y el
+      # plan de abajo no llega a ejecutarse.
+      #
+      # Arranca solo en CRITICAL a proposito. El umbral correcto es HIGH, pero
+      # subirlo a ciegas podria dejar en rojo los PR de todo el equipo por
+      # hallazgos preexistentes que nadie ha triado todavia. Tras la primera
+      # ejecucion, revisar el inventario en la pestana Security y subir este
+      # umbral a CRITICAL,HIGH (ver docs/DEVSECOPS_TEAM_GUIDELINES.md).
+      - name: Analisis de seguridad de IaC - gate (Trivy/tfsec)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: config
+          scan-ref: ${{ env.TF_DIR }}
+          format: table
+          severity: CRITICAL
+          exit-code: '1'
 
       - uses: hashicorp/setup-terraform@v3
         with:
@@ -55,11 +121,6 @@ jobs:
         id: validate
         working-directory: ${{ env.TF_DIR }}
         run: terraform validate -no-color
-
-      # HT-44 T02 (Alvaro): aqui va el analisis de seguridad de IaC (por ejemplo tfsec o Checkov),
-      # siempre antes del plan. Dejarlo como paso separado para que su fallo bloquee el plan.
-      # - name: Analisis de seguridad de IaC
-      #   run: ...
 
       # -lock=false: el plan de un PR solo lee, asi el usuario de CI no necesita escribir
       # el archivo de bloqueo (use_lockfile) en el bucket de estado. El apply si bloquea.
@@ -143,6 +204,11 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.TF_AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.TF_AWS_SECRET_ACCESS_KEY }}
       VERCEL_API_TOKEN: ${{ secrets.TF_VERCEL_API_TOKEN }}
+      # HT-42 T01: variables del host de Vercel (cambio-despliegue), desde secrets.
+      TF_VAR_deploy_webhook_secret: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}
+      TF_VAR_jira_base_url: ${{ secrets.JIRA_BASE_URL }}
+      TF_VAR_jira_email: ${{ secrets.JIRA_EMAIL }}
+      TF_VAR_jira_api_token: ${{ secrets.JIRA_API_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 

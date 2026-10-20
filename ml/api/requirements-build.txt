@@ -1,0 +1,12 @@
+# Dependencias de BUILD de la API (solo etapa builder del Dockerfile).
+#
+# Son las de ejecucion mas lo que necesitan export_model.py (bajar el modelo
+# del Model Registry) y build_lookup.py (leer la severidad historica de la
+# base de datos). Nada de esto queda en la imagen final.
+#
+# Para correr los scripts a mano en local:
+#   pip install -r ml/api/requirements-build.txt
+-r requirements.txt
+sqlalchemy==2.0.36
+psycopg2-binary==2.9.10
+python-dotenv==1.2.2

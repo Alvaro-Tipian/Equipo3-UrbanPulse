@@ -10,6 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.104.2",
+    "@tomtom-international/web-sdk-maps": "^6.25.0",
+    "@urbanpulse/shared": "file:../packages/shared",
+    "lucide-react": "^1.55.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },

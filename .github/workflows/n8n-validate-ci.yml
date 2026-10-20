@@ -34,12 +34,22 @@ jobs:
         shell: bash
         run: |
           set -e
-          files=$(find src/n8n-workflows -type f -name '*.json' || true)
-          if [ -z "$files" ]; then
+
+          if [ ! -d src/n8n-workflows ]; then
+            echo 'No existe src/n8n-workflows.'
+            exit 0
+          fi
+          if [ -z "$(find src/n8n-workflows -type f -name '*.json' -print -quit)" ]; then
             echo 'No se encontraron archivos JSON en src/n8n-workflows.'
             exit 0
           fi
-          secrets=$(grep -RInE '(sk-[A-Za-z0-9]{20,}|AIza[0-9A-Za-z_-]{35}|Bearer [A-Za-z0-9._-]{15,}|"(api_key|apiKey|API_KEY)"[[:space:]]*:[[:space:]]*"[^"]{6,}")' $files || true)
+
+          # grep -R sobre el directorio, no sobre una lista de rutas expandida
+          # sin comillas: asi cada workflow con espacios en el nombre se partia
+          # en varios "archivos" inexistentes y nunca se llegaba a escanear.
+          # Eran justo los de produccion (Central, Dashboard KPIs, Errores a
+          # Service Desk), que son los que tienen credenciales de verdad.
+          secrets=$(grep -RInE '(sk-[A-Za-z0-9]{20,}|AIza[0-9A-Za-z_-]{35}|Bearer [A-Za-z0-9._-]{15,}|"(api_key|apiKey|API_KEY)"[[:space:]]*:[[:space:]]*"[^"]{6,}")' --include='*.json' src/n8n-workflows || true)
           if [ -n "$secrets" ]; then
             echo '🚨 Se detectaron posibles credenciales hardcodeadas en los workflows n8n:'
             echo "$secrets"

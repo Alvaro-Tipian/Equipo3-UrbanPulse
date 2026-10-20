@@ -1,6 +1,13 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Send, Camera, Bot, User, MapPin, AlertTriangle, CheckCircle, LogOut } from 'lucide-react';
 import './index.css';
+import RespuestaRAG from './RespuestaRAG';
+import ResumenReporte from './ResumenReporte';
+import { esConsulta, parsearResumen } from './utilsChat';
+import { respuestaMockConsulta } from './mock/consulta';
+
+// HT-50 / T04: mientras el RAG no esté en staging, TE_RAG_MOCK=true responde consultas con el mock del contrato 4.8
+const USAR_MOCK_RAG = import.meta.env.TE_RAG_MOCK === 'true';
 
 // ✨ NUEVO 1: Importamos todo desde tu módulo compartido
 import { getSession, saveSession, clearSession, subscribeSession, fetchN8n } from '@urbanpulse/shared';
@@ -75,6 +82,10 @@ function mensajesDesdeHistorial(fila) {
     sender: mensaje.rol === 'ciudadano' ? 'ciudadano' : 'urbanbot',
     text: mensaje.texto || '',
     image: i === ultimoConFoto ? foto : null,
+    // HT-50 / T04: las respuestas del RAG se guardan con sus fuentes para volver a mostrarlas
+    isRAG: mensaje.tipo === 'consulta',
+    fuentes: Array.isArray(mensaje.fuentes) ? mensaje.fuentes : [],
+    sinInformacion: mensaje.sin_informacion === true,
   }));
 }
 
@@ -129,6 +140,8 @@ export default function NLQCommandCenter() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
   const fileInputRef = useRef(null);
+  // Foto del reporte en curso: se muestra en el resumen y en la tarjeta de confirmación
+  const imagenReporteRef = useRef(null);
   const conversacionesCargadas = useRef(new Set());
 
   useEffect(() => subscribeSession((nueva) => {
@@ -198,10 +211,11 @@ export default function NLQCommandCenter() {
     }
   };
 
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    
-    const textoLimpio = inputText.trim();
+  // textoForzado: lo usan los botones "Sí, enviar" / "Corregir" del resumen
+  const handleSendMessage = async (e, textoForzado) => {
+    if (e) e.preventDefault();
+
+    const textoLimpio = (textoForzado ?? inputText).trim();
     if (!textoLimpio && !imagePreview) return;
 
     const textoUsuario = textoLimpio.toLowerCase();
@@ -214,6 +228,8 @@ export default function NLQCommandCenter() {
       image: imagePreview
     };
     
+    if (imagePreview) imagenReporteRef.current = imagePreview;
+
     setMessages(prev => [...prev, newUserMessage]);
     setInputText('');
     setIsAnalyzing(true);
@@ -236,26 +252,38 @@ export default function NLQCommandCenter() {
       };
 
       // ✨ NUEVO 5: Reemplazamos el fetch manual por tu cliente inteligente
-      const data = await fetchN8n('/urbanpulse/chat', {
+      const mock = USAR_MOCK_RAG ? await respuestaMockConsulta(textoLimpio) : null;
+      const data = mock ?? await fetchN8n('/urbanpulse/chat', {
         method: 'POST',
         body: JSON.stringify(payload),
       });
+
+      // HT-50 / T04: una consulta vial (RAG) se muestra distinta a un reporte de incidente
+      const esRAG = esConsulta(data);
+      const fuentes = esRAG && Array.isArray(data.fuentes) ? data.fuentes : [];
+      const sinInformacion = esRAG && data.sin_informacion === true;
 
       if (data.respuesta) {
         setMessages(prev => [...prev, {
           id: Date.now() + 1,
           sender: 'urbanbot',
-          text: data.respuesta
+          text: data.respuesta,
+          isRAG: esRAG,
+          fuentes,
+          sinInformacion,
+          imagenReporte: imagenReporteRef.current,
         }]);
       }
 
       const ahora = new Date().toISOString();
       guardarTurnoEnHistorial(conversacion, session.id, [
         { rol: 'ciudadano', texto: textoLimpio, imagen: !!imagenBase64, at: ahora },
-        ...(data.respuesta ? [{ rol: 'urbanbot', texto: data.respuesta, at: ahora }] : []),
+        ...(data.respuesta
+          ? [{ rol: 'urbanbot', texto: data.respuesta, at: ahora, ...(esRAG && { tipo: 'consulta', fuentes, sin_informacion: sinInformacion }) }]
+          : []),
       ]);
 
-      if (data.estado === 'completado' && data.tipo_incidente) {
+      if (!esRAG && data.estado === 'completado' && data.tipo_incidente) {
         const newBotMessage = {
           id: Date.now() + 2,
           sender: 'urbanbot',
@@ -266,12 +294,14 @@ export default function NLQCommandCenter() {
             gravedad: `Prioridad ${data.prioridad} (Riesgo: ${data.score_riesgo})`,
             gps: `${latActual}, ${lonActual}`, 
             accion: 'Incidente registrado en sistema central'
-          }
+          },
+          imagenReporte: imagenReporteRef.current,
         };
         setMessages(prev => [...prev, newBotMessage]);
       }
 
-      if (data.estado === 'completado') {
+      if (!esRAG && data.estado === 'completado') {
+        imagenReporteRef.current = null;
         const siguiente = renovarConversacion(session.id);
         conversacionesCargadas.current.add(siguiente);
         setSessionId(siguiente);
@@ -322,8 +352,9 @@ export default function NLQCommandCenter() {
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-[var(--color-text-secondary)]">
             <Bot size={48} className="mb-4 opacity-20" />
-            <p>Describe el incidente...</p>
+            <p>Reporta un incidente o consulta el estado vial de tu zona.</p>
             <p className="text-sm mt-1">Ej: &quot;Hay un bache gigante frente al parque.&quot;</p>
+            <p className="text-sm mt-1">Ej: &quot;¿Es riesgoso circular por Ate en la mañana?&quot;</p>
           </div>
         )}
 
@@ -335,7 +366,18 @@ export default function NLQCommandCenter() {
             </div>
 
             <div className={`max-w-[80%] flex flex-col gap-2 ${msg.sender === 'ciudadano' ? 'items-end' : 'items-start'}`}>
-              {!msg.isStatusCard && (
+              {msg.isRAG && <RespuestaRAG respuesta={msg.text} fuentes={msg.fuentes} sinInformacion={msg.sinInformacion} />}
+
+              {!msg.isStatusCard && !msg.isRAG && msg.sender === 'urbanbot' && parsearResumen(msg.text) && (
+                <ResumenReporte
+                  resumen={parsearResumen(msg.text)}
+                  imagen={msg.imagenReporte}
+                  activo={!isAnalyzing && msg.id === messages[messages.length - 1]?.id}
+                  onResponder={(valor) => handleSendMessage(null, valor)}
+                />
+              )}
+
+              {!msg.isStatusCard && !msg.isRAG && !(msg.sender === 'urbanbot' && parsearResumen(msg.text)) && (
                 <div className={`p-3 rounded-2xl border border-[var(--color-border)] shadow-sm ${msg.sender === 'ciudadano' ? 'bg-[var(--color-accent)]/10 text-[var(--color-text-primary)] rounded-tr-none' : 'bg-[var(--color-card)] text-[var(--color-text-secondary)] rounded-tl-none'}`}>
                   {msg.text && <p>{msg.text}</p>}
                   {msg.image && (
@@ -350,6 +392,9 @@ export default function NLQCommandCenter() {
                     <CheckCircle className="text-[var(--color-accent)]" size={20} />
                     <h3 className="font-bold text-[var(--color-text-primary)]">Ticket #{msg.ticketData.id} Confirmado</h3>
                   </div>
+                  {msg.imagenReporte && (
+                    <img src={msg.imagenReporte} alt="Foto del incidente" className="mb-3 w-full max-h-40 rounded-lg object-cover border border-[var(--color-border)]" />
+                  )}
                   <div className="space-y-2 text-sm text-[var(--color-text-secondary)]">
                     <p className="flex justify-between border-b border-[var(--color-border)] pb-1">
                       <span>Tipo:</span> <span className="text-[var(--color-text-primary)]">{msg.ticketData.tipo}</span>
@@ -381,7 +426,7 @@ export default function NLQCommandCenter() {
             </div>
             <div className="bg-[var(--color-card)] border border-[var(--color-border)] p-3 rounded-2xl rounded-tl-none flex items-center gap-3">
               <div className="animate-spin h-4 w-4 border-2 border-[var(--color-accent)] border-t-transparent rounded-full"></div>
-              <span className="text-sm text-[var(--color-accent-light)] animate-pulse">Procesando reporte con IA...</span>
+              <span className="text-sm text-[var(--color-accent-light)] animate-pulse">Procesando con IA...</span>
             </div>
           </div>
         )}
@@ -421,7 +466,7 @@ export default function NLQCommandCenter() {
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             disabled={isAnalyzing}
-            placeholder="Reporta un incidente...."
+            placeholder="Reporta un incidente o haz una consulta vial..."
             className="flex-1 bg-[var(--color-card)] text-[var(--color-text-primary)] placeholder-[var(--color-text-secondary)] px-4 py-3 rounded-xl border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] disabled:opacity-50 transition-all"
           />
           <button 

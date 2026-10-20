@@ -26,6 +26,7 @@ export default defineConfig({
         'react/jsx-dev-runtime': { 
           singleton: true 
         },
+        '@urbanpulse/shared': { singleton: true },
       },
       dts: false,
     }),

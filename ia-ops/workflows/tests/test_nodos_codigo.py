@@ -1,12 +1,26 @@
 """Nodos Code del workflow de ingesta RAG, ejecutados en Node.js."""
 
 import hashlib
+import json
+import subprocess
 
 import pytest
 
-from conftest import ErrorDeNodo, ejecutar, respuesta_gemini
+from conftest import WORKFLOW, ErrorDeNodo, ejecutar, nodo, respuesta_gemini
 
 UUID = "4f6c1a2e-9b3d-4c5e-8f7a-1b2c3d4e5f60"
+
+
+def flujo():
+    return json.loads(WORKFLOW.read_text(encoding="utf-8"))
+
+
+def evaluar(expresion, json_entrada):
+    """Evalua una expresion de n8n ("={{ ... }}") con $json, en Node.js."""
+    cuerpo = expresion.strip()
+    assert cuerpo.startswith("={{") and cuerpo.endswith("}}")
+    codigo = f"const $json = {json.dumps(json_entrada)}; console.log(JSON.stringify({cuerpo[3:-2]}));"
+    return json.loads(subprocess.run(["node", "-e", codigo], capture_output=True, text=True, check=True).stdout)
 
 
 def evento(tipo="reporte.creado", **datos):
@@ -107,14 +121,56 @@ def test_ficha_sin_cambios_no_se_vuelve_a_vectorizar():
 
 # --------------------------------------------- Lotes y union de embeddings
 
-def test_lotes_de_hasta_100():
+def test_lotes_de_hasta_50():
+    # El nivel gratuito de Gemini cuenta cada texto como una solicitud y
+    # permite 100 por minuto, compartidas con el chat del RAG.
     fichas = [{"clave": f"k{i}", "contenido": f"texto {i}", "modelo_embedding": "gemini-embedding-001"}
               for i in range(132)]
     lotes = ejecutar("Armar lotes de embeddings", fichas)
-    assert [len(l["requests"]) for l in lotes] == [100, 32]
+    assert [len(l["requests"]) for l in lotes] == [50, 50, 32]
     req = lotes[0]["requests"][0]
     assert req == {"model": "models/gemini-embedding-001", "content": {"parts": [{"text": "texto 0"}]},
                    "taskType": "RETRIEVAL_DOCUMENT", "outputDimensionality": 768}
+
+
+def test_lotes_numerados_para_esperar_solo_entre_ellos():
+    fichas = [{"clave": f"k{i}", "contenido": "t", "modelo_embedding": "m"} for i in range(132)]
+    assert [l["indice"] for l in ejecutar("Armar lotes de embeddings", fichas)] == [0, 1, 2]
+
+
+def destinos(origen, salida=0):
+    return [c["node"] for c in flujo()["connections"][origen]["main"][salida]]
+
+
+def test_un_lote_por_vuelta_sin_batching():
+    # Con la opcion Batching del nodo HTTP, n8n dejaba las respuestas de
+    # Gemini sin leer mientras esperaba entre lotes y cortaba con "Response
+    # body timed out after 300000ms without data" (ejecucion 5658), aunque
+    # Gemini habia respondido 200. Ahora un bucle manda un lote, lo lee y
+    # recien entonces espera para el siguiente.
+    assert "batching" not in nodo("Generar embeddings (Gemini)")["parameters"].get("options", {})
+    bucle = nodo("Un lote por vuelta")
+    assert (bucle["type"], bucle["typeVersion"]) == ("n8n-nodes-base.splitInBatches", 3)
+    assert bucle["parameters"]["batchSize"] == 1
+    assert destinos("Armar lotes de embeddings") == ["Un lote por vuelta"]
+    assert destinos("Un lote por vuelta", 1) == ["Esperar cuota de Gemini"]  # salida "loop"
+    assert destinos("Esperar cuota de Gemini") == ["Generar embeddings (Gemini)"]
+    assert destinos("Generar embeddings (Gemini)") == ["Un lote por vuelta"]
+    assert destinos("Un lote por vuelta", 0) == ["Unir embeddings con fichas"]  # salida "done"
+
+
+def test_espera_un_minuto_solo_entre_lotes():
+    # Cuota gratuita de Gemini: 100 textos por minuto y lotes de 50. El primer
+    # lote no espera (la ingesta de un evento tiene un solo lote), y la espera
+    # queda por debajo de 65 s para que n8n la haga en memoria y no pase la
+    # ejecucion a "waiting" (la ingesta tambien corre como subflujo).
+    espera = nodo("Esperar cuota de Gemini")
+    assert espera["type"] == "n8n-nodes-base.wait"
+    assert espera["parameters"]["resume"] == "timeInterval"
+    assert espera["parameters"]["unit"] == "seconds"
+    segundos = [evaluar(espera["parameters"]["amount"], {"indice": i}) for i in range(3)]
+    assert segundos[0] <= 1
+    assert all(60 <= s < 65 for s in segundos[1:])
 
 
 def test_union_empareja_cada_vector_con_su_ficha():
