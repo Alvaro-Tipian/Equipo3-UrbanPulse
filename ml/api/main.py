@@ -90,6 +90,11 @@ class HealthResponse(BaseModel):
     status: str
     model_version: str
     entrenado: str
+    # HU-10 T05: F1-macro del run que entreno esta version, copiado de MLflow
+    # por export_model.py al hornear la imagen. Opcional a proposito: una
+    # imagen construida antes de HU-10 T05 no lo trae, y el consumidor
+    # (workflow /riesgo-predictivo) tiene su propio respaldo.
+    f1_macro: float | None = None
 
 
 # --------------------------------------------------------------------------
@@ -254,10 +259,12 @@ def health():
         datetime.fromtimestamp(entrenado_ms / 1000, tz=timezone.utc).date().isoformat()
         if entrenado_ms else "desconocido"
     )
+    f1_macro = _metadata.get("f1_macro")
     return HealthResponse(
         status="ok",
         model_version=_metadata["model_version_tag"],
         entrenado=entrenado_fecha,
+        f1_macro=float(f1_macro) if f1_macro is not None else None,
     )
 
 

@@ -49,6 +49,12 @@ def main():
     mlflow.sklearn.save_model(mlflow.sklearn.load_model(model_uri), ruta_modelo)
 
     run = client.get_run(version.run_id)
+    # HU-10 T05: las metricas del run que produjo ESTA version se copian aqui,
+    # para que /health pueda exponer el F1 del modelo que realmente esta
+    # sirviendo. Es la unica lectura de MLflow en toda la cadena: ocurre al
+    # hornear la imagen, no en cada peticion, y evita que n8n o el panel
+    # necesiten credenciales de MLflow para mostrar el dato.
+    metricas = run.data.metrics or {}
     metadata = {
         "model_name": MODEL_NAME,
         "alias": MODEL_ALIAS,
@@ -57,6 +63,9 @@ def main():
         "run_id": version.run_id,
         "entrenado": run.info.start_time,  # epoch ms; main.py lo formatea a fecha
         "supera_heuristico": version.tags.get("supera_heuristico", "desconocido"),
+        "f1_macro": metricas.get("f1_macro"),
+        "recall_alto": metricas.get("recall_alto"),
+        "roc_auc_bajo_vs_resto": metricas.get("roc_auc_bajo_vs_resto"),
     }
     with open(os.path.join(OUTPUT_DIR, "metadata.json"), "w") as f:
         json.dump(metadata, f, indent=2)
