@@ -7,6 +7,12 @@
 # UI de Actions) -- sin cron -- para no gastar minutos de CI ni llamadas
 # reales a Gemini/Groq de forma recurrente.
 #
+# HT-37 T01: este workflow NO usa ninguna clave de Gemini propia. Solo llama al
+# webhook (N8N_CHAT_WEBHOOK_URL), y es el n8n de produccion quien gasta SU clave
+# de Gemini. Para que no consuma la cuota de produccion, el secret debe apuntar
+# a un n8n de pruebas configurado con GEMINI_API_KEY_CI (ver
+# docs/REGISTRO_DE_RIESGOS.md, riesgo R-03).
+#
 # El job primero hace un healthcheck liviano contra el webhook antes de
 # correr la suite completa. Si el servicio esta caido (como ocurrio el
 # 2026-09-16), la corrida se SALTA (no falla) y lo indica en el resumen del
