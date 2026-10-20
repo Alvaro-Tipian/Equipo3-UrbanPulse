@@ -76,6 +76,8 @@ jobs:
           SHA_DESPLIEGUE: ${{ github.event.deployment.sha }}
           REF_ACTUAL: ${{ github.ref }}
           SHA_ACTUAL: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
 
@@ -83,9 +85,18 @@ jobs:
           # despliegue es el del propio deploy (el codigo que se escanea);
           # en una corrida manual, el de la rama desde la que se lanzo.
           if [ "$EVENTO" = "deployment_status" ] && [ -n "$SHA_DESPLIEGUE" ]; then
-            case "$REF_DESPLIEGUE" in
-              refs/*) echo "ref=$REF_DESPLIEGUE" >> "$GITHUB_OUTPUT" ;;
-              *)      echo "ref=refs/heads/$REF_DESPLIEGUE" >> "$GITHUB_OUTPUT" ;;
+            # Vercel publica como ref del despliegue el SHA del commit y no el
+            # nombre de la rama; "refs/heads/<sha>" no existe y Code Scanning
+            # rechaza el SARIF. Si llega un SHA se busca la rama que lo tiene
+            # como punta; si no hay ninguna, se cae a la ref del workflow.
+            REF_CS="$REF_DESPLIEGUE"
+            if echo "$REF_CS" | grep -qE '^[0-9a-f]{40}$'; then
+              REF_CS=$(gh api "repos/$REPO/commits/$SHA_DESPLIEGUE/branches-where-head"                 --jq '.[0].name' 2>/dev/null || true)
+              [ -n "$REF_CS" ] || REF_CS="$REF_ACTUAL"
+            fi
+            case "$REF_CS" in
+              refs/*) echo "ref=$REF_CS" >> "$GITHUB_OUTPUT" ;;
+              *)      echo "ref=refs/heads/$REF_CS" >> "$GITHUB_OUTPUT" ;;
             esac
             echo "sha=$SHA_DESPLIEGUE" >> "$GITHUB_OUTPUT"
           else
