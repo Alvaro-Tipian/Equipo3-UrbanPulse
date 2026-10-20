@@ -269,15 +269,31 @@ jobs:
         run: |
           BASE="${API_BASE_URL%/}"
           vivos=0
+          sin_respuesta=0
           for ruta in urbanpulse/dashboard-kpis urbanpulse/reports-list urbanpulse/mapa-siniestros-onsv; do
-            codigo=$(curl -s -o /dev/null -m 30 -w "%{http_code}" "$BASE/$ruta" || echo 000)
-            echo "$ruta -> HTTP $codigo"
-            if [ "$codigo" != "404" ] && [ "$codigo" != "000" ]; then
-              vivos=$((vivos + 1))
-            fi
+            # Sin "|| echo 000": cuando curl agota el tiempo ya escribe 000 con
+            # -w, y el echo lo duplicaba a "000000", que pasaba por webhook vivo.
+            codigo=$(curl -s -o /dev/null -m 30 -w "%{http_code}" "$BASE/$ruta") || true
+            case "$codigo" in
+              404)
+                echo "$ruta -> HTTP 404 (el flujo no esta importado o no esta activo)" ;;
+              502|503|504)
+                echo "$ruta -> HTTP $codigo (el proxy responde, pero n8n no)"
+                sin_respuesta=$((sin_respuesta + 1)) ;;
+              [1-5][0-9][0-9])
+                echo "$ruta -> HTTP $codigo"
+                vivos=$((vivos + 1)) ;;
+              *)
+                echo "$ruta -> sin respuesta en 30 s"
+                sin_respuesta=$((sin_respuesta + 1)) ;;
+            esac
           done
           if [ "$vivos" -eq 0 ]; then
-            echo "::error::Ningun webhook /urbanpulse/* responde en el entorno. Hay que importar y activar los flujos de src/n8n-workflows/production/ en ese n8n antes de escanear."
+            if [ "$sin_respuesta" -gt 0 ]; then
+              echo "::error::El n8n de DAST_API_BASE_URL no responde (tiempo agotado o 502/503/504). Hay que revisar que el servidor de staging este levantado y accesible desde GitHub antes de escanear."
+            else
+              echo "::error::Ningun webhook /urbanpulse/* responde en el entorno. Hay que importar y activar los flujos de src/n8n-workflows/production/ en ese n8n antes de escanear."
+            fi
             exit 1
           fi
 
