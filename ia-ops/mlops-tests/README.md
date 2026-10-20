@@ -30,7 +30,7 @@ pytest -k sesgo -v            # solo equidad
 pytest tests/test_deriva.py   # solo deriva
 ```
 
-Regresión de prompts (consume cuota real de Gemini, requiere `GOOGLE_API_KEY`):
+Regresión de prompts (consume cuota real de Gemini, requiere `GEMINI_API_KEY_CI`):
 
 ```bash
 npx promptfoo@latest eval -c promptfoo/dorado.promptfooconfig.yaml \

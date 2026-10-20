@@ -63,8 +63,8 @@ on:
         default: true
         type: boolean
     secrets:
-      GOOGLE_API_KEY:
-        description: 'Clave de la API de Gemini para promptfoo'
+      GEMINI_API_KEY_CI:
+        description: 'Clave de Gemini exclusiva de CI (proyecto aparte del de produccion) para promptfoo'
         required: false
 
 defaults:
@@ -131,7 +131,7 @@ jobs:
 
       - name: Evaluar el dataset dorado (56 reportes etiquetados)
         env:
-          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GEMINI_API_KEY_CI }}
         run: |
           # promptfoo falla si alguna respuesta no es JSON valido, que es
           # exactamente el criterio del 100%. Se captura su codigo de salida para
@@ -155,7 +155,7 @@ jobs:
       - name: Evaluar los guardrails del clasificador
         if: ${{ !cancelled() }}
         env:
-          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GEMINI_API_KEY_CI }}
         run: |
           npx --yes promptfoo@latest eval \
             -c promptfoo/clasificacion.promptfooconfig.yaml \
@@ -164,7 +164,7 @@ jobs:
       - name: Evaluar el prompt del asistente NLQ
         if: ${{ !cancelled() }}
         env:
-          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GEMINI_API_KEY_CI }}
         run: |
           npx --yes promptfoo@latest eval \
             -c promptfoo/nlq.promptfooconfig.yaml \

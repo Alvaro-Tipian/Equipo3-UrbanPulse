@@ -227,6 +227,43 @@ jobs:
           sed -i "s#__ZAP_API_BASE_URL__#$BASE#" .zap/urbanpulse-api.openapi.yaml
           echo "Servidor de la spec fijado en $BASE"
 
+      - name: Negarse a escanear si el destino no es staging
+        # El API scan es ACTIVO: envia payloads de inyeccion y crea registros.
+        # Un secret mal puesto (la URL de produccion) lo apuntaria contra datos
+        # reales de ciudadanos, asi que se exige que el host se declare staging.
+        env:
+          API_BASE_URL: ${{ secrets.DAST_API_BASE_URL }}
+        run: |
+          host=$(echo "$API_BASE_URL" | sed -E 's#^[a-zA-Z]+://##; s#[/:].*$##')
+          case "$host" in
+            *staging*) echo "El destino del API scan es un host de staging." ;;
+            *)
+              echo "::error::DAST_API_BASE_URL no apunta a un host de staging. El escaneo activo no corre contra otros entornos."
+              exit 1 ;;
+          esac
+
+      - name: Comprobar que los webhooks existen en el entorno
+        # Un n8n recien creado responde, pero sin los flujos importados y
+        # activados todos los webhooks devuelven 404. ZAP escanearia quince rutas
+        # inexistentes sin encontrar nada y el job saldria en verde sin haber
+        # probado la API. Se sondean rutas GET de solo lectura antes de escanear.
+        env:
+          API_BASE_URL: ${{ secrets.DAST_API_BASE_URL }}
+        run: |
+          BASE="${API_BASE_URL%/}"
+          vivos=0
+          for ruta in urbanpulse/dashboard-kpis urbanpulse/reports-list urbanpulse/mapa-siniestros-onsv; do
+            codigo=$(curl -s -o /dev/null -m 30 -w "%{http_code}" "$BASE/$ruta" || echo 000)
+            echo "$ruta -> HTTP $codigo"
+            if [ "$codigo" != "404" ] && [ "$codigo" != "000" ]; then
+              vivos=$((vivos + 1))
+            fi
+          done
+          if [ "$vivos" -eq 0 ]; then
+            echo "::error::Ningun webhook /urbanpulse/* responde en el entorno. Hay que importar y activar los flujos de src/n8n-workflows/production/ en ese n8n antes de escanear."
+            exit 1
+          fi
+
       - name: Ejecutar ZAP API Scan
         uses: zaproxy/action-api-scan@v0.10.0
         with:
