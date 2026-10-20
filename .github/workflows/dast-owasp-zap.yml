@@ -110,10 +110,12 @@ jobs:
               echo "::warning::El despliegue no publico environment_url; no hay que escanear."
               echo "escanear=false" >> "$GITHUB_OUTPUT"; exit 0
             fi
-            echo "escanear=true" >> "$GITHUB_OUTPUT"
-            echo "url=$URL_DESPLIEGUE" >> "$GITHUB_OUTPUT"
             # En despliegues, el API scan acompana siempre al baseline (CA1).
-            echo "api=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "escanear=true"
+              echo "url=$URL_DESPLIEGUE"
+              echo "api=true"
+            } >> "$GITHUB_OUTPUT"
             echo "Escaneando el despliegue de '$ENTORNO': $URL_DESPLIEGUE"
             exit 0
           fi
@@ -123,9 +125,11 @@ jobs:
             echo "::error::No hay URL objetivo. Define DAST_BASELINE_URL o pasa target_url."
             exit 1
           fi
-          echo "escanear=true" >> "$GITHUB_OUTPUT"
-          echo "url=$URL" >> "$GITHUB_OUTPUT"
-          echo "api=$API_MANUAL" >> "$GITHUB_OUTPUT"
+          {
+            echo "escanear=true"
+            echo "url=$URL"
+            echo "api=$API_MANUAL"
+          } >> "$GITHUB_OUTPUT"
           echo "Escaneo manual contra: $URL"
 
   # ---------------------------------------------------------------------------
@@ -208,6 +212,8 @@ jobs:
     needs: preparar
     if: ${{ needs.preparar.outputs.escanear == 'true' && needs.preparar.outputs.api == 'true' }}
     runs-on: ubuntu-latest
+    # El escaneo activo no tiene tope propio: contra un n8n lento se queda horas.
+    timeout-minutes: 30
 
     steps:
       - name: Checkout del repositorio
@@ -270,7 +276,9 @@ jobs:
           target: '.zap/urbanpulse-api.openapi.yaml'
           format: openapi
           rules_file_name: '.zap/rules.tsv'
-          cmd_options: '-a'
+          # Tope del escaneo activo: 15 min en total y 2 por regla. Sin esto ZAP
+          # sigue lanzando payloads mientras el webhook responde lento.
+          cmd_options: '-a -z "-config scanner.maxScanDurationInMins=15 -config scanner.maxRuleDurationInMins=2"'
           allow_issue_writing: false
           fail_action: false
           artifact_name: zap-api
