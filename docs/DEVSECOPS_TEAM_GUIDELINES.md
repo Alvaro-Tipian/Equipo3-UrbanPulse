@@ -210,9 +210,11 @@ alguien termine quitando el gate. Por eso el reparto no es uniforme:
 | Imagen de **n8n** | De terceros: viene fijada en el template de Lightsail | Solo si el PR cambia la versión fijada, o en la revisión semanal |
 
 El caso de n8n vale la pena explicarlo porque es el que se ve raro. Los
-hallazgos de `n8nio/n8n:2.34.6` están en el **Alpine 3.24 sobre el que n8n
-construye su imagen** — 7 CRITICAL con parche —, no en el código de n8n ni en
-nuestros workflows. El único arreglo posible es **subir la versión fijada** en
+hallazgos de `n8nio/n8n:2.34.6` estaban en el **Alpine 3.24 sobre el que n8n
+construye su imagen** y en sus dependencias de Node.js — 34 CRITICAL con parche
+al 27/10/2026 —, no en el código de n8n ni en nuestros workflows. HT-36 T05 la
+subió a `2.45.4`, que no tiene ninguna. La versión que pedía el backlog
+(`2.42.3`) ya no servía: para esa fecha tenía 13. El único arreglo posible es **subir la versión fijada** en
 `infrastructure/lightsail-containers.json.template`, que es un cambio de
 despliegue: cambia el n8n que corre en producción y se coordina con quien opera
 Lightsail. Bloquear con eso cualquier PR que toque `infrastructure/` dejaría al
@@ -262,35 +264,29 @@ Toda entrada lleva las tres cosas o no entra:
   la excepción y el gate vuelve a bloquear. Es a propósito: obliga a volver a
   mirarlo en vez de acumular deuda silenciosa.
 
-Hoy hay dos casos, los dos en la imagen de Postgres de desarrollo.
+Hoy hay **un** caso, en la imagen de Postgres de desarrollo.
 
-**`libgnutls30`.** El parche existe (`3.7.1-5+deb11u10`) y aun así no se puede
-tomar: la base `postgis/postgis:16-3.5` está sobre **Debian 11 (bullseye), que
-llegó a fin de vida**. Los índices siguen anunciando los paquetes de
-`bullseye-security`, pero los `.deb` ya no se sirven desde `deb.debian.org`, así
-que un `apt-get upgrade` termina en una pared de 404 y rompe el build entero
-(pasó en la ejecución #56 de esta PR).
+**Cómo se llegó aquí (HT-36 T05).** La imagen partía de `postgis/postgis:16-3.5`,
+que está sobre **Debian 11 (bullseye), fin de vida**: el parche de
+`libgnutls30` existía, pero los `.deb` de `bullseye-security` ya no se servían
+y un `apt-get upgrade` rompía el build con errores 404. Eso dejaba seis
+excepciones (dos de `libgnutls30` y cuatro de `gosu`) y, peor, una base que ya
+no iba a recibir ningún parche.
 
-Eso convierte el hallazgo en algo más grande que dos CVE: **la imagen local está
-sobre una distribución que ya no recibe parches**, así que de aquí en adelante
-cualquier CVE nueva de esa base va a salir como "sin arreglo disponible" y el
-gate ni siquiera la va a mostrar. La corrección de verdad es mover la imagen a
-una base soportada — `pgvector/pgvector:pg16-bookworm` más PostGIS desde PGDG es
-el camino más corto, porque mantiene PostgreSQL 16 y las dos extensiones.
+La imagen pasó a `postgis/postgis:16-3.6`, sobre **Debian 13 (trixie)**, y
+pgvector se copia de su imagen oficial sobre la misma base
+(`pgvector/pgvector:pg16-trixie`). Se mantiene PostgreSQL 16 y el script de
+`initdb` que activa PostGIS, del que dependen `backend-integration-tests.yml` y
+`rag-ingesta-ci.yml` (esperan `SELECT postgis_version()` antes de migrar). Se
+probó aplicando las 26 migraciones y las pruebas de `ia-ops/workflows` contra
+la imagen nueva. Con eso desaparecieron cinco de las seis excepciones.
 
-No va en esta PR porque arrastra un detalle que rompería al equipo:
-`backend-integration-tests.yml` y `rag-ingesta-ci.yml` esperan a que
-`SELECT postgis_version()` responda **antes** de aplicar las migraciones, y eso
-hoy funciona porque la imagen de PostGIS trae un script de `initdb` que activa
-la extensión sola. Al cambiar de base hay que reponer ese script, o los dos
-workflows se quedan esperando para siempre. Es un cambio propio, con su propia
-prueba.
-
-**`gosu`.** Lo compilaron con Go 1.18 y Trivy le atribuye las CVE de esa biblioteca estándar, pero `gosu`
-solo baja de root al usuario `postgres` — no renderiza plantillas HTML, no abre
-TLS y no parsea direcciones de red. No hay versión parchada en Debian bullseye,
-y además esa imagen es solo de desarrollo y CI: en producción la base de datos
-es **Neon**, gestionada.
+**`gosu`, CVE-2025-68121.** `gosu` 1.19, el que traen las imágenes oficiales,
+está compilado con Go 1.24.6, y Trivy le atribuye esta CVE de `crypto/tls`.
+Pero `gosu` solo baja de root al usuario `postgres`: no abre conexiones TLS.
+No hay `gosu` compilado con un Go más nuevo en ninguna imagen oficial de
+Postgres, y la imagen es solo de desarrollo y CI: en producción la base de
+datos es **Neon**, gestionada. Vence el 31/12/2026.
 
 ### Probar que el gate bloquea de verdad
 

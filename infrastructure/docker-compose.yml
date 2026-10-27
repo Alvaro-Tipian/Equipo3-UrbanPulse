@@ -17,7 +17,8 @@ services:
       - pg_data:/var/lib/postgresql/data
 
   n8n:
-    image: docker.n8n.io/n8nio/n8n
+    # Misma version que produccion (lightsail-containers.json.template).
+    image: docker.n8n.io/n8nio/n8n:2.45.4
     container_name: urbanpulse-n8n
     restart: always
     environment:
