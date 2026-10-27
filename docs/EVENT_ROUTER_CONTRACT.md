@@ -47,6 +47,14 @@ Todo evento enviado a `POST /urbanpulse/eventos` debe cumplir con el siguiente e
    - `n8n.flujo_fallido`
    - `modelo.deriva_detectada`
    - `modelo.monitoreado`
+   - `operativo.creado`
+   - `operativo.cerrado`
+
+   Los dos de operativos los publica el workflow *UrbanPulse - Operativos*
+   (HU-09 T02): `operativo.creado` al agrupar los reportes de una zona y
+   `operativo.cerrado` al cerrar el operativo. Sus campos están en
+   `docs/architecture/eventos.md` (2.5 y 2.6). `horas_atencion` puede ser `0`,
+   así que el validador comprueba que sea un número, no que sea verdadero.
 
    Los dos del modelo llevan los mismos `datos` (`modelo`, `version`,
    `psi_max`, `f1_real`, `reporte_url`) y los publica el mismo paso de
@@ -103,6 +111,8 @@ Después de persistir un evento válido (estado `recibido`), el router lo entreg
 | `n8n.flujo_fallido` | Service Desk (HT-41) | Pendiente: va al Suscriptor de Prueba |
 | `modelo.deriva_detectada` | Service Desk (HT-41) | Pendiente: va al Suscriptor de Prueba |
 | `modelo.monitoreado` | Ninguno; se persiste y se consulta | Va al Suscriptor de Prueba; lo lee HU-13 T01 desde `eventos` |
+| `operativo.creado` | Ninguno; se persiste y se consulta | Va al Suscriptor de Prueba; lo leerá HU-11 T01 desde `eventos` |
+| `operativo.cerrado` | Ninguno; se persiste y se consulta | Va al Suscriptor de Prueba; lo leerá HU-11 T01 desde `eventos` |
 
 El despachador decide con el nodo **¿Es evento de reporte?**: los tipos que
 empiezan por `reporte.` van a la Ingesta RAG y el resto al Suscriptor de Prueba.

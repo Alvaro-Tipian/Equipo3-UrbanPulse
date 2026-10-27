@@ -11,7 +11,7 @@ Todo evento usa el mismo sobre. El esquema formal está en `docs/architecture/ev
 | Campo | Tipo | Regla |
 |---|---|---|
 | `id` | UUID v4 | Lo genera el productor. Es la clave de idempotencia: un `id` repetido no se procesa dos veces. |
-| `tipo` | texto | Uno de los 4 tipos del catálogo. |
+| `tipo` | texto | Uno de los tipos del catálogo (sección 2). |
 | `fecha` | ISO 8601 con zona horaria | Momento en que ocurrió el hecho. Ejemplo: `2026-10-06T15:02:11-05:00`. |
 | `origen` | texto | Quién publica. Ejemplos: `n8n/central-vr5`, `github/ml-monitoring`. |
 | `datos` | objeto | Contenido propio de cada tipo (sección 2). |
@@ -90,6 +90,32 @@ Ejemplo:
 | `variables_con_deriva_pct` | número (opcional) | Porcentaje de variables con deriva. |
 | `f1_real` | número entre 0 y 1 | F1 medido contra los incidentes reportados. |
 | `reporte_url` | URL | Enlace al reporte HTML de Evidently. |
+
+### 2.5 `operativo.creado`
+
+- Productor: webhook `POST /urbanpulse/operativos` (HU-09 T02), después de crear el operativo.
+- Suscriptores: ninguno todavía; se persiste y lo consulta HU-11 T01 para los KPIs de operativos.
+- Datos:
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `operativo_id` | UUID | `operativos.id`. |
+| `zona_id` | texto | Clave del distrito (`distritos_lima.nombre_normalizado`, por ejemplo `MIRAFLORES`) o `SIN_DISTRITO`. |
+| `reportes` | entero | Número de reportes que se agruparon en el operativo. |
+
+### 2.6 `operativo.cerrado`
+
+- Productor: webhook `POST /urbanpulse/operativos/asignar` (HU-09 T02), cuando el operativo pasa a `cerrado` y sus reportes quedan resueltos.
+- Suscriptores: ninguno todavía; es de donde HU-11 T01 saca el tiempo de atención.
+- Datos:
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `operativo_id` | UUID | `operativos.id`. |
+| `zona_id` | texto | Igual que en `operativo.creado`. |
+| `cuadrilla_id` | entero | `cuadrillas.id` de la cuadrilla que lo atendió. |
+| `reportes` | entero | Número de reportes del operativo. |
+| `horas_atencion` | número | Horas entre `creado_en` y `cerrado_en`, con un decimal. Puede ser `0`. |
 
 ## 3. Reglas del enrutador
 

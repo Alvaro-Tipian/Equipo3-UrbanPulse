@@ -68,6 +68,16 @@ Los tres webhooks de *Dashboard KPIs* usan la opción A:
 | `/urbanpulse/reports-history` | `ciudadano` (el ciudadano ve los suyos; el operador, todos) |
 | `/urbanpulse/report-resolve` | `operador` (un ciudadano recibe `403`) |
 
+Los cinco de *UrbanPulse - Operativos* (HU-09 T02) también, con `rol_minimo = operador` y **sin** `permitir_sin_token`: son nuevos, así que exigen el token desde el primer día y una petición sin cabecera recibe `401`.
+
+| Webhook | Nodo de la copia en línea |
+|---|---|
+| `GET /urbanpulse/incidentes-por-zona` | `Validar token (zonas)` |
+| `POST /urbanpulse/operativos` | `Validar token (crear)` |
+| `GET /urbanpulse/operativos` | `Validar token (listar)` |
+| `GET /urbanpulse/cuadrillas` | `Validar token (cuadrillas)` |
+| `POST /urbanpulse/operativos/asignar` | `Validar token (asignar)` |
+
 ## Modo de transición
 
 La app todavía no envía el token: lo activa Kiara en HT-36 T03 con `TE_ENVIAR_TOKEN=true`. Para no romper la app mientras tanto, los tres webhooks que ya existían validan con `permitir_sin_token: true`:

@@ -1,0 +1,1414 @@
+{
+  "name": "UrbanPulse - Operativos (HU-09 T02)",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "urbanpulse/incidentes-por-zona",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "https://equipo3-urban-pulse.vercel.app,https://equipo3-u-git-cc0c7a-sebastiannnnnnnnnnnnnnnnnnnnnnnns-projects.vercel.app,http://localhost:3000,http://localhost:3003,http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176,http://localhost:5177,http://localhost:5178,http://localhost:5181"
+        }
+      },
+      "id": "14d5abf1-68d3-5f2c-bbbc-a8cc1a68cec9",
+      "name": "Webhook Incidentes por Zona",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Copia EN LINEA del subworkflow «Validar token» (HT-36 T01): llamarlo con\n// Execute Workflow sumaba unos 5 s por peticion en la instancia de Lightsail\n// (docs/AUTH_TOKEN_CONTRACT.md, opcion A), y el tablero de operativos lo llama\n// en cada refresco. Solo cambia de donde sale la entrada; el resto debe ser\n// identico (lo comprueba ia-ops/workflows/tests/test_validar_token.py).\n// Sin permitir_sin_token: estos webhooks son nuevos y exigen el token.\n// HT-36 T01 - Valida el token de sesion (contrato C1).\n//\n// El token lo emite el login de Central (nodo \"Generar token\"):\n//   base64url(payload) + \".\" + HMAC-SHA256 en hex del primer tramo, con\n//   N8N_AUTH_SECRET; payload { sub, id, role, iat, exp } con exp en ms.\n// Salida: { valido: true, usuario_id, rol, exp (segundos) } o\n//         { valido: false, http_code: 401 | 403 | 500, error }.\n// Quien llama responde el error al cliente con ese codigo.\nconst crypto = require('crypto');\n\n// Transicion: mientras la app no envie el token (HT-36 T03, TE_ENVIAR_TOKEN),\n// los webhooks que ya existian (reports-list, reports-history, report-resolve)\n// llaman con permitir_sin_token=true: una peticion SIN cabecera sigue como\n// antes y el webhook usa el usuario que manda el cuerpo. Con cabecera se\n// valida siempre. Los webhooks nuevos no lo pasan y exigen el token.\n// Pasar EXIGIR_TOKEN a true cuando TE_ENVIAR_TOKEN este activo en produccion.\nconst EXIGIR_TOKEN = false;\n\nconst NIVEL = { ciudadano: 1, operador: 2 };\nconst UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nconst entrada = {\n  rol_minimo: 'operador',\n  authorization: ($input.first().json.headers || {}).authorization || '',\n};\n// Un rol_minimo desconocido exige lo maximo: nunca abre una ruta por error.\nconst rolMinimo = NIVEL[entrada.rol_minimo] ? entrada.rol_minimo : 'operador';\nconst cabecera = String(entrada.authorization || '').trim();\nconst rechazar = (http_code, error) => [{ json: { valido: false, http_code, error } }];\n\nconst permitirSinToken = entrada.permitir_sin_token === true || entrada.permitir_sin_token === 'true';\n\nif (!cabecera) {\n  if (EXIGIR_TOKEN || !permitirSinToken) return rechazar(401, 'token_invalido');\n  return [{ json: { valido: true, sin_token: true, usuario_id: null, rol: null, exp: null } }];\n}\n\nconst partes = cabecera.match(/^Bearer\\s+([A-Za-z0-9_-]+)\\.([0-9a-f]{64})$/i);\nif (!partes) return rechazar(401, 'token_invalido');\n\nlet secreto = null;\ntry {\n  secreto = $env.N8N_AUTH_SECRET || null;\n} catch (e) {\n  secreto = null;\n}\nif (!secreto) return rechazar(500, 'autenticacion_no_configurada');\n\n// Comparacion en tiempo constante, sobre bytes del mismo largo.\nconst esperada = Buffer.from(crypto.createHmac('sha256', secreto).update(partes[1]).digest('hex'), 'hex');\nconst recibida = Buffer.from(partes[2].toLowerCase(), 'hex');\nif (esperada.length !== recibida.length || !crypto.timingSafeEqual(esperada, recibida)) {\n  return rechazar(401, 'token_invalido');\n}\n\nlet payload;\ntry {\n  payload = JSON.parse(Buffer.from(partes[1], 'base64url').toString('utf8'));\n} catch (e) {\n  return rechazar(401, 'token_invalido');\n}\n\nconst expMs = Number(payload.exp);\nif (!Number.isFinite(expMs) || expMs <= Date.now()) return rechazar(401, 'token_invalido');\nif (!UUID.test(String(payload.id || ''))) return rechazar(401, 'token_invalido');\nif (!NIVEL[payload.role]) return rechazar(401, 'token_invalido');\nif (NIVEL[payload.role] < NIVEL[rolMinimo]) return rechazar(403, 'rol_no_permitido');\n\nreturn [{\n  json: {\n    valido: true,\n    sin_token: false,\n    usuario_id: payload.id,\n    rol: payload.role,\n    exp: Math.floor(expMs / 1000),\n  },\n}];\n"
+      },
+      "id": "01aaa5bd-8f94-5934-ae4d-a1c32184901f",
+      "name": "Validar token (zonas)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "tok-zonas",
+              "leftValue": "={{ $json.valido }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "fe53847b-649d-5c3c-bc20-5061acbe75cb",
+      "name": "Token valido? (zonas)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        416,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { error: $json.error } }}",
+        "options": {
+          "responseCode": "={{ $json.http_code }}"
+        }
+      },
+      "id": "f7891bbb-b738-5f88-8cd8-7e794f174aa4",
+      "name": "Responder error (zonas)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        640,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- HU-09 T02 - Reportes abiertos que todavia no estan en un operativo abierto,\n-- agrupados por zona y ordenados por total descendente (contrato C2, 2.1).\n-- Zona = distrito_de_reporte(), el mismo criterio del panel de riesgo y de la\n-- ingesta RAG; un reporte sin distrito va a SIN_DISTRITO y tambien puede\n-- formar un operativo (ADR-016).\nWITH abiertos AS (\n    SELECT\n        r.id,\n        r.incident_type,\n        r.severity,\n        r.created_at,\n        COALESCE(distrito_de_reporte(r.id), 'SIN_DISTRITO') AS zona_id\n    FROM reports AS r\n    WHERE\n        r.status IN ('pending', 'en_proceso')\n        AND NOT EXISTS (\n            SELECT 1\n            FROM operativo_reportes AS op_r\n            INNER JOIN operativos AS o ON o.id = op_r.operativo_id\n            WHERE op_r.reporte_id = r.id AND o.estado <> 'cerrado'\n        )\n)\nSELECT\n    a.zona_id,\n    COALESCE(d.nombre, 'Sin distrito') AS zona,\n    COUNT(*)::INT AS total,\n    JSON_AGG(\n        JSON_BUILD_OBJECT(\n            'id', a.id,\n            'tipo', a.incident_type,\n            'severidad', a.severity,\n            'creado', TO_CHAR(\n                a.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'\n            )\n        )\n        ORDER BY a.created_at DESC\n    ) AS incidentes\nFROM abiertos AS a\nLEFT JOIN distritos_lima AS d ON d.nombre_normalizado = a.zona_id\nGROUP BY a.zona_id, d.nombre\nORDER BY total DESC, zona ASC;",
+        "options": {}
+      },
+      "id": "2bbcca5d-6c4d-5f44-a8cb-4462a26e6caa",
+      "name": "Incidentes por zona",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        640,
+        96
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "OG4PhmWgT8L86uMa",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Contrato C2 2.1: un arreglo de zonas. El nodo Postgres devuelve un item por\n// fila y, con alwaysOutputData, un item vacio cuando no hay ninguna.\nconst filas = $input.all()\n  .map((i) => i.json)\n  .filter((f) => f && f.zona_id);\n\nreturn [{\n  json: {\n    http_code: 200,\n    cuerpo: filas.map((f) => ({\n      zona: f.zona,\n      zona_id: f.zona_id,\n      total: Number(f.total),\n      incidentes: f.incidentes || [],\n    })),\n  },\n}];\n"
+      },
+      "id": "86270cc0-5356-5c94-9eec-0a921b59711b",
+      "name": "Armar respuesta por zona",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        864,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.cuerpo) }}",
+        "options": {
+          "responseCode": "={{ $json.http_code }}"
+        }
+      },
+      "id": "6f97cbbf-318a-5ee9-a219-d4523c1edde1",
+      "name": "Responder: incidentes por zona",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1088,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "urbanpulse/operativos",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "https://equipo3-urban-pulse.vercel.app,https://equipo3-u-git-cc0c7a-sebastiannnnnnnnnnnnnnnnnnnnnnnns-projects.vercel.app,http://localhost:3000,http://localhost:3003,http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176,http://localhost:5177,http://localhost:5178,http://localhost:5181"
+        }
+      },
+      "id": "34e1964e-4f2a-50bd-bbb3-abf23256351a",
+      "name": "Webhook Crear Operativo",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Copia EN LINEA del subworkflow «Validar token» (HT-36 T01): llamarlo con\n// Execute Workflow sumaba unos 5 s por peticion en la instancia de Lightsail\n// (docs/AUTH_TOKEN_CONTRACT.md, opcion A), y el tablero de operativos lo llama\n// en cada refresco. Solo cambia de donde sale la entrada; el resto debe ser\n// identico (lo comprueba ia-ops/workflows/tests/test_validar_token.py).\n// Sin permitir_sin_token: estos webhooks son nuevos y exigen el token.\n// HT-36 T01 - Valida el token de sesion (contrato C1).\n//\n// El token lo emite el login de Central (nodo \"Generar token\"):\n//   base64url(payload) + \".\" + HMAC-SHA256 en hex del primer tramo, con\n//   N8N_AUTH_SECRET; payload { sub, id, role, iat, exp } con exp en ms.\n// Salida: { valido: true, usuario_id, rol, exp (segundos) } o\n//         { valido: false, http_code: 401 | 403 | 500, error }.\n// Quien llama responde el error al cliente con ese codigo.\nconst crypto = require('crypto');\n\n// Transicion: mientras la app no envie el token (HT-36 T03, TE_ENVIAR_TOKEN),\n// los webhooks que ya existian (reports-list, reports-history, report-resolve)\n// llaman con permitir_sin_token=true: una peticion SIN cabecera sigue como\n// antes y el webhook usa el usuario que manda el cuerpo. Con cabecera se\n// valida siempre. Los webhooks nuevos no lo pasan y exigen el token.\n// Pasar EXIGIR_TOKEN a true cuando TE_ENVIAR_TOKEN este activo en produccion.\nconst EXIGIR_TOKEN = false;\n\nconst NIVEL = { ciudadano: 1, operador: 2 };\nconst UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nconst entrada = {\n  rol_minimo: 'operador',\n  authorization: ($input.first().json.headers || {}).authorization || '',\n};\n// Un rol_minimo desconocido exige lo maximo: nunca abre una ruta por error.\nconst rolMinimo = NIVEL[entrada.rol_minimo] ? entrada.rol_minimo : 'operador';\nconst cabecera = String(entrada.authorization || '').trim();\nconst rechazar = (http_code, error) => [{ json: { valido: false, http_code, error } }];\n\nconst permitirSinToken = entrada.permitir_sin_token === true || entrada.permitir_sin_token === 'true';\n\nif (!cabecera) {\n  if (EXIGIR_TOKEN || !permitirSinToken) return rechazar(401, 'token_invalido');\n  return [{ json: { valido: true, sin_token: true, usuario_id: null, rol: null, exp: null } }];\n}\n\nconst partes = cabecera.match(/^Bearer\\s+([A-Za-z0-9_-]+)\\.([0-9a-f]{64})$/i);\nif (!partes) return rechazar(401, 'token_invalido');\n\nlet secreto = null;\ntry {\n  secreto = $env.N8N_AUTH_SECRET || null;\n} catch (e) {\n  secreto = null;\n}\nif (!secreto) return rechazar(500, 'autenticacion_no_configurada');\n\n// Comparacion en tiempo constante, sobre bytes del mismo largo.\nconst esperada = Buffer.from(crypto.createHmac('sha256', secreto).update(partes[1]).digest('hex'), 'hex');\nconst recibida = Buffer.from(partes[2].toLowerCase(), 'hex');\nif (esperada.length !== recibida.length || !crypto.timingSafeEqual(esperada, recibida)) {\n  return rechazar(401, 'token_invalido');\n}\n\nlet payload;\ntry {\n  payload = JSON.parse(Buffer.from(partes[1], 'base64url').toString('utf8'));\n} catch (e) {\n  return rechazar(401, 'token_invalido');\n}\n\nconst expMs = Number(payload.exp);\nif (!Number.isFinite(expMs) || expMs <= Date.now()) return rechazar(401, 'token_invalido');\nif (!UUID.test(String(payload.id || ''))) return rechazar(401, 'token_invalido');\nif (!NIVEL[payload.role]) return rechazar(401, 'token_invalido');\nif (NIVEL[payload.role] < NIVEL[rolMinimo]) return rechazar(403, 'rol_no_permitido');\n\nreturn [{\n  json: {\n    valido: true,\n    sin_token: false,\n    usuario_id: payload.id,\n    rol: payload.role,\n    exp: Math.floor(expMs / 1000),\n  },\n}];\n"
+      },
+      "id": "5727b84f-752d-54fc-a74c-b4abac165fdc",
+      "name": "Validar token (crear)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "tok-crear",
+              "leftValue": "={{ $json.valido }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "ab1c1eb5-cb4b-5b13-b0d0-583a4dff07fd",
+      "name": "Token valido? (crear)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        416,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { error: $json.error } }}",
+        "options": {
+          "responseCode": "={{ $json.http_code }}"
+        }
+      },
+      "id": "8d0721ce-75ce-52fa-b774-3125265a6ca3",
+      "name": "Responder error (crear)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1088,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Contrato C2 2.2: 400 datos_invalidos si falta zona, si reportes esta vacio o\n// si algun id no es UUID. El usuario sale del token, nunca del cuerpo.\nconst UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nconst cuerpo = $('Webhook Crear Operativo').first().json.body || {};\nconst token = $('Validar token (crear)').first().json;\n\nconst zona = String(cuerpo.zona || cuerpo.zona_id || '').trim();\nconst reportes = Array.isArray(cuerpo.reportes) ? cuerpo.reportes.map(String) : [];\nconst unicos = [...new Set(reportes)];\n\nconst invalido = (\n  !zona\n  || unicos.length === 0\n  || !unicos.every((id) => UUID.test(id))\n);\nif (invalido) {\n  return [{ json: { valido: false, http_code: 400, error: 'datos_invalidos' } }];\n}\n\nreturn [{\n  json: {\n    valido: true,\n    zona,\n    // Literal de arreglo de Postgres para $2::uuid[]: los ids ya son UUID.\n    reportes_sql: '{' + unicos.join(',') + '}',\n    creado_por: token.usuario_id,\n  },\n}];\n"
+      },
+      "id": "cfd0b18c-a944-5f19-92f6-ea8479145f1d",
+      "name": "Validar datos del operativo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "dat-crear",
+              "leftValue": "={{ $json.valido }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "6709f0e4-2e87-5f24-ad0c-437c73979dc6",
+      "name": "Datos validos? (crear)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        864,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- HU-09 T02 - Crea el operativo y le adjunta sus reportes en UNA sentencia, asi\n-- que o entra todo o no entra nada (contrato C2, 2.2).\n--\n-- La zona llega como clave (MIRAFLORES) o como nombre (Miraflores): se\n-- normaliza y se busca en distritos_lima, tambien por sus variantes (SURCO,\n-- SJL...). Una zona que no existe deja \"disponibles\" vacio y todos los\n-- reportes caen en \"malos\": el webhook responde 409, no crea nada.\nWITH entrada AS (\n    SELECT\n        normalizar_distrito($1) AS zona_pedida,\n        $2::UUID [] AS reportes,\n        $3::UUID AS creado_por\n),\n\nzona AS (\n    SELECT\n        e.reportes,\n        e.creado_por,\n        COALESCE(\n            (\n                SELECT d.nombre_normalizado\n                FROM distritos_lima AS d\n                WHERE\n                    d.nombre_normalizado = e.zona_pedida\n                    OR e.zona_pedida = ANY(d.variantes)\n                LIMIT 1\n            ),\n            CASE\n                WHEN e.zona_pedida IN ('SIN_DISTRITO', 'SIN DISTRITO')\n                    THEN 'SIN_DISTRITO'\n            END\n        ) AS zona_id\n    FROM entrada AS e\n),\n\npedidos AS (\n    SELECT DISTINCT u.reporte_id\n    FROM zona AS z, UNNEST(z.reportes) AS u (reporte_id)\n),\n\n-- Solo reportes abiertos, de la zona del operativo y que no esten ya en otro\n-- operativo abierto (contrato C2, 1.2).\ndisponibles AS (\n    SELECT p.reporte_id\n    FROM pedidos AS p\n    INNER JOIN reports AS r ON r.id = p.reporte_id\n    CROSS JOIN zona AS z\n    WHERE\n        r.status IN ('pending', 'en_proceso')\n        AND COALESCE(distrito_de_reporte(r.id), 'SIN_DISTRITO') = z.zona_id\n        AND NOT EXISTS (\n            SELECT 1\n            FROM operativo_reportes AS op_r\n            INNER JOIN operativos AS o ON o.id = op_r.operativo_id\n            WHERE op_r.reporte_id = r.id AND o.estado <> 'cerrado'\n        )\n),\n\nmalos AS (\n    SELECT p.reporte_id\n    FROM pedidos AS p\n    WHERE NOT EXISTS (\n        SELECT 1 FROM disponibles AS d WHERE d.reporte_id = p.reporte_id\n    )\n),\n\nnuevo AS (\n    INSERT INTO operativos (zona, estado, creado_por)\n    SELECT\n        z.zona_id,\n        'planificado',\n        z.creado_por\n    FROM zona AS z\n    WHERE\n        z.zona_id IS NOT NULL\n        AND NOT EXISTS (SELECT 1 FROM malos)\n        AND EXISTS (SELECT 1 FROM disponibles)\n    RETURNING id, zona, estado\n),\n\nadjuntos AS (\n    INSERT INTO operativo_reportes (operativo_id, reporte_id)\n    SELECT\n        n.id,\n        d.reporte_id\n    FROM nuevo AS n\n    CROSS JOIN disponibles AS d\n    RETURNING reporte_id\n)\n\nSELECT\n    (SELECT n.id FROM nuevo AS n) AS id,\n    (SELECT n.estado FROM nuevo AS n) AS estado,\n    (SELECT n.zona FROM nuevo AS n) AS zona_id,\n    (SELECT COUNT(*) FROM adjuntos)::INT AS reportes,\n    COALESCE(\n        (SELECT ARRAY_AGG(m.reporte_id) FROM malos AS m), '{}'\n    )::UUID [] AS no_disponibles;",
+        "options": {
+          "queryReplacement": "={{ [ $json.zona, $json.reportes_sql, $json.creado_por ] }}"
+        }
+      },
+      "id": "f8d37733-08c4-5af0-a994-1f728fd9f527",
+      "name": "Crear operativo",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        1088,
+        496
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "OG4PhmWgT8L86uMa",
+          "name": "Postgres account"
+        }
+      },
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Contrato C2 2.2: 201 con el operativo, o 409 con los reportes que no se\n// pudieron tomar (inexistentes, ya resueltos, de otra zona o en un operativo\n// abierto). Una zona desconocida cae aqui tambien: ningun reporte le casa.\nconst f = $input.first().json || {};\nconst noDisponibles = f.no_disponibles || [];\n\nif (noDisponibles.length > 0) {\n  return [{\n    json: {\n      creado: false,\n      http_code: 409,\n      cuerpo: { error: 'reporte_no_disponible', reportes: noDisponibles },\n    },\n  }];\n}\n\nif (!f.id) {\n  // Defensa: sin filas malas y sin operativo no hay nada que crear.\n  return [{\n    json: { creado: false, http_code: 400, cuerpo: { error: 'datos_invalidos' } },\n  }];\n}\n\nreturn [{\n  json: {\n    creado: true,\n    http_code: 201,\n    cuerpo: { id: f.id, estado: f.estado },\n    operativo_id: f.id,\n    zona_id: f.zona_id,\n    reportes: Number(f.reportes),\n  },\n}];\n"
+      },
+      "id": "4a6c71c8-6c5b-5384-a267-31c29050dfe5",
+      "name": "Armar respuesta (crear)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1312,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.cuerpo) }}",
+        "options": {
+          "responseCode": "={{ $json.http_code }}"
+        }
+      },
+      "id": "a3110ca6-1a39-5fbc-aa35-a79d0c9b2c10",
+      "name": "Responder: operativo creado",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1536,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "evt-crear",
+              "leftValue": "={{ $json.creado }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "defd9f70-0413-5393-9c2c-1b06268ac795",
+      "name": "Se creo el operativo?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1536,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "action": "generate",
+        "dataPropertyName": "eventoId"
+      },
+      "id": "6cc1f7bd-3fbd-5184-8340-aa5663de306b",
+      "name": "Generar ID operativo.creado",
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 1,
+      "position": [
+        1760,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Sobre comun del contrato 4.7 (docs/architecture/eventos.md) para\n// operativo.creado. El id lo genera el nodo Crypto: el enrutador exige UUID v4.\nconst r = $('Armar respuesta (crear)').first().json;\n\nreturn [{\n  json: {\n    id: $('Generar ID operativo.creado').first().json.eventoId,\n    tipo: 'operativo.creado',\n    fecha: new Date().toISOString(),\n    origen: 'n8n/operativos',\n    datos: {\n      operativo_id: r.operativo_id,\n      zona_id: r.zona_id,\n      reportes: r.reportes,\n    },\n  },\n}];\n"
+      },
+      "id": "a849c703-adf7-5a80-85fc-2549cf0d2e21",
+      "name": "Armar evento operativo.creado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1968,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://urbanpulse-n8n.xq33kajky1yy6.us-east-1.cs.amazonlightsail.com/webhook/urbanpulse/eventos",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "id": "d5a80154-f789-57a8-bfbb-bf8790b082ad",
+      "name": "Publicar operativo.creado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        2176,
+        400
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CBpdBXwSj8Rfii2f",
+          "name": "UrbanPulse Event Router Header Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "path": "urbanpulse/operativos",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "https://equipo3-urban-pulse.vercel.app,https://equipo3-u-git-cc0c7a-sebastiannnnnnnnnnnnnnnnnnnnnnnns-projects.vercel.app,http://localhost:3000,http://localhost:3003,http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176,http://localhost:5177,http://localhost:5178,http://localhost:5181"
+        }
+      },
+      "id": "1f82d7cf-339f-58ff-bbda-8c30ebe72442",
+      "name": "Webhook Listar Operativos",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Copia EN LINEA del subworkflow «Validar token» (HT-36 T01): llamarlo con\n// Execute Workflow sumaba unos 5 s por peticion en la instancia de Lightsail\n// (docs/AUTH_TOKEN_CONTRACT.md, opcion A), y el tablero de operativos lo llama\n// en cada refresco. Solo cambia de donde sale la entrada; el resto debe ser\n// identico (lo comprueba ia-ops/workflows/tests/test_validar_token.py).\n// Sin permitir_sin_token: estos webhooks son nuevos y exigen el token.\n// HT-36 T01 - Valida el token de sesion (contrato C1).\n//\n// El token lo emite el login de Central (nodo \"Generar token\"):\n//   base64url(payload) + \".\" + HMAC-SHA256 en hex del primer tramo, con\n//   N8N_AUTH_SECRET; payload { sub, id, role, iat, exp } con exp en ms.\n// Salida: { valido: true, usuario_id, rol, exp (segundos) } o\n//         { valido: false, http_code: 401 | 403 | 500, error }.\n// Quien llama responde el error al cliente con ese codigo.\nconst crypto = require('crypto');\n\n// Transicion: mientras la app no envie el token (HT-36 T03, TE_ENVIAR_TOKEN),\n// los webhooks que ya existian (reports-list, reports-history, report-resolve)\n// llaman con permitir_sin_token=true: una peticion SIN cabecera sigue como\n// antes y el webhook usa el usuario que manda el cuerpo. Con cabecera se\n// valida siempre. Los webhooks nuevos no lo pasan y exigen el token.\n// Pasar EXIGIR_TOKEN a true cuando TE_ENVIAR_TOKEN este activo en produccion.\nconst EXIGIR_TOKEN = false;\n\nconst NIVEL = { ciudadano: 1, operador: 2 };\nconst UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nconst entrada = {\n  rol_minimo: 'operador',\n  authorization: ($input.first().json.headers || {}).authorization || '',\n};\n// Un rol_minimo desconocido exige lo maximo: nunca abre una ruta por error.\nconst rolMinimo = NIVEL[entrada.rol_minimo] ? entrada.rol_minimo : 'operador';\nconst cabecera = String(entrada.authorization || '').trim();\nconst rechazar = (http_code, error) => [{ json: { valido: false, http_code, error } }];\n\nconst permitirSinToken = entrada.permitir_sin_token === true || entrada.permitir_sin_token === 'true';\n\nif (!cabecera) {\n  if (EXIGIR_TOKEN || !permitirSinToken) return rechazar(401, 'token_invalido');\n  return [{ json: { valido: true, sin_token: true, usuario_id: null, rol: null, exp: null } }];\n}\n\nconst partes = cabecera.match(/^Bearer\\s+([A-Za-z0-9_-]+)\\.([0-9a-f]{64})$/i);\nif (!partes) return rechazar(401, 'token_invalido');\n\nlet secreto = null;\ntry {\n  secreto = $env.N8N_AUTH_SECRET || null;\n} catch (e) {\n  secreto = null;\n}\nif (!secreto) return rechazar(500, 'autenticacion_no_configurada');\n\n// Comparacion en tiempo constante, sobre bytes del mismo largo.\nconst esperada = Buffer.from(crypto.createHmac('sha256', secreto).update(partes[1]).digest('hex'), 'hex');\nconst recibida = Buffer.from(partes[2].toLowerCase(), 'hex');\nif (esperada.length !== recibida.length || !crypto.timingSafeEqual(esperada, recibida)) {\n  return rechazar(401, 'token_invalido');\n}\n\nlet payload;\ntry {\n  payload = JSON.parse(Buffer.from(partes[1], 'base64url').toString('utf8'));\n} catch (e) {\n  return rechazar(401, 'token_invalido');\n}\n\nconst expMs = Number(payload.exp);\nif (!Number.isFinite(expMs) || expMs <= Date.now()) return rechazar(401, 'token_invalido');\nif (!UUID.test(String(payload.id || ''))) return rechazar(401, 'token_invalido');\nif (!NIVEL[payload.role]) return rechazar(401, 'token_invalido');\nif (NIVEL[payload.role] < NIVEL[rolMinimo]) return rechazar(403, 'rol_no_permitido');\n\nreturn [{\n  json: {\n    valido: true,\n    sin_token: false,\n    usuario_id: payload.id,\n    rol: payload.role,\n    exp: Math.floor(expMs / 1000),\n  },\n}];\n"
+      },
+      "id": "a74dd232-e98e-5120-a068-690272454942",
+      "name": "Validar token (listar)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "tok-listar",
+              "leftValue": "={{ $json.valido }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "93ac8689-ce25-5a6e-8580-2bd8d3fa96d6",
+      "name": "Token valido? (listar)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        416,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { error: $json.error } }}",
+        "options": {
+          "responseCode": "={{ $json.http_code }}"
+        }
+      },
+      "id": "b2c24a75-e7d8-5407-9ed6-d44e8496257c",
+      "name": "Responder error (listar)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        640,
+        688
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- HU-09 T02 - Lista los operativos del mas reciente al mas antiguo\n-- (contrato C2, 2.3). $1 filtra por estado; NULL devuelve todos.\nSELECT\n    o.id,\n    o.zona AS zona_id,\n    o.estado,\n    COALESCE(d.nombre, 'Sin distrito') AS zona,\n    CASE\n        WHEN c.id IS NULL THEN NULL\n        ELSE JSON_BUILD_OBJECT('id', c.id, 'nombre', c.nombre)\n    END AS cuadrilla,\n    (\n        SELECT COUNT(*)\n        FROM operativo_reportes AS op_r\n        WHERE op_r.operativo_id = o.id\n    )::INT AS reportes,\n    TO_CHAR(\n        o.creado_en AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'\n    ) AS creado_en,\n    TO_CHAR(\n        o.asignado_en AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'\n    ) AS asignado_en,\n    TO_CHAR(\n        o.cerrado_en AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'\n    ) AS cerrado_en\nFROM operativos AS o\nLEFT JOIN cuadrillas AS c ON c.id = o.cuadrilla_id\nLEFT JOIN distritos_lima AS d ON d.nombre_normalizado = o.zona\nWHERE $1::TEXT IS NULL OR o.estado = $1::TEXT\nORDER BY o.creado_en DESC;",
+        "options": {
+          "queryReplacement": "={{ [ ['planificado', 'asignado', 'en_curso', 'cerrado'].includes(($('Webhook Listar Operativos').first().json.query || {}).estado) ? $('Webhook Listar Operativos').first().json.query.estado : null ] }}"
+        }
+      },
+      "id": "1d487a60-44c1-5dff-b893-6f7d4acdef26",
+      "name": "Listar operativos",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        640,
+        896
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "OG4PhmWgT8L86uMa",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Contrato C2 2.3: un arreglo de operativos. cuadrilla es null mientras el\n// operativo esta planificado, y asignado_en/cerrado_en van en null hasta que\n// ocurren.\nconst filas = $input.all()\n  .map((i) => i.json)\n  .filter((f) => f && f.id);\n\nreturn [{\n  json: {\n    http_code: 200,\n    cuerpo: filas.map((f) => ({\n      id: f.id,\n      zona: f.zona,\n      zona_id: f.zona_id,\n      estado: f.estado,\n      cuadrilla: f.cuadrilla || null,\n      reportes: Number(f.reportes),\n      creado_en: f.creado_en,\n      asignado_en: f.asignado_en || null,\n      cerrado_en: f.cerrado_en || null,\n    })),\n  },\n}];\n"
+      },
+      "id": "314f9dd7-2f34-587a-92e4-07a68cf38360",
+      "name": "Armar lista de operativos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        864,
+        896
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.cuerpo) }}",
+        "options": {
+          "responseCode": "={{ $json.http_code }}"
+        }
+      },
+      "id": "a91d7861-067b-5bd4-a375-85f7e2a6e790",
+      "name": "Responder: lista de operativos",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1088,
+        896
+      ]
+    },
+    {
+      "parameters": {
+        "path": "urbanpulse/cuadrillas",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "https://equipo3-urban-pulse.vercel.app,https://equipo3-u-git-cc0c7a-sebastiannnnnnnnnnnnnnnnnnnnnnnns-projects.vercel.app,http://localhost:3000,http://localhost:3003,http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176,http://localhost:5177,http://localhost:5178,http://localhost:5181"
+        }
+      },
+      "id": "192420e0-d444-5e00-8597-f07ef029a35e",
+      "name": "Webhook Cuadrillas",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Copia EN LINEA del subworkflow «Validar token» (HT-36 T01): llamarlo con\n// Execute Workflow sumaba unos 5 s por peticion en la instancia de Lightsail\n// (docs/AUTH_TOKEN_CONTRACT.md, opcion A), y el tablero de operativos lo llama\n// en cada refresco. Solo cambia de donde sale la entrada; el resto debe ser\n// identico (lo comprueba ia-ops/workflows/tests/test_validar_token.py).\n// Sin permitir_sin_token: estos webhooks son nuevos y exigen el token.\n// HT-36 T01 - Valida el token de sesion (contrato C1).\n//\n// El token lo emite el login de Central (nodo \"Generar token\"):\n//   base64url(payload) + \".\" + HMAC-SHA256 en hex del primer tramo, con\n//   N8N_AUTH_SECRET; payload { sub, id, role, iat, exp } con exp en ms.\n// Salida: { valido: true, usuario_id, rol, exp (segundos) } o\n//         { valido: false, http_code: 401 | 403 | 500, error }.\n// Quien llama responde el error al cliente con ese codigo.\nconst crypto = require('crypto');\n\n// Transicion: mientras la app no envie el token (HT-36 T03, TE_ENVIAR_TOKEN),\n// los webhooks que ya existian (reports-list, reports-history, report-resolve)\n// llaman con permitir_sin_token=true: una peticion SIN cabecera sigue como\n// antes y el webhook usa el usuario que manda el cuerpo. Con cabecera se\n// valida siempre. Los webhooks nuevos no lo pasan y exigen el token.\n// Pasar EXIGIR_TOKEN a true cuando TE_ENVIAR_TOKEN este activo en produccion.\nconst EXIGIR_TOKEN = false;\n\nconst NIVEL = { ciudadano: 1, operador: 2 };\nconst UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nconst entrada = {\n  rol_minimo: 'operador',\n  authorization: ($input.first().json.headers || {}).authorization || '',\n};\n// Un rol_minimo desconocido exige lo maximo: nunca abre una ruta por error.\nconst rolMinimo = NIVEL[entrada.rol_minimo] ? entrada.rol_minimo : 'operador';\nconst cabecera = String(entrada.authorization || '').trim();\nconst rechazar = (http_code, error) => [{ json: { valido: false, http_code, error } }];\n\nconst permitirSinToken = entrada.permitir_sin_token === true || entrada.permitir_sin_token === 'true';\n\nif (!cabecera) {\n  if (EXIGIR_TOKEN || !permitirSinToken) return rechazar(401, 'token_invalido');\n  return [{ json: { valido: true, sin_token: true, usuario_id: null, rol: null, exp: null } }];\n}\n\nconst partes = cabecera.match(/^Bearer\\s+([A-Za-z0-9_-]+)\\.([0-9a-f]{64})$/i);\nif (!partes) return rechazar(401, 'token_invalido');\n\nlet secreto = null;\ntry {\n  secreto = $env.N8N_AUTH_SECRET || null;\n} catch (e) {\n  secreto = null;\n}\nif (!secreto) return rechazar(500, 'autenticacion_no_configurada');\n\n// Comparacion en tiempo constante, sobre bytes del mismo largo.\nconst esperada = Buffer.from(crypto.createHmac('sha256', secreto).update(partes[1]).digest('hex'), 'hex');\nconst recibida = Buffer.from(partes[2].toLowerCase(), 'hex');\nif (esperada.length !== recibida.length || !crypto.timingSafeEqual(esperada, recibida)) {\n  return rechazar(401, 'token_invalido');\n}\n\nlet payload;\ntry {\n  payload = JSON.parse(Buffer.from(partes[1], 'base64url').toString('utf8'));\n} catch (e) {\n  return rechazar(401, 'token_invalido');\n}\n\nconst expMs = Number(payload.exp);\nif (!Number.isFinite(expMs) || expMs <= Date.now()) return rechazar(401, 'token_invalido');\nif (!UUID.test(String(payload.id || ''))) return rechazar(401, 'token_invalido');\nif (!NIVEL[payload.role]) return rechazar(401, 'token_invalido');\nif (NIVEL[payload.role] < NIVEL[rolMinimo]) return rechazar(403, 'rol_no_permitido');\n\nreturn [{\n  json: {\n    valido: true,\n    sin_token: false,\n    usuario_id: payload.id,\n    rol: payload.role,\n    exp: Math.floor(expMs / 1000),\n  },\n}];\n"
+      },
+      "id": "ae1e5dad-0a23-5d26-b8be-f4f14c0f0db9",
+      "name": "Validar token (cuadrillas)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "tok-cuad",
+              "leftValue": "={{ $json.valido }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "2f655138-b5e6-5057-8498-a3f0c0d96748",
+      "name": "Token valido? (cuadrillas)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        416,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { error: $json.error } }}",
+        "options": {
+          "responseCode": "={{ $json.http_code }}"
+        }
+      },
+      "id": "c63492ab-3432-5f14-bac1-879e608afe1a",
+      "name": "Responder error (cuadrillas)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        640,
+        1088
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- HU-09 T02 - Cuadrillas activas para el selector del tablero\n-- (contrato C2, 2.4).\nSELECT\n    c.id,\n    c.nombre,\n    c.especialidad\nFROM cuadrillas AS c\nWHERE c.activa\nORDER BY c.id ASC;",
+        "options": {}
+      },
+      "id": "f201c0f0-7e0b-5f00-8b54-d24acd52f414",
+      "name": "Cuadrillas activas",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        640,
+        1296
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "OG4PhmWgT8L86uMa",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Contrato C2 2.4: un arreglo de cuadrillas activas.\nconst filas = $input.all()\n  .map((i) => i.json)\n  .filter((f) => f && f.id);\n\nreturn [{\n  json: {\n    http_code: 200,\n    cuerpo: filas.map((f) => ({\n      id: Number(f.id),\n      nombre: f.nombre,\n      especialidad: f.especialidad,\n    })),\n  },\n}];\n"
+      },
+      "id": "016c5b9a-d9eb-5f84-adbe-c57bafc947c4",
+      "name": "Armar lista de cuadrillas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        864,
+        1296
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.cuerpo) }}",
+        "options": {
+          "responseCode": "={{ $json.http_code }}"
+        }
+      },
+      "id": "536db61c-c6a3-568c-a5db-c2f79bb03451",
+      "name": "Responder: cuadrillas",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1088,
+        1296
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "urbanpulse/operativos/asignar",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "https://equipo3-urban-pulse.vercel.app,https://equipo3-u-git-cc0c7a-sebastiannnnnnnnnnnnnnnnnnnnnnnns-projects.vercel.app,http://localhost:3000,http://localhost:3003,http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176,http://localhost:5177,http://localhost:5178,http://localhost:5181"
+        }
+      },
+      "id": "47bf5641-651e-5ab0-bbf8-31bf7276169c",
+      "name": "Webhook Asignar Operativo",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        1600
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Copia EN LINEA del subworkflow «Validar token» (HT-36 T01): llamarlo con\n// Execute Workflow sumaba unos 5 s por peticion en la instancia de Lightsail\n// (docs/AUTH_TOKEN_CONTRACT.md, opcion A), y el tablero de operativos lo llama\n// en cada refresco. Solo cambia de donde sale la entrada; el resto debe ser\n// identico (lo comprueba ia-ops/workflows/tests/test_validar_token.py).\n// Sin permitir_sin_token: estos webhooks son nuevos y exigen el token.\n// HT-36 T01 - Valida el token de sesion (contrato C1).\n//\n// El token lo emite el login de Central (nodo \"Generar token\"):\n//   base64url(payload) + \".\" + HMAC-SHA256 en hex del primer tramo, con\n//   N8N_AUTH_SECRET; payload { sub, id, role, iat, exp } con exp en ms.\n// Salida: { valido: true, usuario_id, rol, exp (segundos) } o\n//         { valido: false, http_code: 401 | 403 | 500, error }.\n// Quien llama responde el error al cliente con ese codigo.\nconst crypto = require('crypto');\n\n// Transicion: mientras la app no envie el token (HT-36 T03, TE_ENVIAR_TOKEN),\n// los webhooks que ya existian (reports-list, reports-history, report-resolve)\n// llaman con permitir_sin_token=true: una peticion SIN cabecera sigue como\n// antes y el webhook usa el usuario que manda el cuerpo. Con cabecera se\n// valida siempre. Los webhooks nuevos no lo pasan y exigen el token.\n// Pasar EXIGIR_TOKEN a true cuando TE_ENVIAR_TOKEN este activo en produccion.\nconst EXIGIR_TOKEN = false;\n\nconst NIVEL = { ciudadano: 1, operador: 2 };\nconst UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nconst entrada = {\n  rol_minimo: 'operador',\n  authorization: ($input.first().json.headers || {}).authorization || '',\n};\n// Un rol_minimo desconocido exige lo maximo: nunca abre una ruta por error.\nconst rolMinimo = NIVEL[entrada.rol_minimo] ? entrada.rol_minimo : 'operador';\nconst cabecera = String(entrada.authorization || '').trim();\nconst rechazar = (http_code, error) => [{ json: { valido: false, http_code, error } }];\n\nconst permitirSinToken = entrada.permitir_sin_token === true || entrada.permitir_sin_token === 'true';\n\nif (!cabecera) {\n  if (EXIGIR_TOKEN || !permitirSinToken) return rechazar(401, 'token_invalido');\n  return [{ json: { valido: true, sin_token: true, usuario_id: null, rol: null, exp: null } }];\n}\n\nconst partes = cabecera.match(/^Bearer\\s+([A-Za-z0-9_-]+)\\.([0-9a-f]{64})$/i);\nif (!partes) return rechazar(401, 'token_invalido');\n\nlet secreto = null;\ntry {\n  secreto = $env.N8N_AUTH_SECRET || null;\n} catch (e) {\n  secreto = null;\n}\nif (!secreto) return rechazar(500, 'autenticacion_no_configurada');\n\n// Comparacion en tiempo constante, sobre bytes del mismo largo.\nconst esperada = Buffer.from(crypto.createHmac('sha256', secreto).update(partes[1]).digest('hex'), 'hex');\nconst recibida = Buffer.from(partes[2].toLowerCase(), 'hex');\nif (esperada.length !== recibida.length || !crypto.timingSafeEqual(esperada, recibida)) {\n  return rechazar(401, 'token_invalido');\n}\n\nlet payload;\ntry {\n  payload = JSON.parse(Buffer.from(partes[1], 'base64url').toString('utf8'));\n} catch (e) {\n  return rechazar(401, 'token_invalido');\n}\n\nconst expMs = Number(payload.exp);\nif (!Number.isFinite(expMs) || expMs <= Date.now()) return rechazar(401, 'token_invalido');\nif (!UUID.test(String(payload.id || ''))) return rechazar(401, 'token_invalido');\nif (!NIVEL[payload.role]) return rechazar(401, 'token_invalido');\nif (NIVEL[payload.role] < NIVEL[rolMinimo]) return rechazar(403, 'rol_no_permitido');\n\nreturn [{\n  json: {\n    valido: true,\n    sin_token: false,\n    usuario_id: payload.id,\n    rol: payload.role,\n    exp: Math.floor(expMs / 1000),\n  },\n}];\n"
+      },
+      "id": "df4e70d1-a210-591e-8e83-8c64039ad999",
+      "name": "Validar token (asignar)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        1600
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "tok-asignar",
+              "leftValue": "={{ $json.valido }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "e02b42e7-e76b-54a9-a7d5-89b741d1489c",
+      "name": "Token valido? (asignar)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        416,
+        1600
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { error: $json.error } }}",
+        "options": {
+          "responseCode": "={{ $json.http_code }}"
+        }
+      },
+      "id": "e722f196-324c-52db-9e51-5ae64ae88e8b",
+      "name": "Responder error (asignar)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1088,
+        1488
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Contrato C2 2.5: 400 datos_invalidos si el estado no existe o si falta la\n// cuadrilla al asignar. Las transiciones las decide la consulta, con el estado\n// que tiene el operativo en ese momento.\nconst UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nconst ESTADOS = ['asignado', 'en_curso', 'cerrado'];\nconst cuerpo = $('Webhook Asignar Operativo').first().json.body || {};\n\nconst operativoId = String(cuerpo.operativo_id || '');\nconst estado = String(cuerpo.estado || '');\nconst crudaCuadrilla = cuerpo.cuadrilla_id;\nconst cuadrillaId = crudaCuadrilla === undefined || crudaCuadrilla === null || crudaCuadrilla === ''\n  ? null\n  : Number(crudaCuadrilla);\n\nconst cuadrillaInvalida = cuadrillaId !== null\n  && (!Number.isInteger(cuadrillaId) || cuadrillaId <= 0);\n\nif (\n  !UUID.test(operativoId)\n  || !ESTADOS.includes(estado)\n  || cuadrillaInvalida\n  // Pasar a \"asignado\" exige cuadrilla; en_curso y cerrado la heredan.\n  || (estado === 'asignado' && cuadrillaId === null)\n) {\n  return [{ json: { valido: false, http_code: 400, error: 'datos_invalidos' } }];\n}\n\nreturn [{\n  json: {\n    valido: true,\n    operativo_id: operativoId,\n    estado,\n    cuadrilla_id: cuadrillaId,\n  },\n}];\n"
+      },
+      "id": "47a93909-bbad-5b71-b2f2-e33386e8a199",
+      "name": "Validar datos de la asignacion",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        1696
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "dat-asignar",
+              "leftValue": "={{ $json.valido }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "d84e8f30-a400-5f63-a4f3-2329d2df324c",
+      "name": "Datos validos? (asignar)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        864,
+        1696
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- HU-09 T02 - Asigna cuadrilla y/o cambia el estado, y al cerrar resuelve los\n-- reportes del operativo, todo en UNA sentencia (contrato C2, 2.5).\n--\n-- La fila final siempre existe: \"base\" sobrevive aunque el UPDATE no toque\n-- nada, y los contadores le dicen al webhook si responder 404, 409 o 200.\nWITH pedido AS (\n    SELECT\n        $1::UUID AS operativo_id,\n        $2::TEXT AS estado_pedido,\n        $3::INT AS cuadrilla_id\n),\n\nactual AS (\n    SELECT o.id, o.estado\n    FROM operativos AS o\n    INNER JOIN pedido AS p ON p.operativo_id = o.id\n),\n\n-- Tabla de transiciones del contrato C2, 2.5. Reabrir un cerrado no esta.\npermitida AS (\n    SELECT a.id\n    FROM actual AS a\n    CROSS JOIN pedido AS p\n    WHERE\n        (p.estado_pedido = 'asignado' AND a.estado IN ('planificado', 'asignado'))\n        OR (p.estado_pedido = 'en_curso' AND a.estado = 'asignado')\n        OR (p.estado_pedido = 'cerrado' AND a.estado IN ('asignado', 'en_curso'))\n),\n\ncuadrilla_valida AS (\n    SELECT 1 AS ok\n    FROM pedido AS p\n    WHERE\n        p.cuadrilla_id IS NULL\n        OR EXISTS (\n            SELECT 1\n            FROM cuadrillas AS c\n            WHERE c.id = p.cuadrilla_id AND c.activa\n        )\n),\n\ncambiado AS (\n    UPDATE operativos AS o\n    SET\n        estado = p.estado_pedido,\n        cuadrilla_id = COALESCE(p.cuadrilla_id, o.cuadrilla_id),\n        -- Reasignar no mueve asignado_en: es el inicio del tiempo de atencion.\n        asignado_en = COALESCE(o.asignado_en, now()),\n        cerrado_en = CASE\n            WHEN p.estado_pedido = 'cerrado' THEN now() ELSE o.cerrado_en\n        END\n    FROM pedido AS p\n    WHERE\n        o.id = p.operativo_id\n        AND EXISTS (SELECT 1 FROM permitida)\n        AND EXISTS (SELECT 1 FROM cuadrilla_valida)\n    RETURNING\n        o.id, o.zona, o.estado, o.cuadrilla_id,\n        o.creado_en, o.asignado_en, o.cerrado_en\n),\n\n-- Cerrar el operativo resuelve sus reportes en la misma operacion (ADR-016).\nresueltos AS (\n    UPDATE reports AS r\n    SET status = 'resuelto', resolved_at = now()\n    FROM cambiado AS cb\n    INNER JOIN operativo_reportes AS op_r ON op_r.operativo_id = cb.id\n    WHERE\n        r.id = op_r.reporte_id\n        AND cb.estado = 'cerrado'\n        AND r.status <> 'resuelto'\n    RETURNING r.id\n)\n\nSELECT\n    (SELECT COUNT(*) FROM actual)::INT AS existe,\n    (SELECT COUNT(*) FROM permitida)::INT AS transicion_ok,\n    (SELECT COUNT(*) FROM cuadrilla_valida)::INT AS cuadrilla_ok,\n    (SELECT a.estado FROM actual AS a) AS estado_actual,\n    (SELECT COUNT(*) FROM resueltos)::INT AS reportes_resueltos,\n    cb.id,\n    cb.estado,\n    cb.cuadrilla_id,\n    cb.zona AS zona_id,\n    COALESCE(d.nombre, 'Sin distrito') AS zona,\n    CASE\n        WHEN c.id IS NULL THEN NULL\n        ELSE JSON_BUILD_OBJECT('id', c.id, 'nombre', c.nombre)\n    END AS cuadrilla,\n    (\n        SELECT COUNT(*)\n        FROM operativo_reportes AS op_r\n        WHERE op_r.operativo_id = cb.id\n    )::INT AS reportes,\n    TO_CHAR(\n        cb.creado_en AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'\n    ) AS creado_en,\n    TO_CHAR(\n        cb.asignado_en AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'\n    ) AS asignado_en,\n    TO_CHAR(\n        cb.cerrado_en AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'\n    ) AS cerrado_en,\n    -- horas_atencion del contrato C4 de HU-11: creado_en -> cerrado_en.\n    ROUND(\n        (EXTRACT(EPOCH FROM (cb.cerrado_en - cb.creado_en)) / 3600.0)::NUMERIC, 1\n    ) AS horas_atencion\nFROM (SELECT 1 AS uno) AS base\nLEFT JOIN cambiado AS cb ON TRUE\nLEFT JOIN cuadrillas AS c ON c.id = cb.cuadrilla_id\nLEFT JOIN distritos_lima AS d ON d.nombre_normalizado = cb.zona;",
+        "options": {
+          "queryReplacement": "={{ [ $json.operativo_id, $json.estado, $json.cuadrilla_id ] }}"
+        }
+      },
+      "id": "4485e195-596b-5604-a064-bb0d2516f094",
+      "name": "Aplicar cambio de estado",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        1088,
+        1696
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "OG4PhmWgT8L86uMa",
+          "name": "Postgres account"
+        }
+      },
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Contrato C2 2.5: 404 si el operativo no existe, 400 si la cuadrilla no existe\n// o no esta activa, 409 si la transicion no esta en la tabla, y 200 con el\n// operativo en el formato de 2.3 cuando el cambio se aplico.\nconst f = $input.first().json || {};\n\nif (!Number(f.existe)) {\n  return [{\n    json: {\n      cerrado: false,\n      http_code: 404,\n      cuerpo: { error: 'operativo_no_encontrado' },\n    },\n  }];\n}\n\nif (!Number(f.cuadrilla_ok)) {\n  return [{\n    json: {\n      cerrado: false,\n      http_code: 400,\n      cuerpo: { error: 'datos_invalidos' },\n    },\n  }];\n}\n\nif (!Number(f.transicion_ok)) {\n  return [{\n    json: {\n      cerrado: false,\n      http_code: 409,\n      cuerpo: { error: 'transicion_invalida', estado_actual: f.estado_actual },\n    },\n  }];\n}\n\nconst operativo = {\n  id: f.id,\n  zona: f.zona,\n  zona_id: f.zona_id,\n  estado: f.estado,\n  cuadrilla: f.cuadrilla || null,\n  reportes: Number(f.reportes),\n  creado_en: f.creado_en,\n  asignado_en: f.asignado_en || null,\n  cerrado_en: f.cerrado_en || null,\n};\n\nreturn [{\n  json: {\n    cerrado: f.estado === 'cerrado',\n    http_code: 200,\n    cuerpo: operativo,\n    operativo_id: f.id,\n    zona_id: f.zona_id,\n    cuadrilla_id: f.cuadrilla_id === null || f.cuadrilla_id === undefined\n      ? null\n      : Number(f.cuadrilla_id),\n    reportes: Number(f.reportes),\n    horas_atencion: f.horas_atencion === null || f.horas_atencion === undefined\n      ? null\n      : Number(f.horas_atencion),\n  },\n}];\n"
+      },
+      "id": "fa6bc35c-c1d2-50d3-ab5a-4adec754038d",
+      "name": "Armar respuesta (asignar)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1312,
+        1696
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.cuerpo) }}",
+        "options": {
+          "responseCode": "={{ $json.http_code }}"
+        }
+      },
+      "id": "7eec5cbf-0939-5318-a35f-c235a14b1fd0",
+      "name": "Responder: asignacion",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1536,
+        1808
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "evt-cerrar",
+              "leftValue": "={{ $json.cerrado }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "987a062e-faeb-5af3-8bb7-a5e92aa60415",
+      "name": "Se cerro el operativo?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1536,
+        1600
+      ]
+    },
+    {
+      "parameters": {
+        "action": "generate",
+        "dataPropertyName": "eventoId"
+      },
+      "id": "eafb7fc3-9a48-5947-a5dd-836825949459",
+      "name": "Generar ID operativo.cerrado",
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 1,
+      "position": [
+        1760,
+        1600
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Sobre comun del contrato 4.7 (docs/architecture/eventos.md) para\n// operativo.cerrado. horas_atencion lo calcula la consulta entre creado_en y\n// cerrado_en, el mismo calculo que usara HU-11 para los KPIs.\nconst r = $('Armar respuesta (asignar)').first().json;\n\nreturn [{\n  json: {\n    id: $('Generar ID operativo.cerrado').first().json.eventoId,\n    tipo: 'operativo.cerrado',\n    fecha: new Date().toISOString(),\n    origen: 'n8n/operativos',\n    datos: {\n      operativo_id: r.operativo_id,\n      zona_id: r.zona_id,\n      cuadrilla_id: r.cuadrilla_id,\n      reportes: r.reportes,\n      horas_atencion: r.horas_atencion,\n    },\n  },\n}];\n"
+      },
+      "id": "953eb89d-dbef-5a90-ab63-4deca6b9d340",
+      "name": "Armar evento operativo.cerrado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1968,
+        1600
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://urbanpulse-n8n.xq33kajky1yy6.us-east-1.cs.amazonlightsail.com/webhook/urbanpulse/eventos",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "id": "a1675d3e-8227-5780-bb60-4cdb6833daee",
+      "name": "Publicar operativo.cerrado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        2176,
+        1600
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CBpdBXwSj8Rfii2f",
+          "name": "UrbanPulse Event Router Header Auth"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Incidentes por Zona": {
+      "main": [
+        [
+          {
+            "node": "Validar token (zonas)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar token (zonas)": {
+      "main": [
+        [
+          {
+            "node": "Token valido? (zonas)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Token valido? (zonas)": {
+      "main": [
+        [
+          {
+            "node": "Incidentes por zona",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder error (zonas)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Incidentes por zona": {
+      "main": [
+        [
+          {
+            "node": "Armar respuesta por zona",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar respuesta por zona": {
+      "main": [
+        [
+          {
+            "node": "Responder: incidentes por zona",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generar ID operativo.creado": {
+      "main": [
+        [
+          {
+            "node": "Armar evento operativo.creado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar evento operativo.creado": {
+      "main": [
+        [
+          {
+            "node": "Publicar operativo.creado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Crear Operativo": {
+      "main": [
+        [
+          {
+            "node": "Validar token (crear)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar token (crear)": {
+      "main": [
+        [
+          {
+            "node": "Token valido? (crear)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Token valido? (crear)": {
+      "main": [
+        [
+          {
+            "node": "Validar datos del operativo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder error (crear)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar datos del operativo": {
+      "main": [
+        [
+          {
+            "node": "Datos validos? (crear)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Datos validos? (crear)": {
+      "main": [
+        [
+          {
+            "node": "Crear operativo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder error (crear)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear operativo": {
+      "main": [
+        [
+          {
+            "node": "Armar respuesta (crear)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar respuesta (crear)": {
+      "main": [
+        [
+          {
+            "node": "Responder: operativo creado",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Se creo el operativo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Se creo el operativo?": {
+      "main": [
+        [
+          {
+            "node": "Generar ID operativo.creado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Listar Operativos": {
+      "main": [
+        [
+          {
+            "node": "Validar token (listar)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar token (listar)": {
+      "main": [
+        [
+          {
+            "node": "Token valido? (listar)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Token valido? (listar)": {
+      "main": [
+        [
+          {
+            "node": "Listar operativos",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder error (listar)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Listar operativos": {
+      "main": [
+        [
+          {
+            "node": "Armar lista de operativos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar lista de operativos": {
+      "main": [
+        [
+          {
+            "node": "Responder: lista de operativos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Cuadrillas": {
+      "main": [
+        [
+          {
+            "node": "Validar token (cuadrillas)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar token (cuadrillas)": {
+      "main": [
+        [
+          {
+            "node": "Token valido? (cuadrillas)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Token valido? (cuadrillas)": {
+      "main": [
+        [
+          {
+            "node": "Cuadrillas activas",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder error (cuadrillas)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cuadrillas activas": {
+      "main": [
+        [
+          {
+            "node": "Armar lista de cuadrillas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar lista de cuadrillas": {
+      "main": [
+        [
+          {
+            "node": "Responder: cuadrillas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generar ID operativo.cerrado": {
+      "main": [
+        [
+          {
+            "node": "Armar evento operativo.cerrado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar evento operativo.cerrado": {
+      "main": [
+        [
+          {
+            "node": "Publicar operativo.cerrado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Asignar Operativo": {
+      "main": [
+        [
+          {
+            "node": "Validar token (asignar)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar token (asignar)": {
+      "main": [
+        [
+          {
+            "node": "Token valido? (asignar)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Token valido? (asignar)": {
+      "main": [
+        [
+          {
+            "node": "Validar datos de la asignacion",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder error (asignar)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar datos de la asignacion": {
+      "main": [
+        [
+          {
+            "node": "Datos validos? (asignar)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Datos validos? (asignar)": {
+      "main": [
+        [
+          {
+            "node": "Aplicar cambio de estado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder error (asignar)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aplicar cambio de estado": {
+      "main": [
+        [
+          {
+            "node": "Armar respuesta (asignar)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar respuesta (asignar)": {
+      "main": [
+        [
+          {
+            "node": "Responder: asignacion",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Se cerro el operativo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Se cerro el operativo?": {
+      "main": [
+        [
+          {
+            "node": "Generar ID operativo.cerrado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "saveDataSuccessExecution": "all",
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "vPbn1fp5YIuktC25"
+  },
+  "meta": {
+    "instanceId": "954822bcb0252493706022c5abd9df94db1655579dfc0586eeeabb7008e50537"
+  },
+  "tags": []
+}

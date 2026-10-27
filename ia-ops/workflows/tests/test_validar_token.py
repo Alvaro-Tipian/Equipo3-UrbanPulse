@@ -174,7 +174,22 @@ def test_la_copia_de_produccion_es_identica():
 # mismo codigo en un nodo Code. Solo puede cambiar de donde sale la entrada.
 
 DASHBOARD = RAIZ / "src" / "n8n-workflows" / "production" / "UrbanPulse - Dashboard KPIs vr2.json"
+OPERATIVOS = RAIZ / "ia-ops" / "workflows" / "n8n_operativos.json"
 ENTRADA = "const entrada = $input.first().json;"
+
+# archivo, nodo, rol_minimo, en modo de transicion (permitir_sin_token)
+COPIAS_EN_LINEA = [
+    (DASHBOARD, "Validar token (lista)", "ciudadano", True),
+    (DASHBOARD, "Validar token (historial)", "ciudadano", True),
+    (DASHBOARD, "Validar token (resolver)", "operador", True),
+    # HU-09 T02: webhooks nuevos, sin clientes antiguos que omitan el token.
+    (OPERATIVOS, "Validar token (zonas)", "operador", False),
+    (OPERATIVOS, "Validar token (crear)", "operador", False),
+    (OPERATIVOS, "Validar token (listar)", "operador", False),
+    (OPERATIVOS, "Validar token (cuadrillas)", "operador", False),
+    (OPERATIVOS, "Validar token (asignar)", "operador", False),
+]
+NODOS_OPERATIVOS = [n for a, n, _, _ in COPIAS_EN_LINEA if a == OPERATIVOS]
 
 
 def sin_cabecera_ni_entrada(codigo):
@@ -183,18 +198,31 @@ def sin_cabecera_ni_entrada(codigo):
     return re.sub(r"const entrada = \{.*?\n\};", ENTRADA, codigo, count=1, flags=re.S)
 
 
-@pytest.mark.parametrize("nodo, rol", [
-    ("Validar token (lista)", "ciudadano"),
-    ("Validar token (historial)", "ciudadano"),
-    ("Validar token (resolver)", "operador"),
-])
-def test_las_copias_en_linea_son_el_mismo_codigo(nodo, rol):
+@pytest.mark.parametrize("archivo, nodo, rol, transicion", COPIAS_EN_LINEA,
+                         ids=[f"{a.stem}:{n}" for a, n, _, _ in COPIAS_EN_LINEA])
+def test_las_copias_en_linea_son_el_mismo_codigo(archivo, nodo, rol, transicion):
     base = next(n for n in json.loads(WORKFLOW.read_text(encoding="utf-8"))["nodes"] if n["name"] == VALIDAR)
-    copia = next(n for n in json.loads(DASHBOARD.read_text(encoding="utf-8"))["nodes"] if n["name"] == nodo)
+    copia = next(n for n in json.loads(archivo.read_text(encoding="utf-8"))["nodes"] if n["name"] == nodo)
     original = base["parameters"]["jsCode"].split("// HT-36 T01 - Valida el token de sesion (contrato C1).", 1)[1]
     assert sin_cabecera_ni_entrada(copia["parameters"]["jsCode"]) == original
     assert f"rol_minimo: '{rol}'" in copia["parameters"]["jsCode"]
-    assert "permitir_sin_token: true" in copia["parameters"]["jsCode"]
+    # Solo los webhooks que ya existian estan en modo de transicion.
+    assert ("permitir_sin_token: true" in copia["parameters"]["jsCode"]) is transicion
+
+
+@pytest.mark.parametrize("nodo", NODOS_OPERATIVOS)
+def test_los_webhooks_de_operativos_exigen_token_de_operador(nodo):
+    """HU-09 T02, «Hecha cuando»: un ciudadano recibe 403 en las cinco rutas."""
+    def copia(authorization):
+        return ejecutar(nodo, [{"headers": {"authorization": authorization}}],
+                        env={"N8N_AUTH_SECRET": SECRETO}, workflow=OPERATIVOS)
+
+    assert copia("") == {"valido": False, "http_code": 401, "error": "token_invalido"}
+    assert copia(f"Bearer {token()}") == {
+        "valido": False, "http_code": 403, "error": "rol_no_permitido"}
+    operador = copia(f"Bearer {token(rol='operador')}")
+    assert operador["valido"] is True and operador["sin_token"] is False
+    assert operador["usuario_id"] == USUARIO and operador["rol"] == "operador"
 
 
 def test_la_copia_en_linea_valida_igual_que_el_subworkflow():
