@@ -22,6 +22,9 @@ on:
   push:
     branches:
       - main
+  # HT-36 T06: despues de rotar N8N_AUTH_SECRET o DB_POSTGRESDB_PASSWORD hay
+  # que redesplegar para que el contenedor tome el valor nuevo, sin commit.
+  workflow_dispatch:
 
 # Lightsail solo admite un deployment a la vez por servicio: si dos merges a main
 # ocurren seguidos, el segundo falla con "deployment N is in progress". Encolamos
