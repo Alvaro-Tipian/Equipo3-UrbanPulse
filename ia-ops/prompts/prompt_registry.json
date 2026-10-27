@@ -1,7 +1,7 @@
 {
   "project": "UrbanPulse MLOps Prompt Registry",
   "version_schema": "1.0.0",
-  "last_updated": "2026-10-02T19:50:00Z",
+  "last_updated": "2026-10-12T00:00:00Z",
   "prompts": [
     {
       "id": "clasificacion_incidente",
@@ -15,8 +15,8 @@
     },
     {
       "id": "nlq_ciudadano",
-      "name": "Asistente Ciudadano Consultas NLQ",
-      "version": "1.0.0",
+      "name": "Asistente Ciudadano Consultas Viales (RAG)",
+      "version": "2.0.0",
       "file_path": "ia-ops/prompts/nlq_ciudadano.md",
       "model": "gemini-1.5-flash",
       "temperature": 0.3,
