@@ -11,7 +11,20 @@ imágenes y plantillas. Las tres capas encuentran cosas distintas: una cabecera
 | Escaneo | Objetivo | Tipo | Job |
 | --- | --- | --- | --- |
 | Baseline | Host React desplegado en Vercel | **Pasivo**: spider + observación del tráfico | `baseline-scan` |
-| API scan | Webhooks n8n (AWS Lightsail) | **Activo**: envía payloads de ataque | `api-scan` |
+| API scan | Webhooks n8n de **staging** | **Activo**: envía payloads de ataque | `api-scan` |
+| API scan de producción | Rutas **GET** del n8n de **producción** | **Pasivo**: una visita por ruta, sin ataques | `api-scan-produccion` |
+
+El API scan activo se **omite con un aviso** (no falla) cuando el n8n de staging
+no responde o no tiene los flujos activos: es un problema del entorno, no del
+código del PR. Mientras tanto, la cobertura de los webhooks la da el escaneo
+pasivo de producción.
+
+El escaneo de producción usa una copia de la spec generada por
+`scripts/zap-spec-solo-lectura.py`, que conserva solo las 7 rutas GET. Al
+importar una spec, ZAP envía una petición a cada operación; con las 8 rutas que
+escriben (registro, login, recuperación de contraseña, alta y resolución de
+reportes, chat) eso crearía usuarios y reportes reales y gastaría cuota de
+Gemini. El script falla si en la copia queda cualquier método de escritura.
 
 El baseline usa el spider AJAX (`-j`) porque el host es una SPA con Module
 Federation: el spider clásico solo vería el `index.html` y no las rutas que React
@@ -43,6 +56,7 @@ si se quiere también el escaneo activo.
 | Secret | Para qué |
 | --- | --- |
 | `DAST_API_BASE_URL` | Base de los webhooks n8n **de staging** (ej. `https://<n8n-staging>/webhook`) |
+| `DAST_API_PROD_BASE_URL` | Base de los webhooks n8n **de producción**, solo para el escaneo pasivo de las rutas GET |
 | `DAST_BASELINE_URL` | Solo para corridas manuales sin `target_url` |
 
 La URL de n8n no está versionada: la spec lleva el marcador

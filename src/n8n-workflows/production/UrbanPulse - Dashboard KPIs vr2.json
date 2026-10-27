@@ -7,14 +7,14 @@
         "path": "urbanpulse/chat-history-append",
         "responseMode": "lastNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "https://equipo3-urban-pulse.vercel.app,https://equipo3-u-git-cc0c7a-sebastiannnnnnnnnnnnnnnnnnnnnnnns-projects.vercel.app,http://localhost:3000,http://localhost:3003,http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176,http://localhost:5177,http://localhost:5178,http://localhost:5181"
         }
       },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        1056,
-        -176
+        1776,
+        -384
       ],
       "id": "2f7f1423-e0e4-425c-8672-11eb4037b6a8",
       "name": "Webhook Guardar Turno",
@@ -31,8 +31,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.7,
       "position": [
-        1280,
-        -176
+        2000,
+        -384
       ],
       "alwaysOutputData": true,
       "executeOnce": true,
@@ -50,14 +50,14 @@
         "path": "urbanpulse/chat-history",
         "responseMode": "lastNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "https://equipo3-urban-pulse.vercel.app,https://equipo3-u-git-cc0c7a-sebastiannnnnnnnnnnnnnnnnnnnnnnns-projects.vercel.app,http://localhost:3000,http://localhost:3003,http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176,http://localhost:5177,http://localhost:5178,http://localhost:5181"
         }
       },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        1056,
-        144
+        1776,
+        -64
       ],
       "id": "33651ed2-e1db-41b5-89e3-bae15e186999",
       "name": "Webhook Leer Hilo",
@@ -74,8 +74,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.7,
       "position": [
-        1280,
-        144
+        2000,
+        -64
       ],
       "alwaysOutputData": true,
       "executeOnce": true,
@@ -93,14 +93,14 @@
         "path": "urbanpulse/dashboard-kpis",
         "responseMode": "lastNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "https://equipo3-urban-pulse.vercel.app,https://equipo3-u-git-cc0c7a-sebastiannnnnnnnnnnnnnnnnnnnnnnns-projects.vercel.app,http://localhost:3000,http://localhost:3003,http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176,http://localhost:5177,http://localhost:5178,http://localhost:5181"
         }
       },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        2480,
-        -48
+        3200,
+        -256
       ],
       "id": "fbbbdaf5-91b4-4728-ab71-cc839bb95206",
       "name": "Webhook KPIs",
@@ -116,8 +116,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.7,
       "position": [
-        2704,
-        -48
+        3424,
+        -256
       ],
       "id": "6fc3aa1f-e45c-4e9b-a407-b30d3b799b04",
       "name": "Total reportes",
@@ -138,8 +138,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.7,
       "position": [
-        2928,
-        -48
+        3648,
+        -256
       ],
       "id": "b062d9f6-a1a6-4fa0-8a0c-5e29dfe59ce2",
       "name": "Reportes 24h",
@@ -160,8 +160,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.7,
       "position": [
-        3152,
-        -48
+        3872,
+        -256
       ],
       "id": "fe7ec922-1d94-4bcc-91ed-018519cfcc0a",
       "name": "Reportes por tipo",
@@ -182,8 +182,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.7,
       "position": [
-        3376,
-        -48
+        4096,
+        -256
       ],
       "id": "7285a3ff-f74e-4085-8798-922622102869",
       "name": "Reportes por severidad",
@@ -204,8 +204,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.7,
       "position": [
-        3600,
-        -48
+        4320,
+        -256
       ],
       "id": "77bf1059-f7b6-40cf-b799-6da70f377242",
       "name": "Tendencia 30 dias",
@@ -226,8 +226,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.7,
       "position": [
-        3824,
-        -48
+        4544,
+        -256
       ],
       "id": "4cab0b04-8b99-4c8b-82a3-289fa8421390",
       "name": "Congestion snapshot",
@@ -248,8 +248,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.7,
       "position": [
-        4048,
-        -48
+        4768,
+        -256
       ],
       "id": "84004315-70be-44ed-8772-e42e67995635",
       "name": "Siniestros por distrito",
@@ -270,8 +270,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.7,
       "position": [
-        4272,
-        -48
+        4992,
+        -256
       ],
       "id": "5dfca48b-08fe-4aca-8d4e-fd62441c8730",
       "name": "Siniestros por clase",
@@ -292,8 +292,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.7,
       "position": [
-        4496,
-        -48
+        5216,
+        -256
       ],
       "id": "a3ab99e3-12f1-4970-9619-dd5ca0acd693",
       "name": "Siniestros totales",
@@ -314,8 +314,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.7,
       "position": [
-        4496,
-        192
+        5216,
+        -16
       ],
       "id": "96b84c91-1c68-4322-9982-9fb00c5909f3",
       "name": "Siniestros SUTRAN totales",
@@ -336,8 +336,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.7,
       "position": [
-        4720,
-        192
+        5440,
+        -16
       ],
       "id": "1b3e5dad-8510-4b7d-bea9-c403bd951db4",
       "name": "Siniestros SUTRAN por departamento",
@@ -358,8 +358,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.7,
       "position": [
-        4944,
-        192
+        5664,
+        -16
       ],
       "id": "1af74fff-b4a9-438e-8e2c-6e4a58f840d6",
       "name": "Siniestros SUTRAN por modalidad",
@@ -377,8 +377,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        5152,
-        192
+        5872,
+        -16
       ],
       "id": "6437c513-675d-41a9-9162-111c50852b36",
       "name": "Armar respuesta KPIs"
@@ -386,17 +386,16 @@
     {
       "parameters": {
         "path": "urbanpulse/reports-list",
-        "responseMode": "lastNode",
-        "responseData": "allEntries",
+        "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "https://equipo3-urban-pulse.vercel.app,https://equipo3-u-git-cc0c7a-sebastiannnnnnnnnnnnnnnnnnnnnnnns-projects.vercel.app,http://localhost:3000,http://localhost:3003,http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176,http://localhost:5177,http://localhost:5178,http://localhost:5181"
         }
       },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        2480,
-        288
+        2976,
+        80
       ],
       "id": "465c8d33-a89f-487c-9f67-1e902f03a45a",
       "name": "Webhook Reportes",
@@ -412,8 +411,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.7,
       "position": [
-        2704,
-        288
+        3424,
+        80
       ],
       "id": "f76eec94-4127-4801-96dc-ac6e7ee1f8ab",
       "name": "Listar reportes",
@@ -427,17 +426,16 @@
     {
       "parameters": {
         "path": "urbanpulse/reports-history",
-        "responseMode": "lastNode",
-        "responseData": "allEntries",
+        "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "https://equipo3-urban-pulse.vercel.app,https://equipo3-u-git-cc0c7a-sebastiannnnnnnnnnnnnnnnnnnnnnnns-projects.vercel.app,http://localhost:3000,http://localhost:3003,http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176,http://localhost:5177,http://localhost:5178,http://localhost:5181"
         }
       },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        2480,
-        608
+        2976,
+        400
       ],
       "id": "5762df52-dba1-482a-b2a0-f6c943359d36",
       "name": "Webhook Historial",
@@ -448,14 +446,14 @@
         "operation": "executeQuery",
         "query": "-- El historial es privado: solo devuelve los reportes del usuario que lo pide.\n-- El operador, que atiende los de toda la ciudad, sigue viendo todos.\n-- Sin un usuario_id valido no sale ninguna fila, asi que el historial queda\n-- vacio para quien no ha iniciado sesion.\nWITH solicitante AS (\n  SELECT id, role FROM usuarios WHERE id = $1::uuid\n)\nSELECT r.id, r.description, r.incident_type, r.severity, r.priority, r.status,\n       r.latitude, r.longitude, r.created_at, r.resolved_at,\n       (r.image_url IS NOT NULL) AS tiene_imagen,\n       u.email AS reportado_por\nFROM reports AS r\nLEFT JOIN usuarios AS u ON u.id = r.usuario_id\nWHERE r.usuario_id = (SELECT id FROM solicitante)\n   OR (SELECT role FROM solicitante) = 'operador'\nORDER BY r.created_at DESC\nLIMIT 200;",
         "options": {
-          "queryReplacement": "={{ [ /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test($json.query.usuario_id || '') ? $json.query.usuario_id : null ] }}"
+          "queryReplacement": "={{ [ /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(($('Validar token (historial)').first().json.usuario_id || ($('Validar token (historial)').first().json.sin_token ? $('Webhook Historial').first().json.query.usuario_id : '') || '')) ? ($('Validar token (historial)').first().json.usuario_id || ($('Validar token (historial)').first().json.sin_token ? $('Webhook Historial').first().json.query.usuario_id : '') || '') : null ] }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.7,
       "position": [
-        2704,
-        608
+        3424,
+        400
       ],
       "id": "432992ab-1b03-4d99-93b1-5151c51394f0",
       "alwaysOutputData": true,
@@ -473,14 +471,14 @@
         "path": "urbanpulse/report-image",
         "responseMode": "lastNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "https://equipo3-urban-pulse.vercel.app,https://equipo3-u-git-cc0c7a-sebastiannnnnnnnnnnnnnnnnnnnnnnns-projects.vercel.app,http://localhost:3000,http://localhost:3003,http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176,http://localhost:5177,http://localhost:5178,http://localhost:5181"
         }
       },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        2480,
-        928
+        3200,
+        720
       ],
       "id": "619e2c08-98aa-4a77-8d1a-a1acfd5bd95c",
       "name": "Webhook Imagen",
@@ -497,8 +495,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.7,
       "position": [
-        2704,
-        928
+        3424,
+        720
       ],
       "id": "697a3656-3b8b-4637-a067-a82b612c3d6a",
       "alwaysOutputData": true,
@@ -515,16 +513,16 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "urbanpulse/report-resolve",
-        "responseMode": "lastNode",
+        "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "https://equipo3-urban-pulse.vercel.app,https://equipo3-u-git-cc0c7a-sebastiannnnnnnnnnnnnnnnnnnnnnnns-projects.vercel.app,http://localhost:3000,http://localhost:3003,http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176,http://localhost:5177,http://localhost:5178,http://localhost:5181"
         }
       },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        2480,
-        1248
+        2976,
+        1152
       ],
       "id": "386e3501-24a9-4bde-a620-737cba29e003",
       "name": "Webhook Resolver",
@@ -533,16 +531,16 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Cada quien resuelve sus propios reportes; el operador, cualquiera.\n-- Si el reporte no es suyo no se actualiza ninguna fila y la respuesta vuelve\n-- vacia, que es como el frontend detecta que el cambio no se aplico.\nUPDATE reports AS r\nSET status = CASE WHEN $2 = 'resuelto' THEN 'resuelto' ELSE 'pending' END,\n    resolved_at = CASE WHEN $2 = 'resuelto' THEN now() ELSE NULL END\nWHERE r.id = $1::uuid\n  AND (r.usuario_id = $3::uuid\n       OR EXISTS (SELECT 1 FROM usuarios AS o\n                  WHERE o.id = $3::uuid AND o.role = 'operador'))\nRETURNING r.id, r.status, r.resolved_at;",
+        "query": "-- Cada quien resuelve sus propios reportes; el operador, cualquiera.\n-- Si el reporte no es suyo no se actualiza ninguna fila y la respuesta vuelve\n-- vacia, que es como el frontend detecta que el cambio no se aplico.\n-- HT-51 T03: \"previo\" guarda el estado antes del cambio para el evento reporte.estado_cambiado.\nWITH previo AS (\n  SELECT id, status AS estado_anterior FROM reports WHERE id = $1::uuid\n)\nUPDATE reports AS r\nSET status = CASE \n               WHEN $2 = 'resuelto' THEN 'resuelto' \n               WHEN $2 = 'en_proceso' THEN 'en_proceso' \n               ELSE 'pending' \n             END,\n    resolved_at = CASE WHEN $2 = 'resuelto' THEN now() ELSE NULL END\nFROM previo\nWHERE r.id = previo.id\n  AND (r.usuario_id = $3::uuid\n       OR EXISTS (SELECT 1 FROM usuarios AS o\n                  WHERE o.id = $3::uuid AND o.role = 'operador'))\nRETURNING r.id, r.status, r.resolved_at,\n          previo.estado_anterior, r.incident_type, r.latitude, r.longitude, r.created_at;",
         "options": {
-          "queryReplacement": "={{ [ /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test($json.body.id || '') ? $json.body.id : null, $json.body.status || 'pending', /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test($json.body.usuario_id || '') ? $json.body.usuario_id : null ] }}"
+          "queryReplacement": "={{ [ /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test($('Webhook Resolver').first().json.body.id || '') ? $('Webhook Resolver').first().json.body.id : null, $('Webhook Resolver').first().json.body.status || 'pending', /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(($('Validar token (resolver)').first().json.usuario_id || ($('Validar token (resolver)').first().json.sin_token ? $('Webhook Resolver').first().json.body.usuario_id : '') || '')) ? ($('Validar token (resolver)').first().json.usuario_id || ($('Validar token (resolver)').first().json.sin_token ? $('Webhook Resolver').first().json.body.usuario_id : '') || '') : null ] }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.7,
       "position": [
-        2704,
-        1248
+        3600,
+        1392
       ],
       "alwaysOutputData": true,
       "executeOnce": true,
@@ -558,27 +556,20 @@
     {
       "parameters": {
         "path": "urbanpulse/mapa-siniestros-onsv",
-        "authentication": "headerAuth",
         "responseMode": "lastNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "https://equipo3-urban-pulse.vercel.app,https://equipo3-u-git-cc0c7a-sebastiannnnnnnnnnnnnnnnnnnnnnnns-projects.vercel.app,http://localhost:3000,http://localhost:3003,http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176,http://localhost:5177,http://localhost:5178,http://localhost:5181"
         }
       },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        1040,
-        496
+        1760,
+        288
       ],
       "id": "335a1298-5c9b-4eb8-8570-7c23270f994e",
       "name": "Webhook GeoJSON ONSV (GET)",
-      "webhookId": "18061197-b82f-4dd3-88d7-be071a77ded3",
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "wkv9uHHFUkwkTveR",
-          "name": "Maps API"
-        }
-      }
+      "webhookId": "18061197-b82f-4dd3-88d7-be071a77ded3"
     },
     {
       "parameters": {
@@ -591,8 +582,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.7,
       "position": [
-        1296,
-        496
+        2016,
+        288
       ],
       "id": "24816125-7a87-4a16-8744-2d29450ddd62",
       "name": "Clustering ONSV",
@@ -610,8 +601,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1520,
-        496
+        2240,
+        288
       ],
       "id": "8e7fec91-27f6-4319-92a5-c93031ddf5a1",
       "name": "Responder: GeoJSON ONSV"
@@ -622,14 +613,14 @@
         "authentication": "headerAuth",
         "responseMode": "lastNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "https://equipo3-urban-pulse.vercel.app,https://equipo3-u-git-cc0c7a-sebastiannnnnnnnnnnnnnnnnnnnnnnns-projects.vercel.app,http://localhost:3000,http://localhost:3003,http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176,http://localhost:5177,http://localhost:5178,http://localhost:5181"
         }
       },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        1040,
-        912
+        1760,
+        704
       ],
       "id": "b30a3dfa-f0bb-4a28-9cdc-81624db05256",
       "name": "Webhook GeoJSON SUTRAN (GET)",
@@ -650,8 +641,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.7,
       "position": [
-        1312,
-        912
+        2032,
+        704
       ],
       "id": "8f66f036-d422-45f4-b1a6-ac75a5e36d63",
       "name": "Agregado SUTRAN por departamento",
@@ -669,11 +660,373 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1584,
-        912
+        2304,
+        704
       ],
       "id": "16d235d1-068b-402c-bf03-10387252af43",
       "name": "Responder: GeoJSON SUTRAN"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b2e0c002-0001-4a01-9b01-0000000000c1",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3824,
+        1392
+      ],
+      "id": "fb9a70e2-a8d9-42cc-8922-043f333595ab",
+      "name": "¿Se actualizó el reporte?"
+    },
+    {
+      "parameters": {
+        "action": "generate",
+        "dataPropertyName": "eventoId"
+      },
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 1,
+      "position": [
+        4096,
+        1104
+      ],
+      "id": "330da2a8-92ad-4cad-954b-e26f63de2748",
+      "name": "Generar ID estado_cambiado"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Mismo criterio que la ingesta del RAG (HT-50 T01): distrito_de_reporte() de Neon.\nSELECT COALESCE(distrito_de_reporte($1::uuid), '') AS distrito;",
+        "options": {
+          "queryReplacement": "={{ [ $('Marcar reporte').first().json.id ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        4304,
+        1072
+      ],
+      "id": "050a3a8d-7e69-4c93-bc9c-694ceb4e9d45",
+      "name": "Distrito del reporte resuelto",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "postgres": {
+          "id": "OG4PhmWgT8L86uMa",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// HT-51 T03: sobre del contrato 4.7 para reporte.estado_cambiado\nconst r = $('Marcar reporte').first().json;\nconst distrito = $('Distrito del reporte resuelto').first().json.distrito || 'Sin distrito';\n\nconst hora = new Date(new Date(r.created_at || Date.now()).getTime() - 5 * 3600 * 1000).getUTCHours();\nconst franja = hora >= 6 && hora < 12 ? 'manana' : hora >= 12 && hora < 18 ? 'tarde' : 'noche';\n\nreturn [{\n  json: {\n    id: $('Generar ID estado_cambiado').first().json.eventoId,\n    tipo: 'reporte.estado_cambiado',\n    fecha: new Date().toISOString(),\n    origen: 'n8n/report-resolve',\n    datos: {\n      reporte_id: r.id,\n      distrito,\n      franja,\n      tipo_incidente: r.incident_type,\n      estado_anterior: r.estado_anterior,\n      estado_nuevo: r.status,\n    },\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4496,
+        1088
+      ],
+      "id": "109e472c-d184-4f65-bd54-9e781858d54a",
+      "name": "Armar evento estado_cambiado"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://urbanpulse-n8n.xq33kajky1yy6.us-east-1.cs.amazonlightsail.com/webhook/urbanpulse/eventos",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        4752,
+        1088
+      ],
+      "id": "5aaf08ae-c0a5-4745-ac7f-34ba599379e7",
+      "name": "Publicar estado_cambiado",
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CBpdBXwSj8Rfii2f",
+          "name": "UrbanPulse Event Router Header Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Respuesta IDENTICA a la de antes para mf-gestion-incidentes:\n// { id, status, resolved_at } si se actualizo, o un objeto vacio si no.\nconst filas = $('Marcar reporte').all().filter((i) => i.json && i.json.id);\nif (!filas.length) return [{ json: {} }];\nreturn filas.map((i) => ({ json: { id: i.json.id, status: i.json.status, resolved_at: i.json.resolved_at } }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4080,
+        1440
+      ],
+      "id": "40cc052c-9be4-49f7-bba2-e0db6e36a3e7",
+      "name": "Responder: resultado del cambio"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "tok-lista",
+              "leftValue": "={{ $json.valido }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "a2197e5d-8835-42b5-9a9a-a8e840351663",
+      "name": "Token valido? (lista)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3424,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { error: $json.error } }}",
+        "options": {
+          "responseCode": "={{ $json.http_code }}"
+        }
+      },
+      "id": "209b0871-874e-46ef-83c1-9b1158bb031a",
+      "name": "Responder error de token (lista)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        3648,
+        -256
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "e5120887-92b1-4705-bdae-0729aa7ec6cc",
+      "name": "Responder: lista de reportes",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        3648,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "tok-historial",
+              "leftValue": "={{ $json.valido }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "f8ed6d4e-b860-4521-b270-f1f17f411217",
+      "name": "Token valido? (historial)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3424,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { error: $json.error } }}",
+        "options": {
+          "responseCode": "={{ $json.http_code }}"
+        }
+      },
+      "id": "9493a0da-a439-48a9-be08-93108dd07422",
+      "name": "Responder error de token (historial)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        3648,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "542bbf89-9dc8-4ed4-b05c-e7a3cbdd2729",
+      "name": "Responder: historial",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        3648,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "tok-resolver",
+              "leftValue": "={{ $json.valido }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "14e53baf-db72-4d6d-9d24-45d5b72256ca",
+      "name": "Token valido? (resolver)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3440,
+        1152
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { error: $json.error } }}",
+        "options": {
+          "responseCode": "={{ $json.http_code }}"
+        }
+      },
+      "id": "29b4c90b-fe2e-47cf-b27e-9b26a410dd7d",
+      "name": "Responder error de token (resolver)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        3776,
+        1008
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "101c06a1-95c1-4f41-904b-e6111ae892e3",
+      "name": "Responder: resolver",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        4432,
+        1456
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Copia EN LINEA del subworkflow «Validar token» (HT-36 T01): llamarlo con\n// Execute Workflow sumaba unos 5 s por peticion en la instancia de Lightsail.\n// Solo cambia de donde sale la entrada; el resto debe ser identico\n// (lo comprueba ia-ops/workflows/tests/test_validar_token.py).\n// HT-36 T01 - Valida el token de sesion (contrato C1).\n//\n// El token lo emite el login de Central (nodo \"Generar token\"):\n//   base64url(payload) + \".\" + HMAC-SHA256 en hex del primer tramo, con\n//   N8N_AUTH_SECRET; payload { sub, id, role, iat, exp } con exp en ms.\n// Salida: { valido: true, usuario_id, rol, exp (segundos) } o\n//         { valido: false, http_code: 401 | 403 | 500, error }.\n// Quien llama responde el error al cliente con ese codigo.\nconst crypto = require('crypto');\n\n// Transicion: mientras la app no envie el token (HT-36 T03, TE_ENVIAR_TOKEN),\n// los webhooks que ya existian (reports-list, reports-history, report-resolve)\n// llaman con permitir_sin_token=true: una peticion SIN cabecera sigue como\n// antes y el webhook usa el usuario que manda el cuerpo. Con cabecera se\n// valida siempre. Los webhooks nuevos no lo pasan y exigen el token.\n// Pasar EXIGIR_TOKEN a true cuando TE_ENVIAR_TOKEN este activo en produccion.\nconst EXIGIR_TOKEN = false;\n\nconst NIVEL = { ciudadano: 1, operador: 2 };\nconst UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nconst entrada = {\n  rol_minimo: 'ciudadano',\n  permitir_sin_token: true,\n  authorization: ($input.first().json.headers || {}).authorization || '',\n};\n// Un rol_minimo desconocido exige lo maximo: nunca abre una ruta por error.\nconst rolMinimo = NIVEL[entrada.rol_minimo] ? entrada.rol_minimo : 'operador';\nconst cabecera = String(entrada.authorization || '').trim();\nconst rechazar = (http_code, error) => [{ json: { valido: false, http_code, error } }];\n\nconst permitirSinToken = entrada.permitir_sin_token === true || entrada.permitir_sin_token === 'true';\n\nif (!cabecera) {\n  if (EXIGIR_TOKEN || !permitirSinToken) return rechazar(401, 'token_invalido');\n  return [{ json: { valido: true, sin_token: true, usuario_id: null, rol: null, exp: null } }];\n}\n\nconst partes = cabecera.match(/^Bearer\\s+([A-Za-z0-9_-]+)\\.([0-9a-f]{64})$/i);\nif (!partes) return rechazar(401, 'token_invalido');\n\nlet secreto = null;\ntry {\n  secreto = $env.N8N_AUTH_SECRET || null;\n} catch (e) {\n  secreto = null;\n}\nif (!secreto) return rechazar(500, 'autenticacion_no_configurada');\n\n// Comparacion en tiempo constante, sobre bytes del mismo largo.\nconst esperada = Buffer.from(crypto.createHmac('sha256', secreto).update(partes[1]).digest('hex'), 'hex');\nconst recibida = Buffer.from(partes[2].toLowerCase(), 'hex');\nif (esperada.length !== recibida.length || !crypto.timingSafeEqual(esperada, recibida)) {\n  return rechazar(401, 'token_invalido');\n}\n\nlet payload;\ntry {\n  payload = JSON.parse(Buffer.from(partes[1], 'base64url').toString('utf8'));\n} catch (e) {\n  return rechazar(401, 'token_invalido');\n}\n\nconst expMs = Number(payload.exp);\nif (!Number.isFinite(expMs) || expMs <= Date.now()) return rechazar(401, 'token_invalido');\nif (!UUID.test(String(payload.id || ''))) return rechazar(401, 'token_invalido');\nif (!NIVEL[payload.role]) return rechazar(401, 'token_invalido');\nif (NIVEL[payload.role] < NIVEL[rolMinimo]) return rechazar(403, 'rol_no_permitido');\n\nreturn [{\n  json: {\n    valido: true,\n    sin_token: false,\n    usuario_id: payload.id,\n    rol: payload.role,\n    exp: Math.floor(expMs / 1000),\n  },\n}];\n"
+      },
+      "id": "dda08ade-799f-4a32-811c-b63db2db7c12",
+      "name": "Validar token (lista)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3200,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Copia EN LINEA del subworkflow «Validar token» (HT-36 T01): llamarlo con\n// Execute Workflow sumaba unos 5 s por peticion en la instancia de Lightsail.\n// Solo cambia de donde sale la entrada; el resto debe ser identico\n// (lo comprueba ia-ops/workflows/tests/test_validar_token.py).\n// HT-36 T01 - Valida el token de sesion (contrato C1).\n//\n// El token lo emite el login de Central (nodo \"Generar token\"):\n//   base64url(payload) + \".\" + HMAC-SHA256 en hex del primer tramo, con\n//   N8N_AUTH_SECRET; payload { sub, id, role, iat, exp } con exp en ms.\n// Salida: { valido: true, usuario_id, rol, exp (segundos) } o\n//         { valido: false, http_code: 401 | 403 | 500, error }.\n// Quien llama responde el error al cliente con ese codigo.\nconst crypto = require('crypto');\n\n// Transicion: mientras la app no envie el token (HT-36 T03, TE_ENVIAR_TOKEN),\n// los webhooks que ya existian (reports-list, reports-history, report-resolve)\n// llaman con permitir_sin_token=true: una peticion SIN cabecera sigue como\n// antes y el webhook usa el usuario que manda el cuerpo. Con cabecera se\n// valida siempre. Los webhooks nuevos no lo pasan y exigen el token.\n// Pasar EXIGIR_TOKEN a true cuando TE_ENVIAR_TOKEN este activo en produccion.\nconst EXIGIR_TOKEN = false;\n\nconst NIVEL = { ciudadano: 1, operador: 2 };\nconst UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nconst entrada = {\n  rol_minimo: 'ciudadano',\n  permitir_sin_token: true,\n  authorization: ($input.first().json.headers || {}).authorization || '',\n};\n// Un rol_minimo desconocido exige lo maximo: nunca abre una ruta por error.\nconst rolMinimo = NIVEL[entrada.rol_minimo] ? entrada.rol_minimo : 'operador';\nconst cabecera = String(entrada.authorization || '').trim();\nconst rechazar = (http_code, error) => [{ json: { valido: false, http_code, error } }];\n\nconst permitirSinToken = entrada.permitir_sin_token === true || entrada.permitir_sin_token === 'true';\n\nif (!cabecera) {\n  if (EXIGIR_TOKEN || !permitirSinToken) return rechazar(401, 'token_invalido');\n  return [{ json: { valido: true, sin_token: true, usuario_id: null, rol: null, exp: null } }];\n}\n\nconst partes = cabecera.match(/^Bearer\\s+([A-Za-z0-9_-]+)\\.([0-9a-f]{64})$/i);\nif (!partes) return rechazar(401, 'token_invalido');\n\nlet secreto = null;\ntry {\n  secreto = $env.N8N_AUTH_SECRET || null;\n} catch (e) {\n  secreto = null;\n}\nif (!secreto) return rechazar(500, 'autenticacion_no_configurada');\n\n// Comparacion en tiempo constante, sobre bytes del mismo largo.\nconst esperada = Buffer.from(crypto.createHmac('sha256', secreto).update(partes[1]).digest('hex'), 'hex');\nconst recibida = Buffer.from(partes[2].toLowerCase(), 'hex');\nif (esperada.length !== recibida.length || !crypto.timingSafeEqual(esperada, recibida)) {\n  return rechazar(401, 'token_invalido');\n}\n\nlet payload;\ntry {\n  payload = JSON.parse(Buffer.from(partes[1], 'base64url').toString('utf8'));\n} catch (e) {\n  return rechazar(401, 'token_invalido');\n}\n\nconst expMs = Number(payload.exp);\nif (!Number.isFinite(expMs) || expMs <= Date.now()) return rechazar(401, 'token_invalido');\nif (!UUID.test(String(payload.id || ''))) return rechazar(401, 'token_invalido');\nif (!NIVEL[payload.role]) return rechazar(401, 'token_invalido');\nif (NIVEL[payload.role] < NIVEL[rolMinimo]) return rechazar(403, 'rol_no_permitido');\n\nreturn [{\n  json: {\n    valido: true,\n    sin_token: false,\n    usuario_id: payload.id,\n    rol: payload.role,\n    exp: Math.floor(expMs / 1000),\n  },\n}];\n"
+      },
+      "id": "d87a7a48-6f05-4a1d-bda1-cb4431466d86",
+      "name": "Validar token (historial)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3200,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Copia EN LINEA del subworkflow «Validar token» (HT-36 T01): llamarlo con\n// Execute Workflow sumaba unos 5 s por peticion en la instancia de Lightsail.\n// Solo cambia de donde sale la entrada; el resto debe ser identico\n// (lo comprueba ia-ops/workflows/tests/test_validar_token.py).\n// HT-36 T01 - Valida el token de sesion (contrato C1).\n//\n// El token lo emite el login de Central (nodo \"Generar token\"):\n//   base64url(payload) + \".\" + HMAC-SHA256 en hex del primer tramo, con\n//   N8N_AUTH_SECRET; payload { sub, id, role, iat, exp } con exp en ms.\n// Salida: { valido: true, usuario_id, rol, exp (segundos) } o\n//         { valido: false, http_code: 401 | 403 | 500, error }.\n// Quien llama responde el error al cliente con ese codigo.\nconst crypto = require('crypto');\n\n// Transicion: mientras la app no envie el token (HT-36 T03, TE_ENVIAR_TOKEN),\n// los webhooks que ya existian (reports-list, reports-history, report-resolve)\n// llaman con permitir_sin_token=true: una peticion SIN cabecera sigue como\n// antes y el webhook usa el usuario que manda el cuerpo. Con cabecera se\n// valida siempre. Los webhooks nuevos no lo pasan y exigen el token.\n// Pasar EXIGIR_TOKEN a true cuando TE_ENVIAR_TOKEN este activo en produccion.\nconst EXIGIR_TOKEN = false;\n\nconst NIVEL = { ciudadano: 1, operador: 2 };\nconst UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nconst entrada = {\n  rol_minimo: 'operador',\n  permitir_sin_token: true,\n  authorization: ($input.first().json.headers || {}).authorization || '',\n};\n// Un rol_minimo desconocido exige lo maximo: nunca abre una ruta por error.\nconst rolMinimo = NIVEL[entrada.rol_minimo] ? entrada.rol_minimo : 'operador';\nconst cabecera = String(entrada.authorization || '').trim();\nconst rechazar = (http_code, error) => [{ json: { valido: false, http_code, error } }];\n\nconst permitirSinToken = entrada.permitir_sin_token === true || entrada.permitir_sin_token === 'true';\n\nif (!cabecera) {\n  if (EXIGIR_TOKEN || !permitirSinToken) return rechazar(401, 'token_invalido');\n  return [{ json: { valido: true, sin_token: true, usuario_id: null, rol: null, exp: null } }];\n}\n\nconst partes = cabecera.match(/^Bearer\\s+([A-Za-z0-9_-]+)\\.([0-9a-f]{64})$/i);\nif (!partes) return rechazar(401, 'token_invalido');\n\nlet secreto = null;\ntry {\n  secreto = $env.N8N_AUTH_SECRET || null;\n} catch (e) {\n  secreto = null;\n}\nif (!secreto) return rechazar(500, 'autenticacion_no_configurada');\n\n// Comparacion en tiempo constante, sobre bytes del mismo largo.\nconst esperada = Buffer.from(crypto.createHmac('sha256', secreto).update(partes[1]).digest('hex'), 'hex');\nconst recibida = Buffer.from(partes[2].toLowerCase(), 'hex');\nif (esperada.length !== recibida.length || !crypto.timingSafeEqual(esperada, recibida)) {\n  return rechazar(401, 'token_invalido');\n}\n\nlet payload;\ntry {\n  payload = JSON.parse(Buffer.from(partes[1], 'base64url').toString('utf8'));\n} catch (e) {\n  return rechazar(401, 'token_invalido');\n}\n\nconst expMs = Number(payload.exp);\nif (!Number.isFinite(expMs) || expMs <= Date.now()) return rechazar(401, 'token_invalido');\nif (!UUID.test(String(payload.id || ''))) return rechazar(401, 'token_invalido');\nif (!NIVEL[payload.role]) return rechazar(401, 'token_invalido');\nif (NIVEL[payload.role] < NIVEL[rolMinimo]) return rechazar(403, 'rol_no_permitido');\n\nreturn [{\n  json: {\n    valido: true,\n    sin_token: false,\n    usuario_id: payload.id,\n    rol: payload.role,\n    exp: Math.floor(expMs / 1000),\n  },\n}];\n"
+      },
+      "id": "5a73e2c1-7147-496b-b19f-35876f5b23aa",
+      "name": "Validar token (resolver)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3248,
+        1136
+      ]
     }
   ],
   "pinData": {},
@@ -843,44 +1196,11 @@
         ]
       ]
     },
-    "Webhook Reportes": {
-      "main": [
-        [
-          {
-            "node": "Listar reportes",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Webhook Historial": {
-      "main": [
-        [
-          {
-            "node": "Historial de reportes",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Webhook Imagen": {
       "main": [
         [
           {
             "node": "Imagen del reporte",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Webhook Resolver": {
-      "main": [
-        [
-          {
-            "node": "Marcar reporte",
             "type": "main",
             "index": 0
           }
@@ -930,18 +1250,244 @@
           }
         ]
       ]
+    },
+    "¿Se actualizó el reporte?": {
+      "main": [
+        [
+          {
+            "node": "Generar ID estado_cambiado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder: resultado del cambio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generar ID estado_cambiado": {
+      "main": [
+        [
+          {
+            "node": "Distrito del reporte resuelto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Distrito del reporte resuelto": {
+      "main": [
+        [
+          {
+            "node": "Armar evento estado_cambiado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar evento estado_cambiado": {
+      "main": [
+        [
+          {
+            "node": "Publicar estado_cambiado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Publicar estado_cambiado": {
+      "main": [
+        [
+          {
+            "node": "Responder: resultado del cambio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar reporte": {
+      "main": [
+        [
+          {
+            "node": "¿Se actualizó el reporte?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Token valido? (lista)": {
+      "main": [
+        [
+          {
+            "node": "Listar reportes",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder error de token (lista)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Listar reportes": {
+      "main": [
+        [
+          {
+            "node": "Responder: lista de reportes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Token valido? (historial)": {
+      "main": [
+        [
+          {
+            "node": "Historial de reportes",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder error de token (historial)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Historial de reportes": {
+      "main": [
+        [
+          {
+            "node": "Responder: historial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Token valido? (resolver)": {
+      "main": [
+        [
+          {
+            "node": "Marcar reporte",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder error de token (resolver)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Responder: resultado del cambio": {
+      "main": [
+        [
+          {
+            "node": "Responder: resolver",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Reportes": {
+      "main": [
+        [
+          {
+            "node": "Validar token (lista)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar token (lista)": {
+      "main": [
+        [
+          {
+            "node": "Token valido? (lista)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Historial": {
+      "main": [
+        [
+          {
+            "node": "Validar token (historial)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar token (historial)": {
+      "main": [
+        [
+          {
+            "node": "Token valido? (historial)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Resolver": {
+      "main": [
+        [
+          {
+            "node": "Validar token (resolver)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar token (resolver)": {
+      "main": [
+        [
+          {
+            "node": "Token valido? (resolver)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate",
-    "availableInMCP": false,
     "timeSavedMode": "fixed",
     "saveDataSuccessExecution": "all",
-    "callerPolicy": "workflowsFromSameOwner"
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "vPbn1fp5YIuktC25"
   },
-  "versionId": "4f0739fc-f5af-41e0-a65e-d3168965866e",
+  "versionId": "c0034d76-aba2-4109-96e5-a48531ce77c2",
   "meta": {
     "instanceId": "954822bcb0252493706022c5abd9df94db1655579dfc0586eeeabb7008e50537"
   },

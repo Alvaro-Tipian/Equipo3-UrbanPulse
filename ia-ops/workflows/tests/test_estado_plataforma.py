@@ -238,10 +238,14 @@ def test_el_sla_cuenta_solo_los_tickets_del_mes():
 
 def test_el_webhook_admite_llamadas_desde_el_navegador():
     # La pantalla de Ajustes (Vercel) lo llama desde el navegador con
-    # Authorization, que dispara un preflight CORS.
+    # Authorization, que dispara un preflight CORS. Desde HT-36 T02 solo los
+    # orígenes de la app (la lista completa la prueba test_cors_webhooks.py).
     wh = next(n for n in workflow()["nodes"] if n["type"].endswith(".webhook"))
     assert wh["typeVersion"] >= 2
-    assert wh["parameters"]["options"]["allowedOrigins"] == "*"
+    origenes = wh["parameters"]["options"]["allowedOrigins"].split(",")
+    assert "https://equipo3-urban-pulse.vercel.app" in origenes
+    assert "http://localhost:5178" in origenes  # mf-ajustes
+    assert "*" not in origenes
 
 
 def test_la_latencia_de_neon_no_incluye_a_jira():

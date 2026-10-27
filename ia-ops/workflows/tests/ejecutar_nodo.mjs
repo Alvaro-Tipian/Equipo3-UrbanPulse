@@ -32,9 +32,11 @@ const require = (m) => {
 };
 
 const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor;
-const fn = new AsyncFunction('$input', '$', 'require', nodo.parameters.jsCode);
+// $env: las variables del contenedor de n8n que el nodo lee (p. ej. N8N_AUTH_SECRET).
+const $env = datos.env || {};
+const fn = new AsyncFunction('$input', '$', 'require', '$env', nodo.parameters.jsCode);
 try {
-  const resultado = await fn($input, $, require);
+  const resultado = await fn($input, $, require, $env);
   process.stdout.write(JSON.stringify(resultado.map((i) => i.json)));
 } catch (e) {
   process.stdout.write(JSON.stringify({ error: e.message }));

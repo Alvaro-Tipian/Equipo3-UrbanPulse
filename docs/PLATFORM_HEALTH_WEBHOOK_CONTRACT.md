@@ -26,10 +26,10 @@ Cubre los criterios de aceptación 1 a 3 de HU-13; la pantalla que los muestra a
 operador es HU-13 T02 (Frontend), y el criterio 4 (el ciudadano solo ve el
 estado básico) lo resuelve esa pantalla según el rol de la sesión.
 
-**CORS:** el nodo Webhook admite cualquier origen (`Allowed Origins = *`),
-porque la pantalla de Ajustes lo llama desde el navegador y el cliente
+**CORS:** la pantalla de Ajustes lo llama desde el navegador y el cliente
 compartido envía `Authorization`, que provoca una consulta previa (preflight).
-Es un `GET` de solo lectura y no usa cookies.
+Desde HT-36 T02 el nodo Webhook solo admite los orígenes de la app (producción,
+staging y localhost), no `*`: ver `docs/CORS_WEBHOOKS.md`.
 
 La consulta a Neon hace las dos cosas de una vez —comprobar que la base responde
 y leer el último monitoreo—, así que es **una sola ida y vuelta** y la latencia

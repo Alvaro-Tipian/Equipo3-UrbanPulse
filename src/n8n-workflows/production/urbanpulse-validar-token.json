@@ -1,0 +1,66 @@
+{
+  "name": "UrbanPulse - Validar token (HT-36 T01)",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "workflowInputs",
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "rol_minimo",
+              "type": "string"
+            },
+            {
+              "name": "authorization",
+              "type": "string"
+            },
+            {
+              "name": "permitir_sin_token",
+              "type": "boolean"
+            }
+          ]
+        }
+      },
+      "name": "Desde otro workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// HT-36 T01 - Valida el token de sesion (contrato C1).\n//\n// El token lo emite el login de Central (nodo \"Generar token\"):\n//   base64url(payload) + \".\" + HMAC-SHA256 en hex del primer tramo, con\n//   N8N_AUTH_SECRET; payload { sub, id, role, iat, exp } con exp en ms.\n// Salida: { valido: true, usuario_id, rol, exp (segundos) } o\n//         { valido: false, http_code: 401 | 403 | 500, error }.\n// Quien llama responde el error al cliente con ese codigo.\nconst crypto = require('crypto');\n\n// Transicion: mientras la app no envie el token (HT-36 T03, TE_ENVIAR_TOKEN),\n// los webhooks que ya existian (reports-list, reports-history, report-resolve)\n// llaman con permitir_sin_token=true: una peticion SIN cabecera sigue como\n// antes y el webhook usa el usuario que manda el cuerpo. Con cabecera se\n// valida siempre. Los webhooks nuevos no lo pasan y exigen el token.\n// Pasar EXIGIR_TOKEN a true cuando TE_ENVIAR_TOKEN este activo en produccion.\nconst EXIGIR_TOKEN = false;\n\nconst NIVEL = { ciudadano: 1, operador: 2 };\nconst UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nconst entrada = $input.first().json;\n// Un rol_minimo desconocido exige lo maximo: nunca abre una ruta por error.\nconst rolMinimo = NIVEL[entrada.rol_minimo] ? entrada.rol_minimo : 'operador';\nconst cabecera = String(entrada.authorization || '').trim();\nconst rechazar = (http_code, error) => [{ json: { valido: false, http_code, error } }];\n\nconst permitirSinToken = entrada.permitir_sin_token === true || entrada.permitir_sin_token === 'true';\n\nif (!cabecera) {\n  if (EXIGIR_TOKEN || !permitirSinToken) return rechazar(401, 'token_invalido');\n  return [{ json: { valido: true, sin_token: true, usuario_id: null, rol: null, exp: null } }];\n}\n\nconst partes = cabecera.match(/^Bearer\\s+([A-Za-z0-9_-]+)\\.([0-9a-f]{64})$/i);\nif (!partes) return rechazar(401, 'token_invalido');\n\nlet secreto = null;\ntry {\n  secreto = $env.N8N_AUTH_SECRET || null;\n} catch (e) {\n  secreto = null;\n}\nif (!secreto) return rechazar(500, 'autenticacion_no_configurada');\n\n// Comparacion en tiempo constante, sobre bytes del mismo largo.\nconst esperada = Buffer.from(crypto.createHmac('sha256', secreto).update(partes[1]).digest('hex'), 'hex');\nconst recibida = Buffer.from(partes[2].toLowerCase(), 'hex');\nif (esperada.length !== recibida.length || !crypto.timingSafeEqual(esperada, recibida)) {\n  return rechazar(401, 'token_invalido');\n}\n\nlet payload;\ntry {\n  payload = JSON.parse(Buffer.from(partes[1], 'base64url').toString('utf8'));\n} catch (e) {\n  return rechazar(401, 'token_invalido');\n}\n\nconst expMs = Number(payload.exp);\nif (!Number.isFinite(expMs) || expMs <= Date.now()) return rechazar(401, 'token_invalido');\nif (!UUID.test(String(payload.id || ''))) return rechazar(401, 'token_invalido');\nif (!NIVEL[payload.role]) return rechazar(401, 'token_invalido');\nif (NIVEL[payload.role] < NIVEL[rolMinimo]) return rechazar(403, 'rol_no_permitido');\n\nreturn [{\n  json: {\n    valido: true,\n    sin_token: false,\n    usuario_id: payload.id,\n    rol: payload.role,\n    exp: Math.floor(expMs / 1000),\n  },\n}];\n"
+      },
+      "name": "Validar token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Desde otro workflow": {
+      "main": [
+        [
+          {
+            "node": "Validar token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "saveDataSuccessExecution": "none",
+    "saveExecutionProgress": false,
+    "saveDataErrorExecution": "all"
+  }
+}
