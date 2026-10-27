@@ -21,16 +21,19 @@ import path from 'node:path';
 
 const HOST = 'http://localhost:3000';
 const MANIFIESTO = `${HOST}/remotes.local.json`;
-const AVISO_REMOTO_CAIDO = 'Módulo no disponible';
+// Texto del RemoteBoundary del host; cambió de «Módulo no disponible» a
+// «Este módulo no está disponible», así que se aceptan ambos.
+const AVISO_REMOTO_CAIDO = /módulo no (está )?disponible/i;
 
 type Rol = 'anonimo' | 'ciudadano' | 'operador';
 
 type Contrato = {
   remoto: string;
   modulo: string;
-  /** Sesión con la que el host muestra la pestaña de este remoto. */
+  /** Sesión con la que el host muestra la ruta de este remoto. */
   rol: Rol;
-  pestana: string;
+  /** Ruta del host (React Router) que monta el remoto. */
+  ruta: string;
   /** Algo que solo existe si el módulo montó; no depende de datos del backend. */
   montado: (page: Page) => ReturnType<Page['getByText']>;
 };
@@ -39,57 +42,63 @@ const CONTRATO: Contrato[] = [
   {
     remoto: 'mf_auth',
     modulo: './LoginView',
-    // Sin sesión, el host monta el login en lugar del dashboard.
     rol: 'anonimo',
-    pestana: 'DASHBOARD',
+    ruta: '/login',
     montado: (page) => page.getByPlaceholder('Correo electrónico'),
   },
   {
     remoto: 'mf_chatbot',
     modulo: './Chatbot',
     rol: 'ciudadano',
-    pestana: 'CHAT',
-    montado: (page) => page.getByPlaceholder('Reporta un incidente....'),
+    ruta: '/chatbot',
+    montado: (page) => page.getByRole('heading', { name: /Command Center/ }),
   },
   {
     remoto: 'mf_mapa_urbano',
     modulo: './MapaUrbano',
     rol: 'ciudadano',
-    pestana: 'MAPA',
+    ruta: '/mapa',
     montado: (page) => page.getByText('Leyenda y Guía'),
   },
   {
     remoto: 'mf_dashboard',
     modulo: './Dashboard',
     rol: 'ciudadano',
-    pestana: 'DASHBOARD',
+    ruta: '/dashboard',
     montado: (page) => page.getByRole('heading', { name: 'Panel Analítico UrbanPulse' }),
   },
   {
     remoto: 'mf_historial_reportes',
     modulo: './HistorialView',
     rol: 'ciudadano',
-    pestana: 'HISTORIAL',
+    ruta: '/historial',
     montado: (page) => page.getByRole('heading', { name: 'Historial de Reportes' }),
   },
   {
     remoto: 'mf_ajustes',
     modulo: './AjustesView',
     rol: 'ciudadano',
-    pestana: 'AJUSTES',
+    ruta: '/ajustes',
     montado: (page) => page.getByRole('heading', { name: 'Ajustes', exact: true }),
   },
   {
     remoto: 'mf_gestion_incidentes',
     modulo: './GestorIncidentes',
     rol: 'operador',
-    pestana: 'GESTIÓN DE INCIDENTES',
+    ruta: '/incidentes',
     montado: (page) => page.getByRole('heading', { name: 'Gestión de Incidentes' }),
+  },
+  {
+    remoto: 'mf_panel_riesgo',
+    modulo: './PanelRiesgo',
+    rol: 'operador',
+    ruta: '/panel-predictivo',
+    montado: (page) => page.getByRole('heading', { name: 'Panel de Riesgo Predictivo' }),
   },
 ];
 
-/** Abre el host con la sesión indicada y sin salida a servicios externos. */
-async function abrirHost(page: Page, rol: Rol) {
+/** Prepara la sesión indicada y corta la salida a servicios externos. */
+async function prepararHost(page: Page, rol: Rol) {
   // Los remotos se sirven desde localhost; n8n, TomTom y demás no forman parte
   // del contrato y se cortan para que el resultado no dependa de la red.
   await page.route(
@@ -112,8 +121,6 @@ async function abrirHost(page: Page, rol: Rol) {
       );
     }, rol);
   }
-
-  await page.goto(HOST, { waitUntil: 'domcontentloaded' });
 }
 
 test.describe('El manifiesto cubre lo que el host consume', () => {
@@ -158,16 +165,18 @@ for (const contrato of CONTRATO) {
     });
 
     test(`expone ${contrato.modulo} y monta dentro del host`, async ({ page }) => {
-      await abrirHost(page, contrato.rol);
+      // Más que los 30 s por defecto: abajo se reintenta hasta 60 s, y en frío
+      // la primera carga de cada remoto incluye compilarlo bajo demanda.
+      test.setTimeout(90_000);
+      await prepararHost(page, contrato.rol);
 
-      // Se reintenta el clic, no solo la aserción. En frío (siempre, en CI) la
-      // primera carga de un remoto hace que Vite optimice sus dependencias y
-      // recargue la página, que vuelve a INICIO: el clic ya se dio y esperar
-      // más no trae la vista de vuelta.
+      // Se reintenta la navegación, no solo la aserción. En frío (siempre, en
+      // CI) la primera carga de un remoto hace que Vite optimice sus
+      // dependencias y recargue la página; esperar más no siempre la recupera.
       await expect(async () => {
-        await page.getByRole('button', { name: contrato.pestana, exact: true }).click();
-        await expect(contrato.montado(page)).toBeVisible({ timeout: 10_000 });
-      }).toPass({ timeout: 45_000 });
+        await page.goto(`${HOST}${contrato.ruta}`, { waitUntil: 'domcontentloaded' });
+        await expect(contrato.montado(page)).toBeVisible({ timeout: 15_000 });
+      }).toPass({ timeout: 60_000 });
 
       await expect(page.getByText(AVISO_REMOTO_CAIDO)).toHaveCount(0);
     });
@@ -185,13 +194,14 @@ test('si un remoto no responde, el host lo aísla y los demás siguen montando',
   );
   await page.route(manifiesto.mf_dashboard, (route) => route.abort('connectionrefused'));
 
-  await abrirHost(page, 'ciudadano');
+  await prepararHost(page, 'ciudadano');
 
-  await page.getByRole('button', { name: 'DASHBOARD', exact: true }).click();
+  await page.goto(`${HOST}/dashboard`, { waitUntil: 'domcontentloaded' });
   await expect(page.getByText(AVISO_REMOTO_CAIDO)).toBeVisible();
   await expect(page.getByText('mf_dashboard', { exact: true })).toBeVisible();
 
-  await page.getByRole('button', { name: 'AJUSTES', exact: true }).click();
+  // Navegación dentro de la misma página: el menú del host sigue funcionando.
+  await page.getByRole('link', { name: 'AJUSTES', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Ajustes', exact: true })).toBeVisible();
   await expect(page.getByText(AVISO_REMOTO_CAIDO)).toHaveCount(0);
 });

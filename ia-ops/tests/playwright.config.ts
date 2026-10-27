@@ -104,10 +104,8 @@ export default defineConfig({
    * mf-gestion-incidentes, asi que arrancar solo mapa, dashboard y chatbot
    * dejaba la mitad de la app sin montar.
    *
-   * mf-panel-riesgo queda fuera a proposito: hoy es un scaffold de Vite sin
-   * Module Federation (HU-08 en curso), no expone remoteEntry.js y esperarlo
-   * colgaria el arranque. El host lo degrada con RemoteBoundary, y
-   * mapa.spec.ts cubre ese camino. */
+   * mf-panel-riesgo entra desde que expone ./PanelRiesgo por Module
+   * Federation (HU-08): el host lo monta en /panel-predictivo. */
   webServer: [
     {
       command: 'npm --prefix ../../src/frontend run dev -- --host 0.0.0.0',
@@ -123,6 +121,7 @@ export default defineConfig({
       ['mf-auth', 5177],
       ['mf-ajustes', 5178],
       ['mf-chatbot', 3003],
+      ['mf-panel-riesgo', 5181],
     ].map(([nombre, puerto]) => ({
       command: `npm --prefix ../../${nombre} run dev -- --host 0.0.0.0`,
       url: `http://localhost:${puerto}/remoteEntry.js`,

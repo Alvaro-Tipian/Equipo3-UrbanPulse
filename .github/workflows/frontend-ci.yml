@@ -131,10 +131,13 @@ jobs:
           mf-*/package-lock.json
 
     - name: Instalar dependencias del host, los remotos y la suite
-      # Los siete remotos que el host consume (ver los cargarRemote() de
+      # Los ocho remotos que el host consume (ver los cargarRemote() de
       # src/frontend/src/App.jsx); la propia prueba falla si esa lista cambia.
       run: |
-        for proyecto in ia-ops/tests src/frontend                         mf-gestion-incidentes mf-mapa-urbano mf-dashboard                         mf-historial-reportes mf-auth mf-ajustes mf-chatbot; do
+        for proyecto in ia-ops/tests src/frontend \
+                        mf-gestion-incidentes mf-mapa-urbano mf-dashboard \
+                        mf-historial-reportes mf-auth mf-ajustes mf-chatbot \
+                        mf-panel-riesgo; do
           npm ci --prefix "$proyecto"
         done
 

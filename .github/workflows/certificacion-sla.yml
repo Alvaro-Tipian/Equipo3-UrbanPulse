@@ -56,7 +56,8 @@ jobs:
       - name: Instalar dependencias de los microfrontends
         run: |
           for mfe in mf-gestion-incidentes mf-mapa-urbano mf-dashboard \
-                     mf-historial-reportes mf-auth mf-ajustes mf-chatbot; do
+                     mf-historial-reportes mf-auth mf-ajustes mf-chatbot \
+                     mf-panel-riesgo; do
             npm ci --prefix "$mfe"
           done
 

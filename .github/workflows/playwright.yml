@@ -43,14 +43,13 @@ jobs:
         # Usar github.workspace para resolver rutas desde la raíz del repo,
         # ya que el default working-directory es ia-ops/tests.
         #
-        # Los siete que el host federa en local (ver
-        # src/frontend/public/remotes.local.json). mf-panel-riesgo queda fuera:
-        # hoy es un scaffold de Vite sin Module Federation (HU-08 en curso) y no
-        # expone remoteEntry.js.
+        # Los ocho que el host federa en local (ver
+        # src/frontend/public/remotes.local.json).
         working-directory: ${{ github.workspace }}
         run: |
           for mfe in mf-gestion-incidentes mf-mapa-urbano mf-dashboard \
-                     mf-historial-reportes mf-auth mf-ajustes mf-chatbot; do
+                     mf-historial-reportes mf-auth mf-ajustes mf-chatbot \
+                     mf-panel-riesgo; do
             npm ci --prefix "$mfe"
           done
       - name: Instalar navegador Chromium de Playwright
