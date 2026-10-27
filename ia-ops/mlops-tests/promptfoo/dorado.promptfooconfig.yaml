@@ -32,7 +32,7 @@ prompts:
     label: clasificacion_incidente_v1
 
 providers:
-  - id: google:gemini-1.5-flash
+  - id: google:gemini-flash-latest
     config:
       temperature: 0.1
       maxOutputTokens: 512

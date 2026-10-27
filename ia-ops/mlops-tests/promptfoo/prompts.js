@@ -47,7 +47,9 @@ function nlqCiudadano(contexto) {
     { role: 'system', content: leerPromptRegistrado('nlq_ciudadano') },
     {
       role: 'user',
-      content: `Contexto de datos (RAG):\n${contexto_rag}\n\nConsulta del ciudadano:\n${consulta}`,
+      // Los delimitadores que declara nlq_ciudadano.md: el prompt trata como
+      // dato, nunca como instruccion, todo lo que llegue dentro de ellos.
+      content: `<fichas>\n${contexto_rag}\n</fichas>\n<consulta>${consulta}</consulta>`,
     },
   ];
 }

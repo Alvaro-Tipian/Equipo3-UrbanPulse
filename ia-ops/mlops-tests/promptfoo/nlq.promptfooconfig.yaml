@@ -17,10 +17,10 @@ description: Regresion del asistente ciudadano NLQ
 
 prompts:
   - id: file://prompts.js:nlqCiudadano
-    label: nlq_ciudadano_v1
+    label: nlq_ciudadano_v2
 
 providers:
-  - id: google:gemini-1.5-flash
+  - id: google:gemini-flash-latest
     config:
       temperature: 0.3
       maxOutputTokens: 1024
@@ -30,7 +30,7 @@ providers:
 defaultTest:
   options:
     provider:
-      id: google:gemini-1.5-flash
+      id: google:gemini-flash-latest
       config:
         temperature: 0
 

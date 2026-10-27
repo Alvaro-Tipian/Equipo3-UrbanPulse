@@ -6,9 +6,10 @@ on:
       - main
     paths:
       - 'src/frontend/**'
-      - 'mf-dashboard/**'
-      - 'mf-mapa-urbano/**'
-      - 'mf-chatbot/**'
+      - 'mf-*/**'
+      - 'packages/shared/**'
+      - 'ia-ops/tests/playwright.config.ts'
+      - 'ia-ops/tests/tests/contrato-host-remotes.spec.ts'
       - 'scripts/sast-frontend-scanner.js'
       - '.github/workflows/frontend-ci.yml'
   push:
@@ -16,9 +17,10 @@ on:
       - main
     paths:
       - 'src/frontend/**'
-      - 'mf-dashboard/**'
-      - 'mf-mapa-urbano/**'
-      - 'mf-chatbot/**'
+      - 'mf-*/**'
+      - 'packages/shared/**'
+      - 'ia-ops/tests/playwright.config.ts'
+      - 'ia-ops/tests/tests/contrato-host-remotes.spec.ts'
       - 'scripts/sast-frontend-scanner.js'
       - '.github/workflows/frontend-ci.yml'
 
@@ -107,3 +109,50 @@ jobs:
         npm run lint --if-present
         npm run build
         npm audit --audit-level=critical
+
+  contrato-host-remotes:
+    # HT-39 T04. El host y cada microfrontend compilan por separado, asi que un
+    # `exposes` renombrado o una entrada que falta en el manifiesto pasan lint y
+    # build en ambos lados y solo fallan al montar. Este job los levanta juntos.
+    name: Contrato host-remotes (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    - name: Checkout del repositorio
+      uses: actions/checkout@v7
+    - name: Configurar Node.js
+      uses: actions/setup-node@v7
+      with:
+        node-version: '20'
+        cache: npm
+        cache-dependency-path: |
+          ia-ops/tests/package-lock.json
+          src/frontend/package-lock.json
+          mf-*/package-lock.json
+
+    - name: Instalar dependencias del host, los remotos y la suite
+      # Los ocho remotos que el host consume (ver los cargarRemote() de
+      # src/frontend/src/App.jsx); la propia prueba falla si esa lista cambia.
+      run: |
+        for proyecto in ia-ops/tests src/frontend \
+                        mf-gestion-incidentes mf-mapa-urbano mf-dashboard \
+                        mf-historial-reportes mf-auth mf-ajustes mf-chatbot \
+                        mf-panel-riesgo; do
+          npm ci --prefix "$proyecto"
+        done
+
+    - name: Instalar navegador Chromium de Playwright
+      working-directory: ia-ops/tests
+      run: npx playwright install --with-deps chromium
+
+    - name: Ejecutar la prueba de contrato
+      working-directory: ia-ops/tests
+      run: npx playwright test contrato-host-remotes
+
+    - name: Publicar reporte de la prueba de contrato
+      if: ${{ !cancelled() }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: contrato-host-remotes-report
+        path: ia-ops/tests/playwright-report/
+        retention-days: 30

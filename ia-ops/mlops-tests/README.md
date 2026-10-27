@@ -14,7 +14,8 @@ priorización, el modelo de riesgo y los prompts registrados en `ia-ops/prompts/
 | **CA1** — dataset antes de entrenar | `expectativas/suite_dataset_entrenamiento.py`, `tests/test_dataset_entrenamiento.py` | Volumen mínimo, cobertura por distrito, coordenadas dentro de Lima, fechas válidas, categorías permitidas, sin nulos críticos. Si falla, el pipeline se detiene. |
 | **CA2** — calidad y equidad del modelo | `tests/test_prioridad_modelo.py` | Métrica mínima, regresión frente al modelo en producción, y paridad de error entre distritos y tipos de incidente. |
 | **CA3** — regresión de prompts | `promptfoo/*.promptfooconfig.yaml`, `promptfoo/evaluar-umbrales.mjs` | Dataset dorado de 56 reportes etiquetados (precisión ≥ 85 %, 100 % JSON válido), más guardrails: jailbreak, inyección de prompts, anonimización de PII, rechazo de temas fuera de dominio. |
-| **CA4** — quality gate | `.github/workflows/mlops-tests.yml` | El workflow es reutilizable (`workflow_call`) para que el pipeline de HT-47 lo invoque antes de promover. |
+| **RAG** (HT-50 T05) | `promptfoo/rag.promptfooconfig.yaml`, `promptfoo/rag-preguntas-doradas.json`, `promptfoo/rag-fichas.json` | 30 preguntas doradas contra el prompt `nlq_ciudadano`: fidelidad a las fichas y cita de la fuente, relevancia con fichas distractoras, "no tengo información" cuando no hay ficha útil, e inyección de prompts dentro de las fichas. Sin umbral: un solo caso fallido tumba la suite. |
+| **CA4** — quality gate | `.github/workflows/mlops-tests.yml` | El workflow es reutilizable (`workflow_call`) para que el pipeline de HT-47 lo invoque antes de promover. Cada corrida publica sus reportes HTML como artefactos (`mlops-reporte-pytest`, `mlops-reporte-promptfoo`). |
 | **CA5** — deriva | `deteccion/deriva.py`, `tests/test_deriva.py` | PSI contra el lote de referencia, con un lote derivado a propósito, y la alerta que consume el monitoreo de HT-49. |
 | Riesgo por zona | `expectativas/suite_prediccion_riesgo.py`, `tests/test_sesgo_modelo.py` | Contrato de la tabla `prediccion_riesgo` y equidad por estrato socioeconómico. |
 
@@ -39,7 +40,22 @@ node promptfoo/evaluar-umbrales.mjs reportes/promptfoo-dorado.json
 
 npx promptfoo@latest eval -c promptfoo/clasificacion.promptfooconfig.yaml
 npx promptfoo@latest eval -c promptfoo/nlq.promptfooconfig.yaml
+npx promptfoo@latest eval -c promptfoo/rag.promptfooconfig.yaml
 ```
+
+Las reglas de la suite del RAG tienen meta-pruebas que no llaman a ningún
+modelo (dataset coherente con sus fichas, y rechazo de respuestas inventadas o
+manipuladas):
+
+```bash
+node --test promptfoo/rag-reglas.test.js
+```
+
+> **Cuota.** La suite del RAG hace unas 80 llamadas (30 respuestas más el juez
+> de fidelidad) y el dataset dorado 56. El plan gratuito de Gemini permite 20
+> peticiones al día por modelo, así que `GEMINI_API_KEY_CI` tiene que ser una clave
+> con facturación, y distinta de la que usa n8n en producción: si comparten
+> clave, una corrida deja al chat sin cuota.
 
 ## Dos decisiones que conviene entender
 

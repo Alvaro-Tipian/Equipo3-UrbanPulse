@@ -8,9 +8,13 @@
 #      priorizacion, y deteccion de deriva. Es gratis y determinista, asi que
 #      corre en cada push y PR que toque algo relacionado.
 #
-#   2. regresion-prompts (CA3) -- promptfoo contra Gemini: guardrails y el
-#      dataset dorado de 56 reportes etiquetados. Cada corrida gasta cuota real
-#      de la API, asi que fuera del pipeline MLOps es opt-in.
+#   2. regresion-prompts (CA3) -- promptfoo contra Gemini: guardrails, el
+#      dataset dorado de 56 reportes etiquetados y las 30 preguntas doradas del
+#      RAG (HT-50 T05). Cada corrida gasta cuota real de la API, asi que fuera
+#      del pipeline MLOps es opt-in.
+#
+# REPORTES (HT-48 T04): cada job publica su reporte HTML como artefacto de la
+# corrida (mlops-reporte-pytest y mlops-reporte-promptfoo), pase o no el gate.
 #
 # QUALITY GATE DEL PIPELINE MLOps (CA4): este workflow es reutilizable
 # (`workflow_call`). El pipeline de HT-47 lo invoca antes de promover un modelo,
@@ -104,7 +108,15 @@ jobs:
           fi
 
       - name: Ejecutar la suite de calidad, equidad y deriva
-        run: pytest --junitxml=reportes/pytest-mlops.xml
+        run: |
+          pytest --junitxml=reportes/pytest-mlops.xml \
+            --html=reportes/pytest-mlops.html --self-contained-html
+
+      - name: Verificar las reglas de la suite del RAG (HT-50 T05)
+        # Meta-pruebas sin cuota: el dataset dorado es coherente con sus fichas
+        # y las reglas rechazan una respuesta inventada o manipulada.
+        if: ${{ !cancelled() }}
+        run: node --test promptfoo/rag-reglas.test.js
 
       - name: Subir el reporte de pruebas
         if: ${{ !cancelled() }}
@@ -141,7 +153,7 @@ jobs:
           estado=0
           npx --yes promptfoo@latest eval \
             -c promptfoo/dorado.promptfooconfig.yaml \
-            --output reportes/promptfoo-dorado.json || estado=$?
+            --output reportes/promptfoo-dorado.json reportes/promptfoo-dorado.html || estado=$?
 
           node promptfoo/evaluar-umbrales.mjs \
             reportes/promptfoo-dorado.json reportes/dataset-dorado.md
@@ -159,7 +171,7 @@ jobs:
         run: |
           npx --yes promptfoo@latest eval \
             -c promptfoo/clasificacion.promptfooconfig.yaml \
-            --output reportes/promptfoo-clasificacion.json
+            --output reportes/promptfoo-clasificacion.json reportes/promptfoo-clasificacion.html
 
       - name: Evaluar el prompt del asistente NLQ
         if: ${{ !cancelled() }}
@@ -168,7 +180,18 @@ jobs:
         run: |
           npx --yes promptfoo@latest eval \
             -c promptfoo/nlq.promptfooconfig.yaml \
-            --output reportes/promptfoo-nlq.json
+            --output reportes/promptfoo-nlq.json reportes/promptfoo-nlq.html
+
+      - name: Evaluar el RAG contra las 30 preguntas doradas (HT-50 T05)
+        # Sin umbral agregado: una sola respuesta inventada o manipulada por una
+        # ficha envenenada hace fallar el paso, y con el el gate.
+        if: ${{ !cancelled() }}
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GEMINI_API_KEY_CI }}
+        run: |
+          npx --yes promptfoo@latest eval \
+            -c promptfoo/rag.promptfooconfig.yaml \
+            --output reportes/promptfoo-rag.json reportes/promptfoo-rag.html
 
       - name: Subir los reportes de promptfoo
         if: ${{ !cancelled() }}

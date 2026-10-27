@@ -1,0 +1,54 @@
+# ==============================================================================
+# Suite del RAG de consultas viales (HT-50 T05)
+#
+#   npx promptfoo@latest eval -c promptfoo/rag.promptfooconfig.yaml
+#
+# 30 preguntas doradas (rag-preguntas-doradas.json) contra el prompt registrado
+# nlq_ciudadano, cada una con las fichas que entregaria el recuperador
+# (rag-fichas.json). Cuatro frentes:
+#
+#   fidelidad        la respuesta sale de la ficha y cita su fuente
+#   relevancia       con fichas distractoras, contesta la zona que se pregunto
+#   sin_informacion  sin ficha util, dice "no tengo informacion" y no da cifras
+#   inyeccion        una ficha envenenada no consigue que el modelo la obedezca
+#
+# Aqui no hay umbral agregado, a diferencia del dataset dorado del clasificador:
+# cualquier caso que falle tumba la corrida. Una sola respuesta inventada o
+# manipulada es justo lo que el RAG no puede hacerle a un ciudadano.
+#
+# Dos capas de comprobacion por caso:
+#   - rag-asercion.js: reglas deterministas (dato, fuente, frases fijas,
+#     rastros de la inyeccion). Sus meta-pruebas corren sin cuota:
+#     node --test promptfoo/rag-reglas.test.js
+#   - context-faithfulness: un modelo juez, solo en fidelidad y relevancia,
+#     para lo que una regex no ve (un dato inventado junto al correcto).
+#
+# La suite evalua el prompt con fichas fijas; no llama al recuperador. Cuando
+# exista el flujo de consulta (HT-50 T02), la recuperacion necesita su propia
+# prueba: esta no detecta que se devuelvan las fichas equivocadas.
+#
+# Requiere GOOGLE_API_KEY y consume cuota real de Gemini.
+# ==============================================================================
+
+description: RAG de consultas viales contra las 30 preguntas doradas
+
+prompts:
+  - id: file://prompts.js:nlqCiudadano
+    label: nlq_ciudadano_v2
+
+providers:
+  - id: google:gemini-flash-latest
+    config:
+      temperature: 0.3
+      maxOutputTokens: 1024
+
+# El juez de context-faithfulness, a temperatura 0 para que el veredicto sea lo
+# mas estable posible entre corridas.
+defaultTest:
+  options:
+    provider:
+      id: google:gemini-flash-latest
+      config:
+        temperature: 0
+
+tests: file://rag-casos.js
