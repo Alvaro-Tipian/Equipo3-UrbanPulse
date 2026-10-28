@@ -342,6 +342,13 @@ SINIESTROS = [
     ("S-MIR", "MIRAFLORES", -12.1211, -77.0297),
     ("S-SUR", "SANTIAGO DE SURCO", -12.1450, -76.9900),
 ]
+# Las cuadrillas del seeder (database/seeders/20261020000001_seed_cuadrillas.sql).
+CUADRILLAS_SEMILLA = [
+    ("Bacheo 1", "bacheo"),
+    ("Señalización 1", "senalizacion"),
+    ("Semáforos 1", "semaforos"),
+    ("Limpieza 1", "limpieza"),
+]
 # Lejos de cualquier siniestro: el reporte se queda en SIN_DISTRITO.
 LEJOS = (-12.5000, -76.5000)
 
@@ -375,7 +382,29 @@ def base(conn):
                 " ON CONFLICT (id) DO NOTHING",
                 (uid, "u" + uid[:8], uid[:8] + "@urbanpulse.pe", rol),
             )
+        # El CI aplica las migraciones pero NO los seeders: sin esto la tabla
+        # cuadrillas esta vacia y toda asignacion falla. Es la misma lista del
+        # seeder, y ON CONFLICT lo hace inocuo donde el seeder ya corrio.
+        for nombre, especialidad in CUADRILLAS_SEMILLA:
+            cur.execute(
+                "INSERT INTO cuadrillas (nombre, especialidad) VALUES ($1, $2)"
+                " ON CONFLICT (nombre) DO NOTHING",
+                (nombre, especialidad),
+            )
     return conn
+
+
+@pytest.fixture
+def cuadrillas(base):
+    """id de cada cuadrilla por nombre.
+
+    Los ids son un SERIAL: dependen de si corrio el seeder, de otras pruebas y
+    de que un ROLLBACK no devuelve la secuencia. Por eso ninguna prueba da por
+    hecho que "Bacheo 1" es la 1.
+    """
+    with psycopg.RawCursor(base) as cur:
+        cur.execute("SELECT nombre, id FROM cuadrillas")
+        return dict(cur.fetchall())
 
 
 def reporte(cur, zona="MIRAFLORES", status="pending", tipo="bache", severidad="alta"):
@@ -457,12 +486,14 @@ def test_un_reporte_ya_en_un_operativo_abierto_no_vuelve_a_la_bandeja(base):
     assert [i["id"] for i in zonas[0]["incidentes"]] == [libre]
 
 
-def test_al_cerrar_el_operativo_sus_reportes_salen_de_la_bandeja(base):
+def test_al_cerrar_el_operativo_sus_reportes_salen_de_la_bandeja(base, cuadrillas):
     with psycopg.RawCursor(base) as cur:
         rid = reporte(cur, "MIRAFLORES")
         op = crear(cur, "MIRAFLORES", [rid])
-        asignar(cur, op["id"], "asignado", 1)
-        asignar(cur, op["id"], "cerrado")
+        asignar(cur, op["id"], "asignado", cuadrillas["Bacheo 1"])
+        # Sin esta comprobacion la prueba pasaba aunque la asignacion fallara:
+        # un operativo abierto tambien saca sus reportes de la bandeja.
+        assert asignar(cur, op["id"], "cerrado")["estado"] == "cerrado"
         # Ya no esta en un operativo abierto, pero quedo resuelto.
         assert filas(cur, ZONAS) == []
 
@@ -558,11 +589,11 @@ def test_una_zona_que_no_existe_no_crea_nada(base):
 
 # --- GET /operativos y /cuadrillas -----------------------------------------
 
-def test_la_lista_sale_del_mas_reciente_al_mas_antiguo_y_filtra_por_estado(base):
+def test_la_lista_sale_del_mas_reciente_al_mas_antiguo_y_filtra_por_estado(base, cuadrillas):
     with psycopg.RawCursor(base) as cur:
         viejo = crear(cur, "MIRAFLORES", [reporte(cur, "MIRAFLORES")])
         nuevo = crear(cur, "SANTIAGO DE SURCO", [reporte(cur, "SANTIAGO DE SURCO")])
-        asignar(cur, nuevo["id"], "asignado", 2)
+        asignar(cur, nuevo["id"], "asignado", cuadrillas["Señalización 1"])
         # now() es el instante de la transaccion, asi que dentro de una misma
         # prueba los dos operativos empatan: hay que separarlos a mano. En
         # produccion cada peticion es su propia transaccion.
@@ -574,7 +605,8 @@ def test_la_lista_sale_del_mas_reciente_al_mas_antiguo_y_filtra_por_estado(base)
 
         solo = filas(cur, LISTAR, ("asignado",))
         assert [str(o["id"]) for o in solo] == [nuevo["id"]]
-        assert solo[0]["cuadrilla"] == {"id": 2, "nombre": "Señalización 1"}
+        assert solo[0]["cuadrilla"] == {
+            "id": cuadrillas["Señalización 1"], "nombre": "Señalización 1"}
         assert solo[0]["reportes"] == 1
         assert solo[0]["asignado_en"] is not None and solo[0]["cerrado_en"] is None
 
@@ -591,41 +623,41 @@ def test_la_lista_trae_el_nombre_para_mostrar_y_la_clave(base):
     assert zonas == {("MIRAFLORES", "Miraflores"), ("SIN_DISTRITO", "Sin distrito")}
 
 
-def test_las_cuadrillas_activas_son_las_del_seeder(base):
+def test_las_cuadrillas_activas_son_las_del_seeder(base, cuadrillas):
     with psycopg.RawCursor(base) as cur:
-        cuadrillas = filas(cur, CUADRILLAS)
-    assert [(c["id"], c["nombre"], c["especialidad"]) for c in cuadrillas] == [
-        (1, "Bacheo 1", "bacheo"),
-        (2, "Señalización 1", "senalizacion"),
-        (3, "Semáforos 1", "semaforos"),
-        (4, "Limpieza 1", "limpieza"),
+        activas = filas(cur, CUADRILLAS)
+    assert [(c["id"], c["nombre"], c["especialidad"]) for c in activas] == [
+        (cuadrillas[nombre], nombre, especialidad)
+        for nombre, especialidad in CUADRILLAS_SEMILLA
     ]
 
 
-def test_una_cuadrilla_inactiva_no_sale_en_el_selector(base):
+def test_una_cuadrilla_inactiva_no_sale_en_el_selector(base, cuadrillas):
     with psycopg.RawCursor(base) as cur:
-        cur.execute("UPDATE cuadrillas SET activa = FALSE WHERE id = 1")
-        cuadrillas = filas(cur, CUADRILLAS)
-    assert 1 not in [c["id"] for c in cuadrillas]
+        cur.execute("UPDATE cuadrillas SET activa = FALSE WHERE id = $1",
+                    (cuadrillas["Bacheo 1"],))
+        activas = filas(cur, CUADRILLAS)
+    assert cuadrillas["Bacheo 1"] not in [c["id"] for c in activas]
 
 
 # --- POST /operativos/asignar ----------------------------------------------
 
-def test_el_ciclo_completo_crear_asignar_en_curso_cerrar(base):
+def test_el_ciclo_completo_crear_asignar_en_curso_cerrar(base, cuadrillas):
     with psycopg.RawCursor(base) as cur:
         ids = [reporte(cur, "MIRAFLORES") for _ in range(2)]
         op = crear(cur, "MIRAFLORES", ids)
 
-        a = asignar(cur, op["id"], "asignado", 1)
+        bacheo = {"id": cuadrillas["Bacheo 1"], "nombre": "Bacheo 1"}
+        a = asignar(cur, op["id"], "asignado", bacheo["id"])
         assert a["existe"] == 1 and a["transicion_ok"] == 1 and a["cuadrilla_ok"] == 1
         assert a["estado"] == "asignado"
-        assert a["cuadrilla"] == {"id": 1, "nombre": "Bacheo 1"}
+        assert a["cuadrilla"] == bacheo
         assert a["asignado_en"] is not None and a["cerrado_en"] is None
         primera_asignacion = a["asignado_en"]
 
         c = asignar(cur, op["id"], "en_curso")
         assert c["estado"] == "en_curso"
-        assert c["cuadrilla"] == {"id": 1, "nombre": "Bacheo 1"}
+        assert c["cuadrilla"] == bacheo
         assert c["asignado_en"] == primera_asignacion
 
         z = asignar(cur, op["id"], "cerrado")
@@ -642,19 +674,20 @@ def test_el_ciclo_completo_crear_asignar_en_curso_cerrar(base):
         assert all(r["resolved_at"] is not None for r in resueltos)
 
 
-def test_reasignar_cambia_la_cuadrilla_pero_no_asignado_en(base):
+def test_reasignar_cambia_la_cuadrilla_pero_no_asignado_en(base, cuadrillas):
     with psycopg.RawCursor(base) as cur:
         op = crear(cur, "MIRAFLORES", [reporte(cur, "MIRAFLORES")])
-        primera = asignar(cur, op["id"], "asignado", 1)
-        segunda = asignar(cur, op["id"], "asignado", 3)
+        primera = asignar(cur, op["id"], "asignado", cuadrillas["Bacheo 1"])
+        segunda = asignar(cur, op["id"], "asignado", cuadrillas["Semáforos 1"])
 
-    assert segunda["cuadrilla"] == {"id": 3, "nombre": "Semáforos 1"}
+    assert segunda["cuadrilla"] == {
+        "id": cuadrillas["Semáforos 1"], "nombre": "Semáforos 1"}
     assert segunda["asignado_en"] == primera["asignado_en"]
 
 
-def test_un_operativo_que_no_existe_no_cambia_nada(base):
+def test_un_operativo_que_no_existe_no_cambia_nada(base, cuadrillas):
     with psycopg.RawCursor(base) as cur:
-        r = asignar(cur, str(uuid.uuid4()), "asignado", 1)
+        r = asignar(cur, str(uuid.uuid4()), "asignado", cuadrillas["Bacheo 1"])
     assert r["existe"] == 0 and r["id"] is None
 
 
@@ -665,14 +698,15 @@ def test_un_operativo_que_no_existe_no_cambia_nada(base):
     ("cerrado", "en_curso"),
     ("cerrado", "cerrado"),
 ])
-def test_las_transiciones_fuera_de_la_tabla_no_se_aplican(base, desde, pedido):
+def test_las_transiciones_fuera_de_la_tabla_no_se_aplican(base, cuadrillas, desde, pedido):
     with psycopg.RawCursor(base) as cur:
         op = crear(cur, "MIRAFLORES", [reporte(cur, "MIRAFLORES")])
         if desde != "planificado":
-            asignar(cur, op["id"], "asignado", 1)
+            asignar(cur, op["id"], "asignado", cuadrillas["Bacheo 1"])
             asignar(cur, op["id"], desde)
 
-        r = asignar(cur, op["id"], pedido, 1 if pedido == "asignado" else None)
+        r = asignar(cur, op["id"], pedido,
+                    cuadrillas["Bacheo 1"] if pedido == "asignado" else None)
         assert r["existe"] == 1 and r["transicion_ok"] == 0 and r["id"] is None
         assert r["estado_actual"] == desde
         # El operativo quedo como estaba.
@@ -680,11 +714,15 @@ def test_las_transiciones_fuera_de_la_tabla_no_se_aplican(base, desde, pedido):
         assert actual[0]["estado"] == desde
 
 
-@pytest.mark.parametrize("cuadrilla_id", [99, 1])
-def test_una_cuadrilla_inexistente_o_inactiva_no_aplica_el_cambio(base, cuadrilla_id):
+@pytest.mark.parametrize("caso", ["inexistente", "inactiva"])
+def test_una_cuadrilla_inexistente_o_inactiva_no_aplica_el_cambio(base, cuadrillas, caso):
     with psycopg.RawCursor(base) as cur:
-        cur.execute("UPDATE cuadrillas SET activa = FALSE WHERE id = 1")
+        cur.execute("UPDATE cuadrillas SET activa = FALSE WHERE id = $1",
+                    (cuadrillas["Bacheo 1"],))
         op = crear(cur, "MIRAFLORES", [reporte(cur, "MIRAFLORES")])
+        # Un id que no existe de ninguna manera: mayor que todos los reales.
+        cuadrilla_id = (max(cuadrillas.values()) + 1000 if caso == "inexistente"
+                        else cuadrillas["Bacheo 1"])
         r = asignar(cur, op["id"], "asignado", cuadrilla_id)
 
         assert r["cuadrilla_ok"] == 0 and r["id"] is None
@@ -693,11 +731,11 @@ def test_una_cuadrilla_inexistente_o_inactiva_no_aplica_el_cambio(base, cuadrill
         assert actual[0] == {"estado": "planificado", "cuadrilla_id": None}
 
 
-def test_cerrar_no_vuelve_a_tocar_un_reporte_ya_resuelto(base):
+def test_cerrar_no_vuelve_a_tocar_un_reporte_ya_resuelto(base, cuadrillas):
     with psycopg.RawCursor(base) as cur:
         ids = [reporte(cur, "MIRAFLORES") for _ in range(2)]
         op = crear(cur, "MIRAFLORES", ids)
-        asignar(cur, op["id"], "asignado", 1)
+        asignar(cur, op["id"], "asignado", cuadrillas["Bacheo 1"])
         # Alguien resolvio uno por su cuenta (por ejemplo /report-resolve).
         cur.execute("UPDATE reports SET status = 'resuelto', resolved_at = now()"
                     " WHERE id = $1", (ids[0],))
