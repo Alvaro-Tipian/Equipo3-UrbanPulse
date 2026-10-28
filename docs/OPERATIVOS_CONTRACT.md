@@ -191,3 +191,38 @@ Mientras HU-09 T02 no esté en staging, `mf-gestion-incidentes/src/mock` usa res
 | 4 | Limpieza 1 | limpieza |
 
 Un cambio de este contrato se anuncia en la Daily antes de hacerlo (regla 3 del guion del Sprint 4).
+
+---
+
+## 5. Implementación (HU-09 T02)
+
+**Autor:** Emily Peralta. **Workflow:** «UrbanPulse - Operativos (HU-09 T02)», en `ia-ops/workflows/n8n_operativos.json` (copia idéntica en `src/n8n-workflows/production/urbanpulse-operativos.json`). **Pruebas:** `ia-ops/workflows/tests/test_operativos.py`.
+
+### 5.1 Autenticación
+
+Los cinco webhooks llevan la **copia en línea** del nodo «Validar token» (opción A de `docs/AUTH_TOKEN_CONTRACT.md`), no el `Execute Workflow`: el subworkflow suma unos 5 s por petición en Lightsail y el tablero de operativos lo llama en cada refresco. El código es el del subworkflow byte a byte; solo cambia el bloque `const entrada = {...}`, y `test_validar_token.py` falla si se aparta. Ninguno pasa `permitir_sin_token`, así que una petición sin cabecera recibe `401` desde el primer día.
+
+### 5.2 Una sola sentencia por cambio
+
+Crear un operativo (2.2) y cambiar su estado (2.5) son **una sola sentencia SQL** con CTEs que modifican datos, no varios nodos Postgres: así el operativo, sus reportes y el cierre entran juntos o no entran. En `POST /operativos`, el `INSERT` lleva `WHERE NOT EXISTS (SELECT 1 FROM malos)`, de modo que un solo reporte no disponible deja la base intacta y el webhook responde `409`.
+
+### 5.3 Detalles que el contrato no fijaba
+
+| Caso | Qué hace el webhook |
+|---|---|
+| `zona` que no existe en `distritos_lima` (ni como nombre, ni como clave, ni como variante) | Ningún reporte le casa, así que responde `409 reporte_no_disponible` con todos los ids pedidos. No crea nada. |
+| `GET /operativos?estado=cualquier-cosa` | Se ignora el filtro y devuelve la lista completa, en lugar de un error que el contrato no define. Solo filtran `planificado`, `asignado`, `en_curso` y `cerrado`. |
+| `cuadrilla_id` que no existe o está inactiva | `400 datos_invalidos`: es un problema del cuerpo de la petición, no de la transición. |
+| `reportes` con ids repetidos | Se deduplican antes de consultar. |
+| Cerrar un operativo cuyos reportes ya están resueltos | No los vuelve a tocar (`r.status <> 'resuelto'`), pero el operativo se cierra y `operativo.cerrado` se publica igual. |
+
+### 5.4 Eventos
+
+`operativo.creado` y `operativo.cerrado` salen por `POST /urbanpulse/eventos` con la credencial *UrbanPulse Event Router Header Auth*, con el id del nodo Crypto (el enrutador exige UUID v4) y con `origen = n8n/operativos`. El nodo HTTP va con `onError: continueRegularOutput`: si el enrutador no responde, el operador ya recibió su respuesta y el evento se pierde, no la operación. Los dos tipos están en `docs/architecture/eventos.md` (2.5 y 2.6) y en el validador del enrutador.
+
+### 5.5 Puesta en marcha en n8n
+
+1. Ejecutar en Neon la migración y el seeder de HU-09 T01, si no se hizo ya.
+2. Importar `src/n8n-workflows/production/urbanpulse-operativos.json`. Las credenciales *Postgres account* y *UrbanPulse Event Router Header Auth* vienen con su id de la instancia de producción; en otra instancia hay que volver a seleccionarlas en cada nodo.
+3. Reimportar el enrutador de eventos (`urbanpulse-event-router.json`), que ahora acepta los dos tipos nuevos, y publicarlo.
+4. Publicar los dos workflows y comprobar el ciclo completo: crear, asignar, cerrar y un `403` con un token de ciudadano.

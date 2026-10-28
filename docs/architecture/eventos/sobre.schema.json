@@ -18,7 +18,9 @@
         "reporte.creado",
         "reporte.estado_cambiado",
         "n8n.flujo_fallido",
-        "modelo.deriva_detectada"
+        "modelo.deriva_detectada",
+        "operativo.creado",
+        "operativo.cerrado"
       ]
     },
     "fecha": {
@@ -104,6 +106,40 @@
               "variables_con_deriva_pct": { "type": "number", "minimum": 0, "maximum": 100 },
               "f1_real": { "type": "number", "minimum": 0, "maximum": 1 },
               "reporte_url": { "type": "string", "format": "uri" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "tipo": { "const": "operativo.creado" } }, "required": ["tipo"] },
+      "then": {
+        "properties": {
+          "datos": {
+            "type": "object",
+            "required": ["operativo_id", "zona_id", "reportes"],
+            "properties": {
+              "operativo_id": { "type": "string", "format": "uuid" },
+              "zona_id": { "type": "string", "minLength": 1 },
+              "reportes": { "type": "integer", "minimum": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "tipo": { "const": "operativo.cerrado" } }, "required": ["tipo"] },
+      "then": {
+        "properties": {
+          "datos": {
+            "type": "object",
+            "required": ["operativo_id", "zona_id", "cuadrilla_id", "reportes", "horas_atencion"],
+            "properties": {
+              "operativo_id": { "type": "string", "format": "uuid" },
+              "zona_id": { "type": "string", "minLength": 1 },
+              "cuadrilla_id": { "type": "integer", "minimum": 1 },
+              "reportes": { "type": "integer", "minimum": 1 },
+              "horas_atencion": { "type": "number", "minimum": 0 }
             }
           }
         }

@@ -53,12 +53,54 @@ ACEPTADOS = [
           ejecucion_id="42", mensaje_error="timeout"),
     sobre("modelo.deriva_detectada", **DATOS_MODELO),
     sobre("modelo.monitoreado", **DATOS_MODELO),
+    sobre("operativo.creado", operativo_id=str(uuid.uuid4()), zona_id="MIRAFLORES",
+          reportes=5),
+    sobre("operativo.cerrado", operativo_id=str(uuid.uuid4()), zona_id="MIRAFLORES",
+          cuadrilla_id=1, reportes=5, horas_atencion=26.5),
 ]
 
 
 @pytest.mark.parametrize("entrada", ACEPTADOS, ids=[s["tipo"] for s in ACEPTADOS])
-def test_los_cinco_tipos_del_contrato_se_aceptan(entrada):
+def test_los_tipos_del_contrato_se_aceptan(entrada):
     assert validar(entrada)["http_code"] == 202
+
+
+def test_un_cierre_inmediato_con_cero_horas_se_acepta(entrada=None):
+    # horas_atencion = 0 es un numero valido: si el validador lo midiera por
+    # truthy, un operativo cerrado el mismo minuto se iria con un 400.
+    r = validar(sobre("operativo.cerrado", operativo_id=str(uuid.uuid4()),
+                      zona_id="SIN_DISTRITO", cuadrilla_id=4, reportes=1,
+                      horas_atencion=0))
+    assert r["es_valido"] is True and r["http_code"] == 202
+
+
+@pytest.mark.parametrize("falta", ["operativo_id", "zona_id", "reportes"])
+def test_operativo_creado_exige_sus_campos(falta):
+    datos = {"operativo_id": str(uuid.uuid4()), "zona_id": "MIRAFLORES", "reportes": 5}
+    del datos[falta]
+    salida = validar(sobre("operativo.creado", **datos))
+    assert salida["http_code"] == 400
+    assert falta in salida["response_body"]["detalle"]
+
+
+@pytest.mark.parametrize("falta", ["operativo_id", "zona_id", "cuadrilla_id",
+                                   "reportes", "horas_atencion"])
+def test_operativo_cerrado_exige_sus_campos(falta):
+    # Sin horas_atencion ni cuadrilla_id, HU-11 no tendria que medir.
+    datos = {"operativo_id": str(uuid.uuid4()), "zona_id": "MIRAFLORES",
+             "cuadrilla_id": 1, "reportes": 5, "horas_atencion": 26.5}
+    del datos[falta]
+    salida = validar(sobre("operativo.cerrado", **datos))
+    assert salida["http_code"] == 400
+    assert falta in salida["response_body"]["detalle"]
+
+
+@pytest.mark.parametrize("campo", ["cuadrilla_id", "reportes", "horas_atencion"])
+def test_un_numero_en_null_no_pasa_por_cero(campo):
+    datos = {"operativo_id": str(uuid.uuid4()), "zona_id": "MIRAFLORES",
+             "cuadrilla_id": 1, "reportes": 5, "horas_atencion": 26.5}
+    datos[campo] = None
+    assert validar(sobre("operativo.cerrado", **datos))["http_code"] == 400
 
 
 def test_el_monitoreo_diario_exige_los_mismos_campos_que_la_deriva():
