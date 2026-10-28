@@ -20,6 +20,13 @@
 - [ ] Cambio de base de datos
 - [ ] Documentación
 
+## ⚙️ Checklist de configuración (A3)
+*Si el PR agrega o cambia secretos, variables, URLs, workflows de n8n o despliegues, verifica la [checklist A3](../docs/CHECKLIST_CONFIGURACION.md) en staging y producción. Si no aplica, escribe "N/A".*
+- [ ] Secretos y variables existen con el nombre exacto en todos los entornos (S1–S4).
+- [ ] URLs sin espacios y apuntando al entorno correcto (U1–U3).
+- [ ] Workflows publicados, con credenciales asignadas y probados con una llamada real (F1–F4).
+- [ ] El despliegue nuevo quedó activo y su health check responde (D1–D3).
+
 ## 🛡️ Checklist de Seguridad (DevSecOps Gate)
 *Es obligatorio marcar todas las casillas correspondientes antes de solicitar revisión.*
 - [ ] Confirmo que el código fue probado en mi entorno local y funciona correctamente.
