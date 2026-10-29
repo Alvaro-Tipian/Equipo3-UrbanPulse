@@ -29,6 +29,22 @@ function tokenDeLaUrl() {
     return null;
   }
 }
+const CLAVE_MOTIVO = 'urbanpulse:motivo_salida';
+
+// HT-36 T03: si la sesión se cerró por un 401, avisar al usuario.
+function avisoDeSalida() {
+  try {
+    return sessionStorage.getItem(CLAVE_MOTIVO) === 'sesion_vencida'
+      ? 'Tu sesión venció. Vuelve a iniciar sesión.'
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function olvidarMotivo() {
+  try { sessionStorage.removeItem(CLAVE_MOTIVO); } catch { /* sin acceso */ }
+}
 
 // El webhook puede responder con cuerpo vacío si el workflow de n8n falla antes
 // de llegar a un nodo "Respond": parseamos de forma defensiva.
@@ -83,10 +99,11 @@ export default function LoginView() {
   const [token] = useState(tokenInicial || '');
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState(null);
-  const [aviso, setAviso] = useState(null);
+  const [aviso, setAviso] = useState(avisoDeSalida);
   const [enlaceReset, setEnlaceReset] = useState(null);
 
   const limpiarMensajes = () => {
+    olvidarMotivo();
     setError(null);
     setAviso(null);
     setEnlaceReset(null);

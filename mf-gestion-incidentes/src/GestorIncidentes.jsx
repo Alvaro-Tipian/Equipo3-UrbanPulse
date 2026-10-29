@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react';
 import { useReportesOperador, useActualizarReporte } from './hooks/useReportes';
 import { AlertCircle, CheckCircle, Clock, Activity, Filter, Loader2, RotateCcw, RefreshCw, User } from 'lucide-react';
+import AgruparPorZona from './AgruparPorZona';
+import TableroOperativos from './TableroOperativos';
 import './index.css';
 
 const getColorSeveridad = (severidad) => {
@@ -27,6 +29,8 @@ export default function GestorIncidentes() {
   const [filtroCategoria, setFiltroCategoria] = useState('todas');
   const [filtroSeveridad, setFiltroSeveridad] = useState('todas');
   const [filtroEstado, setFiltroEstado] = useState('todos');
+  // HU-09 T03/T04: pestaña activa ('bandeja' | 'zonas' | 'operativos')
+  const [vista, setVista] = useState('bandeja');
 
   const reportesFiltrados = useMemo(() => {
     if (!reportes) return [];
@@ -84,15 +88,35 @@ export default function GestorIncidentes() {
         </div>
       </div>
 
+      {/* PESTAÑAS (HU-09 T03 y T04) */}
+      <div className="flex flex-wrap gap-2">
+        {[['bandeja', 'Bandeja'], ['zonas', 'Agrupar por zona'], ['operativos', 'Operativos']].map(([k, t]) => (
+          <button
+            key={k}
+            type="button"
+            onClick={() => setVista(k)}
+            className={`px-4 py-2 rounded-xl text-sm font-bold border cursor-pointer transition-colors ${vista === k
+              ? 'bg-[var(--color-accent)] text-white border-[var(--color-accent)]'
+              : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-accent)]'}`}
+            data-testid={`pestana-${k}`}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {vista === 'zonas' && <AgruparPorZona />}
+      {vista === 'operativos' && <TableroOperativos />}
+
       {/* ESTADOS DE CARGA Y ERROR */}
-      {isLoading && !isRefetching && (
+      {vista === 'bandeja' && isLoading && !isRefetching && (
         <div className="flex flex-col items-center justify-center py-32">
           <Loader2 className="animate-spin h-12 w-12 text-[var(--color-accent)] mb-4" />
           <span className="text-[var(--color-text-secondary)] font-bold tracking-wide">Conectando con la base de datos...</span>
         </div>
       )}
 
-      {isError && (
+      {vista === 'bandeja' && isError && (
         <div className="flex items-center p-5 bg-red-500/10 text-red-400 border border-red-500/20 rounded-xl shadow-sm">
           <AlertCircle className="mr-3 shrink-0" size={24} />
           <p className="text-sm font-bold">Error de conexión. No se pudieron cargar los incidentes desde n8n.</p>
@@ -100,7 +124,7 @@ export default function GestorIncidentes() {
       )}
 
       {/* CONTENIDO PRINCIPAL */}
-      {!isLoading && !isError && (
+      {vista === 'bandeja' && !isLoading && !isError && (
         <>
           {/* BARRA DE FILTROS */}
           <div className="flex flex-wrap items-center gap-4 bg-[var(--color-card)] p-4 rounded-2xl border border-[var(--color-border)] shadow-sm">
