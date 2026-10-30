@@ -1027,6 +1027,139 @@
         3248,
         1136
       ]
+    },
+    {
+      "parameters": {
+        "path": "urbanpulse/kpis-operativos",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "https://equipo3-urban-pulse.vercel.app,https://equipo3-u-git-cc0c7a-sebastiannnnnnnnnnnnnnnnnnnnnnnns-projects.vercel.app,http://localhost:3000,http://localhost:3003,http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176,http://localhost:5177,http://localhost:5178,http://localhost:5181"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        2976,
+        1712
+      ],
+      "id": "7c1e4b20-5a3d-4e1f-8b6a-110000000001",
+      "name": "Webhook KPIs Operativos",
+      "webhookId": "b3f1a001-1a2b-4c3d-9e4f-100000000020"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Copia EN LINEA del subworkflow «Validar token» (HT-36 T01): llamarlo con\n// Execute Workflow sumaba unos 5 s por peticion en la instancia de Lightsail\n// (docs/AUTH_TOKEN_CONTRACT.md, opcion A), y el tablero de operativos lo llama\n// en cada refresco. Solo cambia de donde sale la entrada; el resto debe ser\n// identico (lo comprueba ia-ops/workflows/tests/test_validar_token.py).\n// Sin permitir_sin_token: estos webhooks son nuevos y exigen el token.\n// HT-36 T01 - Valida el token de sesion (contrato C1).\n//\n// El token lo emite el login de Central (nodo \"Generar token\"):\n//   base64url(payload) + \".\" + HMAC-SHA256 en hex del primer tramo, con\n//   N8N_AUTH_SECRET; payload { sub, id, role, iat, exp } con exp en ms.\n// Salida: { valido: true, usuario_id, rol, exp (segundos) } o\n//         { valido: false, http_code: 401 | 403 | 500, error }.\n// Quien llama responde el error al cliente con ese codigo.\nconst crypto = require('crypto');\n\n// Transicion: mientras la app no envie el token (HT-36 T03, TE_ENVIAR_TOKEN),\n// los webhooks que ya existian (reports-list, reports-history, report-resolve)\n// llaman con permitir_sin_token=true: una peticion SIN cabecera sigue como\n// antes y el webhook usa el usuario que manda el cuerpo. Con cabecera se\n// valida siempre. Los webhooks nuevos no lo pasan y exigen el token.\n// Pasar EXIGIR_TOKEN a true cuando TE_ENVIAR_TOKEN este activo en produccion.\nconst EXIGIR_TOKEN = false;\n\nconst NIVEL = { ciudadano: 1, operador: 2 };\nconst UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nconst entrada = {\n  rol_minimo: 'operador',\n  authorization: ($input.first().json.headers || {}).authorization || '',\n};\n// Un rol_minimo desconocido exige lo maximo: nunca abre una ruta por error.\nconst rolMinimo = NIVEL[entrada.rol_minimo] ? entrada.rol_minimo : 'operador';\nconst cabecera = String(entrada.authorization || '').trim();\nconst rechazar = (http_code, error) => [{ json: { valido: false, http_code, error } }];\n\nconst permitirSinToken = entrada.permitir_sin_token === true || entrada.permitir_sin_token === 'true';\n\nif (!cabecera) {\n  if (EXIGIR_TOKEN || !permitirSinToken) return rechazar(401, 'token_invalido');\n  return [{ json: { valido: true, sin_token: true, usuario_id: null, rol: null, exp: null } }];\n}\n\nconst partes = cabecera.match(/^Bearer\\s+([A-Za-z0-9_-]+)\\.([0-9a-f]{64})$/i);\nif (!partes) return rechazar(401, 'token_invalido');\n\nlet secreto = null;\ntry {\n  secreto = $env.N8N_AUTH_SECRET || null;\n} catch (e) {\n  secreto = null;\n}\nif (!secreto) return rechazar(500, 'autenticacion_no_configurada');\n\n// Comparacion en tiempo constante, sobre bytes del mismo largo.\nconst esperada = Buffer.from(crypto.createHmac('sha256', secreto).update(partes[1]).digest('hex'), 'hex');\nconst recibida = Buffer.from(partes[2].toLowerCase(), 'hex');\nif (esperada.length !== recibida.length || !crypto.timingSafeEqual(esperada, recibida)) {\n  return rechazar(401, 'token_invalido');\n}\n\nlet payload;\ntry {\n  payload = JSON.parse(Buffer.from(partes[1], 'base64url').toString('utf8'));\n} catch (e) {\n  return rechazar(401, 'token_invalido');\n}\n\nconst expMs = Number(payload.exp);\nif (!Number.isFinite(expMs) || expMs <= Date.now()) return rechazar(401, 'token_invalido');\nif (!UUID.test(String(payload.id || ''))) return rechazar(401, 'token_invalido');\nif (!NIVEL[payload.role]) return rechazar(401, 'token_invalido');\nif (NIVEL[payload.role] < NIVEL[rolMinimo]) return rechazar(403, 'rol_no_permitido');\n\nreturn [{\n  json: {\n    valido: true,\n    sin_token: false,\n    usuario_id: payload.id,\n    rol: payload.role,\n    exp: Math.floor(expMs / 1000),\n  },\n}];\n"
+      },
+      "id": "7c1e4b20-5a3d-4e1f-8b6a-110000000002",
+      "name": "Validar token (kpis operativos)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3200,
+        1712
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "tok-kpis-operativos",
+              "leftValue": "={{ $json.valido }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "7c1e4b20-5a3d-4e1f-8b6a-110000000003",
+      "name": "Token valido? (kpis operativos)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3424,
+        1712
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { error: $json.error } }}",
+        "options": {
+          "responseCode": "={{ $json.http_code }}"
+        }
+      },
+      "id": "7c1e4b20-5a3d-4e1f-8b6a-110000000004",
+      "name": "Responder error de token (kpis operativos)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        3648,
+        1600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- HU-11 T01 - KPIs de operativos (contrato C4, docs/KPIS_OPERATIVOS_CONTRACT.md).\n-- Una sola consulta, para responder en menos de 3 s. La ventana es de 4\n-- semanas: cubre el sprint y deja ver la tendencia del tiempo de atencion.\nWITH cerrados AS (\n    SELECT\n        o.id,\n        COALESCE(d.nombre, 'Sin distrito') AS zona,\n        o.creado_en,\n        o.cerrado_en\n    FROM operativos AS o\n    LEFT JOIN distritos_lima AS d ON d.nombre_normalizado = o.zona\n    WHERE\n        o.estado = 'cerrado'\n        AND o.cerrado_en >= now() - INTERVAL '4 weeks'\n),\n\npor_operativo AS (\n    SELECT\n        c.id,\n        c.zona,\n        c.cerrado_en,\n        COALESCE(\n            MODE() WITHIN GROUP (ORDER BY r.incident_type), 'sin clasificar'\n        ) AS tipo_principal,\n        COUNT(*)::INT AS incluidos,\n        COUNT(*) FILTER (WHERE r.status = 'resuelto')::INT AS resueltos,\n        ROUND(\n            (EXTRACT(EPOCH FROM (c.cerrado_en - c.creado_en)) / 3600.0)::NUMERIC,\n            1\n        ) AS horas_atencion\n    FROM cerrados AS c\n    INNER JOIN operativo_reportes AS op_r ON op_r.operativo_id = c.id\n    INNER JOIN reports AS r ON r.id = op_r.reporte_id\n    GROUP BY c.id, c.zona, c.cerrado_en, c.creado_en\n),\n\n-- Todos los reportes resueltos, con o sin operativo: asi la linea de cada tipo\n-- muestra el tiempo de atencion antes y despues de los operativos.\npor_tipo AS (\n    SELECT\n        r.incident_type AS tipo,\n        TO_CHAR(r.resolved_at AT TIME ZONE 'America/Lima', 'IYYY-\"W\"IW') AS semana,\n        ROUND(\n            (AVG(EXTRACT(EPOCH FROM (r.resolved_at - r.created_at))) / 3600.0)::NUMERIC,\n            1\n        ) AS horas_promedio\n    FROM reports AS r\n    WHERE\n        r.status = 'resuelto'\n        AND r.incident_type IS NOT NULL\n        AND r.resolved_at >= now() - INTERVAL '4 weeks'\n    GROUP BY r.incident_type, semana\n)\n\nSELECT\n    (\n        SELECT\n            COALESCE(\n                JSON_AGG(\n                    JSON_BUILD_OBJECT(\n                        'id', p.id,\n                        'zona', p.zona,\n                        'tipo_principal', p.tipo_principal,\n                        'incluidos', p.incluidos,\n                        'resueltos', p.resueltos,\n                        'efectividad', ROUND(p.resueltos::NUMERIC / p.incluidos, 2),\n                        'horas_atencion', p.horas_atencion\n                    )\n                    ORDER BY p.cerrado_en DESC\n                ),\n                '[]'::JSON\n            )\n        FROM por_operativo AS p\n    ) AS operativos,\n    (\n        SELECT\n            COALESCE(\n                JSON_AGG(\n                    JSON_BUILD_OBJECT(\n                        'tipo', t.tipo,\n                        'semana', t.semana,\n                        'horas_promedio', t.horas_promedio\n                    )\n                    ORDER BY t.semana, t.tipo\n                ),\n                '[]'::JSON\n            )\n        FROM por_tipo AS t\n    ) AS tiempo_por_tipo,\n    TO_CHAR(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') AS actualizado;",
+        "options": {}
+      },
+      "id": "7c1e4b20-5a3d-4e1f-8b6a-110000000005",
+      "name": "Consultar KPIs de operativos",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        3648,
+        1808
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OG4PhmWgT8L86uMa",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Contrato C4: la consulta ya arma los dos arreglos; aqui solo se fija la forma\n// de la respuesta. Sin operativos cerrados, operativos va vacio y la vista del\n// dashboard muestra su estado vacio.\nconst fila = $input.first().json;\n\nreturn [{\n  json: {\n    http_code: 200,\n    cuerpo: {\n      operativos: fila.operativos || [],\n      tiempo_por_tipo: fila.tiempo_por_tipo || [],\n      actualizado: fila.actualizado,\n    },\n  },\n}];\n"
+      },
+      "id": "7c1e4b20-5a3d-4e1f-8b6a-110000000006",
+      "name": "Armar KPIs de operativos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3872,
+        1808
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.cuerpo) }}",
+        "options": {
+          "responseCode": "={{ $json.http_code }}"
+        }
+      },
+      "id": "7c1e4b20-5a3d-4e1f-8b6a-110000000007",
+      "name": "Responder: KPIs de operativos",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        4096,
+        1808
+      ]
     }
   ],
   "pinData": {},
@@ -1471,6 +1604,68 @@
         [
           {
             "node": "Token valido? (resolver)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook KPIs Operativos": {
+      "main": [
+        [
+          {
+            "node": "Validar token (kpis operativos)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar token (kpis operativos)": {
+      "main": [
+        [
+          {
+            "node": "Token valido? (kpis operativos)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Token valido? (kpis operativos)": {
+      "main": [
+        [
+          {
+            "node": "Consultar KPIs de operativos",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder error de token (kpis operativos)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar KPIs de operativos": {
+      "main": [
+        [
+          {
+            "node": "Armar KPIs de operativos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar KPIs de operativos": {
+      "main": [
+        [
+          {
+            "node": "Responder: KPIs de operativos",
             "type": "main",
             "index": 0
           }

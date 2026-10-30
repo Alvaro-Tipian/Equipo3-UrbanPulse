@@ -196,6 +196,8 @@ COPIAS_EN_LINEA = [
     (ALERTAS, "Validar token (alertas)", "ciudadano", False),
     (ALERTAS, "Validar token (descartar)", "ciudadano", False),
     (ALERTAS, "Validar token (ubicacion)", "ciudadano", False),
+    # HU-11 T01: webhook nuevo de KPIs de operativos.
+    (DASHBOARD, "Validar token (kpis operativos)", "operador", False),
 ]
 NODOS_OPERATIVOS = [n for a, n, _, _ in COPIAS_EN_LINEA if a == OPERATIVOS]
 
