@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import './index.css';
 import { Activity, BarChart3, Clock, Gauge, AlertTriangle, ShieldAlert, Users, RefreshCw, Loader2 } from 'lucide-react';
 import {
@@ -6,6 +6,7 @@ import {
   PieChart, Pie, Cell, LineChart, Line, Legend,
 } from 'recharts';
 import { fetchN8n } from '@urbanpulse/shared';
+import { useAutoRefresh } from './hooks/useAutoRefresh';
 
 // Colores para los gráficos (codificación de datos, no cromática de UI — no cambia con el tema)
 const COLORS = ['#A855F7', '#C084FC', '#6366f1', '#14b8a6'];
@@ -16,6 +17,7 @@ const COLORES_TIPO = ['#A855F7', '#14b8a6', '#fb923c', '#EF4444'];
 const RUTA_DASHBOARD_KPIS = '/urbanpulse/dashboard-kpis';
 // HU-11: contrato C4 (docs/KPIS_OPERATIVOS_CONTRACT.md)
 const RUTA_KPIS_OPERATIVOS = '/urbanpulse/kpis-operativos';
+const INTERVALO_OPERATIVOS_MS = 30000;
 
 const PESTANAS = [['general', 'General'], ['operativos', 'Operativos']];
 
@@ -77,26 +79,36 @@ function SeccionOperativos() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    let activo = true;
+  // Evita pintar datos o errores de una petición que acabó tras desmontar la sección.
+  const montado = useRef(true);
 
+  // Solo cambia los datos: no pasa por 'loading', así los gráficos no se
+  // desmontan y un fallo pasajero deja a la vista los últimos datos.
+  const cargarOperativos = useCallback(() => {
     fetchN8n(RUTA_KPIS_OPERATIVOS)
       .then((json) => {
-        if (!activo) return;
+        if (!montado.current) return;
         setData(json);
         setStatus('success');
       })
       .catch((err) => {
-        if (!activo) return;
+        if (!montado.current) return;
         console.error('Error cargando KPIs de operativos:', err);
         setError(err.message || 'No se pudo conectar con el servidor de métricas.');
         setStatus('error');
       });
+  }, []);
+
+  useEffect(() => {
+    montado.current = true;
+    cargarOperativos();
 
     return () => {
-      activo = false;
+      montado.current = false;
     };
-  }, []);
+  }, [cargarOperativos]);
+
+  useAutoRefresh(INTERVALO_OPERATIVOS_MS, cargarOperativos);
 
   if (status === 'loading' && !data) {
     return (
