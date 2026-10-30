@@ -180,9 +180,12 @@ ENTRADA = "const entrada = $input.first().json;"
 
 # archivo, nodo, rol_minimo, en modo de transicion (permitir_sin_token)
 COPIAS_EN_LINEA = [
+    # reports-list sigue aceptando peticiones sin token: el mapa (/mapa) es
+    # publico (opcion A, 30/10/2026). Con cabecera se valida igual.
     (DASHBOARD, "Validar token (lista)", "ciudadano", True),
-    (DASHBOARD, "Validar token (historial)", "ciudadano", True),
-    (DASHBOARD, "Validar token (resolver)", "operador", True),
+    # HT-36 T03 activo en produccion (la app envia el token): exigen el token.
+    (DASHBOARD, "Validar token (historial)", "ciudadano", False),
+    (DASHBOARD, "Validar token (resolver)", "operador", False),
     # HU-09 T02: webhooks nuevos, sin clientes antiguos que omitan el token.
     (OPERATIVOS, "Validar token (zonas)", "operador", False),
     (OPERATIVOS, "Validar token (crear)", "operador", False),
@@ -211,7 +214,7 @@ def test_las_copias_en_linea_son_el_mismo_codigo(archivo, nodo, rol, transicion)
     original = base["parameters"]["jsCode"].split("// HT-36 T01 - Valida el token de sesion (contrato C1).", 1)[1]
     assert sin_cabecera_ni_entrada(copia["parameters"]["jsCode"]) == original
     assert f"rol_minimo: '{rol}'" in copia["parameters"]["jsCode"]
-    # Solo los webhooks que ya existian estan en modo de transicion.
+    # Solo reports-list sigue en modo de transicion.
     assert ("permitir_sin_token: true" in copia["parameters"]["jsCode"]) is transicion
 
 
@@ -235,4 +238,28 @@ def test_la_copia_en_linea_valida_igual_que_el_subworkflow():
                  env={"N8N_AUTH_SECRET": SECRETO}, workflow=DASHBOARD)
     assert s == {"valido": False, "http_code": 403, "error": "rol_no_permitido"}
     s = ejecutar("Validar token (lista)", [{"headers": {}}], env={"N8N_AUTH_SECRET": SECRETO}, workflow=DASHBOARD)
+    assert s["valido"] is True and s["sin_token"] is True
+
+
+@pytest.mark.parametrize("nodo, rol_que_pasa, rol_rechazado", [
+    ("Validar token (historial)", "ciudadano", None),
+    ("Validar token (resolver)", "operador", "ciudadano"),
+])
+def test_historial_y_resolver_exigen_el_token(nodo, rol_que_pasa, rol_rechazado):
+    """DoD de HT-36 T01: sin token 401; un ciudadano en report-resolve, 403."""
+    def copia(authorization):
+        return ejecutar(nodo, [{"headers": {"authorization": authorization}}],
+                        env={"N8N_AUTH_SECRET": SECRETO}, workflow=DASHBOARD)
+
+    assert copia("") == {"valido": False, "http_code": 401, "error": "token_invalido"}
+    assert copia("Bearer " + alterar_firma(token()))["http_code"] == 401
+    ok = copia(f"Bearer {token(rol=rol_que_pasa)}")
+    assert ok["valido"] is True and ok["usuario_id"] == USUARIO
+    if rol_rechazado:
+        assert copia(f"Bearer {token(rol=rol_rechazado)}")["http_code"] == 403
+
+
+def test_reports_list_sigue_publica_para_el_mapa():
+    s = ejecutar("Validar token (lista)", [{"headers": {}}],
+                 env={"N8N_AUTH_SECRET": SECRETO}, workflow=DASHBOARD)
     assert s["valido"] is True and s["sin_token"] is True

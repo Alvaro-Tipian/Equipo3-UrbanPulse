@@ -62,11 +62,11 @@ El usuario sale **siempre del token** (`usuario_id`), nunca del cuerpo ni de la 
 
 Los tres webhooks de *Dashboard KPIs* usan la opción A:
 
-| Webhook | `rol_minimo` |
-|---|---|
-| `/urbanpulse/reports-list` | `ciudadano` |
-| `/urbanpulse/reports-history` | `ciudadano` (el ciudadano ve los suyos; el operador, todos) |
-| `/urbanpulse/report-resolve` | `operador` (un ciudadano recibe `403`) |
+| Webhook | `rol_minimo` | ¿Exige el token? |
+|---|---|---|
+| `/urbanpulse/reports-list` | `ciudadano` | **No**: el mapa (`/mapa`) es público. Con cabecera se valida igual. |
+| `/urbanpulse/reports-history` | `ciudadano` (el ciudadano ve los suyos; el operador, todos) | **Sí**, desde el 30/10/2026 |
+| `/urbanpulse/report-resolve` | `operador` (un ciudadano recibe `403`) | **Sí**, desde el 30/10/2026 |
 
 Los cinco de *UrbanPulse - Operativos* (HU-09 T02) también, con `rol_minimo = operador` y **sin** `permitir_sin_token`: son nuevos, así que exigen el token desde el primer día y una petición sin cabecera recibe `401`.
 
@@ -89,15 +89,18 @@ Los tres de *UrbanPulse - Alertas del Ciudadano* (HU-10 T03) usan la opción A c
 
 ## Modo de transición
 
-La app todavía no envía el token: lo activa Kiara en HT-36 T03 con `TE_ENVIAR_TOKEN=true`. Para no romper la app mientras tanto, los tres webhooks que ya existían validan con `permitir_sin_token: true`:
+Mientras la app no enviaba el token (HT-36 T03), los tres webhooks que ya existían validaban con `permitir_sin_token: true`:
 
-- **Sin cabecera `Authorization`:** pasa con `{ valido: true, sin_token: true, usuario_id: null }`, y el webhook usa el usuario que manda el cuerpo, como hasta ahora.
+- **Sin cabecera `Authorization`:** pasa con `{ valido: true, sin_token: true, usuario_id: null }`, y el webhook usa el usuario que manda el cuerpo, como antes.
 - **Con cabecera:** se valida siempre (`401`/`403`).
 
-Los webhooks nuevos **no** pasan `permitir_sin_token`, así que exigen el token desde el primer día.
+**Estado al 30/10/2026.** `TE_ENVIAR_TOKEN=true` está activo en producción: las llamadas de la app a `reports-history` llegan con `sin_token: false` y el usuario del token. Por eso:
 
-**Cuando `TE_ENVIAR_TOKEN` esté activo en producción** se cambia `const EXIGIR_TOKEN = false;` a `true` en el subworkflow y en las copias en línea, y se publican. Desde ahí, una petición sin token recibe `401` en todos los webhooks.
+- `reports-history` y `report-resolve` **ya no** pasan `permitir_sin_token`: una petición sin token recibe `401`.
+- `reports-list` **lo mantiene** (opción A acordada): la ruta `/mapa` no exige iniciar sesión, y sin esto un visitante vería el mapa sin reportes. Si se decide proteger `/mapa`, basta con quitar esa línea en «Validar token (lista)».
+
+Los webhooks nuevos no pasan `permitir_sin_token`, así que exigen el token desde el primer día. `EXIGIR_TOKEN` queda en `false`: el control es por webhook, con `permitir_sin_token`.
 
 ## Pruebas
 
-`ia-ops/workflows/tests/test_validar_token.py` (25 casos). Ejecutan el nodo real y comprueban que acepta el token que emite el login de Central, y que las copias en línea de *Dashboard KPIs* son el mismo código.
+`ia-ops/workflows/tests/test_validar_token.py`. Ejecutan el nodo real y comprueban que acepta el token que emite el login de Central, y que las copias en línea de *Dashboard KPIs* son el mismo código.
