@@ -489,7 +489,7 @@
         "operation": "executeQuery",
         "query": "SELECT id, image_url FROM reports WHERE id = $1;",
         "options": {
-          "queryReplacement": "={{ [$json.query.id || null] }}"
+          "queryReplacement": "={{ [ /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test($json.query.id || '') ? $json.query.id : null ] }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
