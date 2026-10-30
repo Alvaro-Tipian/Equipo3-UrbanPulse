@@ -108,14 +108,18 @@ Después de persistir un evento válido (estado `recibido`), el router lo entreg
 |---|---|---|
 | `reporte.creado` | Ingesta RAG (HT-50 T01) **y** Alertas cercanas (HU-10 T02) | **Enrutado** |
 | `reporte.estado_cambiado` | Ingesta RAG (HT-50 T01) | **Enrutado** |
-| `n8n.flujo_fallido` | Service Desk (HT-41) | Pendiente: va al Suscriptor de Prueba |
+| `n8n.flujo_fallido` | Suscriptor Service Desk (HT-41) | **Enrutado** (nodo *If* del despachador) |
 | `modelo.deriva_detectada` | Service Desk (HT-41) | Pendiente: va al Suscriptor de Prueba |
 | `modelo.monitoreado` | Ninguno; se persiste y se consulta | Va al Suscriptor de Prueba; lo lee HU-13 T01 desde `eventos` |
 | `operativo.creado` | Ninguno; se persiste y se consulta | Va al Suscriptor de Prueba; lo leerá HU-11 T01 desde `eventos` |
 | `operativo.cerrado` | Ninguno; se persiste y se consulta | Va al Suscriptor de Prueba; lo leerá HU-11 T01 desde `eventos` |
 
-El despachador decide con el nodo **¿Es evento de reporte?**: los tipos que
-empiezan por `reporte.` van a la Ingesta RAG y el resto al Suscriptor de Prueba.
+El despachador decide con dos nodos IF:
+
+- **¿Es evento de reporte?**: los tipos que empiezan por `reporte.` van a la
+  Ingesta RAG y a *Alertas cercanas*.
+- **If**: del resto, `n8n.flujo_fallido` va al *Suscriptor Service Desk*
+  (HT-41) y los demás al Suscriptor de Prueba.
 
 Desde HU-10 T02, la salida de reportes alimenta **dos** suscriptores en
 paralelo: la Ingesta RAG y *Alertas cercanas*. Van en paralelo y no en cadena
@@ -130,29 +134,24 @@ de HU-10 vive en ese workflow y no en el despachador.
 > reintenta. La solucion es un estado de entrega por suscriptor; se anuncia en
 > la Daily.
 
-> **Por qué el Service Desk todavía no recibe eventos.** El workflow
-> *UrbanPulse - Errores a Service Desk* (HT-41 T02) arranca con un **Error
-> Trigger**, que n8n solo dispara cuando otro workflow falla: no se puede
-> invocar con Execute Workflow. Para enrutarle `n8n.flujo_fallido` y
-> `modelo.deriva_detectada` hace falta un subworkflow con
-> `executeWorkflowTrigger` que cree el ticket en Jira (HT-41). Mientras tanto
-> esos eventos **sí quedan registrados** en la tabla `eventos`, y el ticket de
-> deriva lo sigue creando directamente `ml-monitoring.yml`.
+> **Service Desk.** *UrbanPulse - Errores a Service Desk* (HT-41 T02) arranca
+> con un **Error Trigger**, que no se puede invocar con Execute Workflow; por
+> eso existe *UrbanPulse - Suscriptor Service Desk*, con `executeWorkflowTrigger`,
+> que recibe `n8n.flujo_fallido`. `modelo.deriva_detectada` todavía va al
+> Suscriptor de Prueba: el ticket de deriva lo crea directamente
+> `ml-monitoring.yml`. *Suscriptor Service Desk* no tiene copia en el
+> repositorio ni está habilitado para el MCP de n8n: hay que exportarlo.
 
 ### Puesta en marcha del enrutamiento en n8n
 
-Los JSON no llevan el id interno de los workflows destino, porque cambia en
-cada instancia. Al importar *Despachar Evento*:
+La copia del repositorio es la exportación de producción (30/10/2026) y lleva
+los id de los workflows destino **de producción**. Al importarla en otra
+instancia (staging), esos id no existen allí:
 
-1. Abrir el nodo **Call 'UrbanPulse - Ingesta RAG conocimiento vial (HT-50 T01)'**
-   y seleccionar ese workflow en la lista (viene con el marcador
-   `REEMPLAZAR_CON_ID_DE_INGESTA_RAG`).
-2. Abrir el nodo **Call 'UrbanPulse - Alertas cercanas (HU-10 T02)'** y
-   seleccionar ese workflow en la lista (viene con el marcador
-   `REEMPLAZAR_CON_ID_DE_ALERTAS_CERCANAS`).
-3. Comprobar que el nodo **Call 'UrbanPulse - Suscriptor de Prueba'** sigue
-   apuntando al suscriptor de prueba.
-4. En todos los nodos Execute Workflow, la salida de error (la roja) va a
+1. En cada nodo Execute Workflow, seleccionar de la lista el workflow destino
+   de esa instancia: *Ingesta RAG conocimiento vial*, *Alertas cercanas*,
+   *Suscriptor Service Desk* y *Suscriptor de Prueba*.
+2. Comprobar que en todos la salida de error (la roja) va a
    *Marcar Evento Fallido* y la de éxito a *Marcar Evento Entregado*.
 
 ### Estados e intentos
