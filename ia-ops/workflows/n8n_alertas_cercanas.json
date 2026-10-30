@@ -1,0 +1,177 @@
+{
+  "name": "UrbanPulse - Alertas cercanas (HU-10 T02)",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "7f3a1c20-5d4e-4a81-9b62-0c1d2e3f4a50",
+      "name": "Recibir Evento",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -640,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "a1b2c3d4-0e5f-4a6b-8c7d-9e0f1a2b3c4d",
+              "leftValue": "={{ $json.tipo }}",
+              "rightValue": "reporte.creado",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b2c3d4e5-1f60-4b7c-9d8e-0a1b2c3d4e5f",
+      "name": "¿Es reporte.creado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -420,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// El sobre del evento ya lo valido el enrutador (HT-51 T02, seccion 1): aqui\n// solo se comprueba lo unico que usa la consulta, datos.reporte_id. Si falta o\n// no es un UUID el nodo falla a proposito: el despachador marca el evento como\n// fallido y el reproceso lo reintenta, en lugar de perderlo en silencio.\nconst evento = $input.first().json;\nconst reporteId = evento.datos && evento.datos.reporte_id;\nconst UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (typeof reporteId !== 'string' || !UUID.test(reporteId)) {\n  throw new Error('datos.reporte_id ausente o no es un UUID: ' + JSON.stringify(reporteId));\n}\n\nreturn [{ json: { evento_id: evento.id || null, reporte_id: reporteId } }];\n"
+      },
+      "id": "c3d4e5f6-2a71-4c8d-8e9f-1b2c3d4e5f60",
+      "name": "Validar evento",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -180,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO alertas_ciudadano (reporte_id, usuario_id, distancia_m)\nSELECT r.id, u.id,\n       ROUND(ST_Distance(u.ultima_ubicacion, p.punto))::int\nFROM reports AS r\nCROSS JOIN LATERAL (\n  SELECT ST_SetSRID(ST_MakePoint(r.longitude, r.latitude), 4326)::geography AS punto\n) AS p\nJOIN usuarios AS u\n  ON u.role = 'ciudadano'\n AND u.id IS DISTINCT FROM r.usuario_id\n AND u.ubicacion_actualizada_en > now() - interval '24 hours'\n AND ST_DWithin(u.ultima_ubicacion, p.punto, 500)\nWHERE r.id = $1::uuid\n  AND r.severity = 'alta'\n  AND r.latitude IS NOT NULL AND r.longitude IS NOT NULL\nON CONFLICT (reporte_id, usuario_id) DO NOTHING\nRETURNING usuario_id, distancia_m;",
+        "options": {
+          "queryReplacement": "={{ [ $json.reporte_id ] }}"
+        }
+      },
+      "id": "d4e5f607-3b82-4d9e-9f60-2c3d4e5f6071",
+      "name": "Registrar alertas cercanas",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        60,
+        200
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "OG4PhmWgT8L86uMa",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// La consulta devuelve una fila por alerta nueva. Con alwaysOutputData, un\n// reporte critico sin ciudadanos a menos de 500 m llega aqui como un item\n// vacio: el suscriptor responde alertas_creadas = 0, no falla.\nconst reporteId = $('Validar evento').first().json.reporte_id;\nconst filas = $input.all()\n  .map((i) => i.json)\n  .filter((f) => f && f.usuario_id);\n\nreturn [{\n  json: {\n    reporte_id: reporteId,\n    alertas_creadas: filas.length,\n    distancias_m: filas.map((f) => Number(f.distancia_m)),\n  },\n}];\n"
+      },
+      "id": "e5f60718-4c93-4e60-8071-3d4e5f607182",
+      "name": "Resumen de alertas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// El despachador entrega todos los eventos reporte.* (HT-51 T02), pero las\n// alertas cercanas solo salen de reporte.creado. Un reporte.estado_cambiado\n// termina aqui: el suscriptor responde bien y el evento queda entregado.\nconst evento = $input.first().json;\n\nreturn [{\n  json: {\n    reporte_id: null,\n    alertas_creadas: 0,\n    motivo: 'tipo_no_aplicable',\n    tipo: evento.tipo || null,\n  },\n}];\n"
+      },
+      "id": "f6071829-5da4-4f71-9182-4e5f60718293",
+      "name": "Evento ignorado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -180,
+        440
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Recibir Evento": {
+      "main": [
+        [
+          {
+            "node": "¿Es reporte.creado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Es reporte.creado?": {
+      "main": [
+        [
+          {
+            "node": "Validar evento",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Evento ignorado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar evento": {
+      "main": [
+        [
+          {
+            "node": "Registrar alertas cercanas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar alertas cercanas": {
+      "main": [
+        [
+          {
+            "node": "Resumen de alertas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "nodeGroups": [],
+  "tags": []
+}
