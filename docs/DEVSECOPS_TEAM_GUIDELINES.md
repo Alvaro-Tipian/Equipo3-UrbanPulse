@@ -264,7 +264,8 @@ Toda entrada lleva las tres cosas o no entra:
   la excepción y el gate vuelve a bloquear. Es a propósito: obliga a volver a
   mirarlo en vez de acumular deuda silenciosa.
 
-Hoy hay **un** caso, en la imagen de Postgres de desarrollo.
+Hoy hay **dos** casos: `gosu` en la imagen de Postgres de desarrollo y
+`brotli-libs` en la imagen de n8n.
 
 **Cómo se llegó aquí (HT-36 T05).** La imagen partía de `postgis/postgis:16-3.5`,
 que está sobre **Debian 11 (bullseye), fin de vida**: el parche de
@@ -287,6 +288,20 @@ Pero `gosu` solo baja de root al usuario `postgres`: no abre conexiones TLS.
 No hay `gosu` compilado con un Go más nuevo en ninguna imagen oficial de
 Postgres, y la imagen es solo de desarrollo y CI: en producción la base de
 datos es **Neon**, gestionada. Vence el 31/12/2026.
+
+**`brotli-libs`, CVE-2026-111497 (30/10/2026).** Escritura fuera de límites en
+el decodificador de Brotli, publicada el 22/10. Alpine ya tiene el parche
+(`1.2.1-r0`), pero la imagen de n8n la construye n8n, y ninguna la trae
+todavía: 2.45.4 (la desplegada), 2.45.7 y 2.46.3, publicadas el 30/10, siguen
+con `1.2.0-r1`. Subir de versión no la quita, así que no hay parche que
+podamos tomar. La excepción va por **PURL con la versión exacta**: cuando una
+imagen nueva traiga la `1.2.1`, deja de aplicar sola. Vence el 30/11/2026.
+
+Ojo: Node.js trae **su propia copia** de Brotli dentro del binario (en n8n
+2.45.4, Node 26.12.1 con Brotli 1.2.0). Trivy no la ve, y es la que usa n8n
+para descomprimir respuestas HTTP. Se corrige solo con una versión de n8n que
+traiga un Node más nuevo: al revisar la excepción, mirar también
+`node -p process.versions.brotli` en la imagen candidata.
 
 ### Probar que el gate bloquea de verdad
 

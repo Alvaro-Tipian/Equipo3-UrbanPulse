@@ -31,3 +31,14 @@ vulnerabilities:
     paths: ["usr/local/bin/gosu"]
     statement: "Go stdlib crypto/tls; gosu no abre conexiones TLS. Imagen de desarrollo/CI, no expuesta."
     expired_at: 2026-12-31
+
+  # brotli-libs 1.2.0-r1 de Alpine 3.24 en la imagen oficial de n8n. El parche
+  # (1.2.1-r0) existe en Alpine, pero ninguna imagen de n8n lo trae todavia:
+  # 2.45.4, 2.45.7 y 2.46.3 (30/10/2026) tienen la 1.2.0-r1. La imagen la
+  # construye n8n, no nosotros, asi que no hay version parchada que tomar.
+  # Exceptuada por PURL con la version exacta: cuando n8n publique una imagen
+  # con la 1.2.1 la entrada deja de aplicar sola.
+  - id: CVE-2026-111497
+    purls: ["pkg:apk/alpine/brotli-libs@1.2.0-r1?arch=x86_64&distro=3.24"]
+    statement: "Sin imagen de n8n con brotli-libs 1.2.1-r0 al 30/10/2026; subir n8n en cuanto exista."
+    expired_at: 2026-11-30
