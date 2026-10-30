@@ -1,0 +1,770 @@
+{
+  "name": "UrbanPulse - Alertas del Ciudadano (HU-10 T03)",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "urbanpulse/alertas",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "https://equipo3-urban-pulse.vercel.app,https://equipo3-u-git-cc0c7a-sebastiannnnnnnnnnnnnnnnnnnnnnnns-projects.vercel.app,http://localhost:3000,http://localhost:3003,http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176,http://localhost:5177,http://localhost:5178,http://localhost:5181"
+        }
+      },
+      "id": "wh-alertas-listar",
+      "name": "Webhook Listar Alertas",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Copia EN LINEA del subworkflow «Validar token» (HT-36 T01): llamarlo con\n// Execute Workflow sumaba unos 5 s por peticion en la instancia de Lightsail\n// (docs/AUTH_TOKEN_CONTRACT.md, opcion A), y la app consulta sus alertas cada\n// vez que se abre. Solo cambia de donde sale la entrada; el resto debe ser\n// identico (lo comprueba ia-ops/workflows/tests/test_validar_token.py).\n// Sin permitir_sin_token: estos webhooks son nuevos y exigen el token.\n// HT-36 T01 - Valida el token de sesion (contrato C1).\n//\n// El token lo emite el login de Central (nodo \"Generar token\"):\n//   base64url(payload) + \".\" + HMAC-SHA256 en hex del primer tramo, con\n//   N8N_AUTH_SECRET; payload { sub, id, role, iat, exp } con exp en ms.\n// Salida: { valido: true, usuario_id, rol, exp (segundos) } o\n//         { valido: false, http_code: 401 | 403 | 500, error }.\n// Quien llama responde el error al cliente con ese codigo.\nconst crypto = require('crypto');\n\n// Transicion: mientras la app no envie el token (HT-36 T03, TE_ENVIAR_TOKEN),\n// los webhooks que ya existian (reports-list, reports-history, report-resolve)\n// llaman con permitir_sin_token=true: una peticion SIN cabecera sigue como\n// antes y el webhook usa el usuario que manda el cuerpo. Con cabecera se\n// valida siempre. Los webhooks nuevos no lo pasan y exigen el token.\n// Pasar EXIGIR_TOKEN a true cuando TE_ENVIAR_TOKEN este activo en produccion.\nconst EXIGIR_TOKEN = false;\n\nconst NIVEL = { ciudadano: 1, operador: 2 };\nconst UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nconst entrada = {\n  rol_minimo: 'ciudadano',\n  authorization: ($input.first().json.headers || {}).authorization || '',\n};\n// Un rol_minimo desconocido exige lo maximo: nunca abre una ruta por error.\nconst rolMinimo = NIVEL[entrada.rol_minimo] ? entrada.rol_minimo : 'operador';\nconst cabecera = String(entrada.authorization || '').trim();\nconst rechazar = (http_code, error) => [{ json: { valido: false, http_code, error } }];\n\nconst permitirSinToken = entrada.permitir_sin_token === true || entrada.permitir_sin_token === 'true';\n\nif (!cabecera) {\n  if (EXIGIR_TOKEN || !permitirSinToken) return rechazar(401, 'token_invalido');\n  return [{ json: { valido: true, sin_token: true, usuario_id: null, rol: null, exp: null } }];\n}\n\nconst partes = cabecera.match(/^Bearer\\s+([A-Za-z0-9_-]+)\\.([0-9a-f]{64})$/i);\nif (!partes) return rechazar(401, 'token_invalido');\n\nlet secreto = null;\ntry {\n  secreto = $env.N8N_AUTH_SECRET || null;\n} catch (e) {\n  secreto = null;\n}\nif (!secreto) return rechazar(500, 'autenticacion_no_configurada');\n\n// Comparacion en tiempo constante, sobre bytes del mismo largo.\nconst esperada = Buffer.from(crypto.createHmac('sha256', secreto).update(partes[1]).digest('hex'), 'hex');\nconst recibida = Buffer.from(partes[2].toLowerCase(), 'hex');\nif (esperada.length !== recibida.length || !crypto.timingSafeEqual(esperada, recibida)) {\n  return rechazar(401, 'token_invalido');\n}\n\nlet payload;\ntry {\n  payload = JSON.parse(Buffer.from(partes[1], 'base64url').toString('utf8'));\n} catch (e) {\n  return rechazar(401, 'token_invalido');\n}\n\nconst expMs = Number(payload.exp);\nif (!Number.isFinite(expMs) || expMs <= Date.now()) return rechazar(401, 'token_invalido');\nif (!UUID.test(String(payload.id || ''))) return rechazar(401, 'token_invalido');\nif (!NIVEL[payload.role]) return rechazar(401, 'token_invalido');\nif (NIVEL[payload.role] < NIVEL[rolMinimo]) return rechazar(403, 'rol_no_permitido');\n\nreturn [{\n  json: {\n    valido: true,\n    sin_token: false,\n    usuario_id: payload.id,\n    rol: payload.role,\n    exp: Math.floor(expMs / 1000),\n  },\n}];\n"
+      },
+      "id": "tok-alertas",
+      "name": "Validar token (alertas)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "tok-alertas-if",
+              "leftValue": "={{ $json.valido }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "if-tok-alertas",
+      "name": "Token valido? (alertas)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        416,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { error: $json.error } }}",
+        "options": {
+          "responseCode": "={{ $json.http_code }}"
+        }
+      },
+      "id": "resp-err-alertas",
+      "name": "Responder error (alertas)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        640,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- HU-10 T03 - Alertas pendientes del ciudadano del token (contrato C3, 2.2).\n-- Solo las que no se han descartado, de los ultimos 7 dias, de la mas reciente\n-- a la mas antigua. El usuario sale del token, nunca de la URL ni del cuerpo.\nSELECT\n    a.id,\n    a.reporte_id,\n    r.incident_type AS tipo,\n    r.severity AS severidad,\n    a.distancia_m,\n    r.latitude AS lat,\n    r.longitude AS lng,\n    TO_CHAR(\n        a.creada_en AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'\n    ) AS creada_en\nFROM alertas_ciudadano AS a\nINNER JOIN reports AS r ON r.id = a.reporte_id\nWHERE a.usuario_id = $1::UUID\n  AND a.descartada_en IS NULL\n  AND a.creada_en > now() - INTERVAL '7 days'\nORDER BY a.creada_en DESC;",
+        "options": {
+          "queryReplacement": "={{ [ $('Validar token (alertas)').first().json.usuario_id ] }}"
+        }
+      },
+      "id": "pg-alertas-listar",
+      "name": "Listar alertas pendientes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        640,
+        96
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "OG4PhmWgT8L86uMa",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Contrato C3 2.2: un arreglo de alertas pendientes. Sin alertas devuelve [],\n// que es lo que el nodo Postgres entrega como item vacio con alwaysOutputData.\nconst filas = $input.all()\n  .map((i) => i.json)\n  .filter((f) => f && f.id);\n\nreturn [{\n  json: {\n    http_code: 200,\n    cuerpo: filas.map((f) => ({\n      id: f.id,\n      reporte_id: f.reporte_id,\n      tipo: f.tipo,\n      severidad: f.severidad,\n      distancia_m: Number(f.distancia_m),\n      lat: Number(f.lat),\n      lng: Number(f.lng),\n      creada_en: f.creada_en,\n    })),\n  },\n}];\n"
+      },
+      "id": "code-alertas-lista",
+      "name": "Armar lista de alertas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        864,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.cuerpo) }}",
+        "options": {
+          "responseCode": "={{ $json.http_code }}"
+        }
+      },
+      "id": "resp-alertas",
+      "name": "Responder: alertas pendientes",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1088,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "urbanpulse/alertas/descartar",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "https://equipo3-urban-pulse.vercel.app,https://equipo3-u-git-cc0c7a-sebastiannnnnnnnnnnnnnnnnnnnnnnns-projects.vercel.app,http://localhost:3000,http://localhost:3003,http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176,http://localhost:5177,http://localhost:5178,http://localhost:5181"
+        }
+      },
+      "id": "wh-alertas-descartar",
+      "name": "Webhook Descartar Alerta",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Copia EN LINEA del subworkflow «Validar token» (HT-36 T01): llamarlo con\n// Execute Workflow sumaba unos 5 s por peticion en la instancia de Lightsail\n// (docs/AUTH_TOKEN_CONTRACT.md, opcion A), y la app consulta sus alertas cada\n// vez que se abre. Solo cambia de donde sale la entrada; el resto debe ser\n// identico (lo comprueba ia-ops/workflows/tests/test_validar_token.py).\n// Sin permitir_sin_token: estos webhooks son nuevos y exigen el token.\n// HT-36 T01 - Valida el token de sesion (contrato C1).\n//\n// El token lo emite el login de Central (nodo \"Generar token\"):\n//   base64url(payload) + \".\" + HMAC-SHA256 en hex del primer tramo, con\n//   N8N_AUTH_SECRET; payload { sub, id, role, iat, exp } con exp en ms.\n// Salida: { valido: true, usuario_id, rol, exp (segundos) } o\n//         { valido: false, http_code: 401 | 403 | 500, error }.\n// Quien llama responde el error al cliente con ese codigo.\nconst crypto = require('crypto');\n\n// Transicion: mientras la app no envie el token (HT-36 T03, TE_ENVIAR_TOKEN),\n// los webhooks que ya existian (reports-list, reports-history, report-resolve)\n// llaman con permitir_sin_token=true: una peticion SIN cabecera sigue como\n// antes y el webhook usa el usuario que manda el cuerpo. Con cabecera se\n// valida siempre. Los webhooks nuevos no lo pasan y exigen el token.\n// Pasar EXIGIR_TOKEN a true cuando TE_ENVIAR_TOKEN este activo en produccion.\nconst EXIGIR_TOKEN = false;\n\nconst NIVEL = { ciudadano: 1, operador: 2 };\nconst UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nconst entrada = {\n  rol_minimo: 'ciudadano',\n  authorization: ($input.first().json.headers || {}).authorization || '',\n};\n// Un rol_minimo desconocido exige lo maximo: nunca abre una ruta por error.\nconst rolMinimo = NIVEL[entrada.rol_minimo] ? entrada.rol_minimo : 'operador';\nconst cabecera = String(entrada.authorization || '').trim();\nconst rechazar = (http_code, error) => [{ json: { valido: false, http_code, error } }];\n\nconst permitirSinToken = entrada.permitir_sin_token === true || entrada.permitir_sin_token === 'true';\n\nif (!cabecera) {\n  if (EXIGIR_TOKEN || !permitirSinToken) return rechazar(401, 'token_invalido');\n  return [{ json: { valido: true, sin_token: true, usuario_id: null, rol: null, exp: null } }];\n}\n\nconst partes = cabecera.match(/^Bearer\\s+([A-Za-z0-9_-]+)\\.([0-9a-f]{64})$/i);\nif (!partes) return rechazar(401, 'token_invalido');\n\nlet secreto = null;\ntry {\n  secreto = $env.N8N_AUTH_SECRET || null;\n} catch (e) {\n  secreto = null;\n}\nif (!secreto) return rechazar(500, 'autenticacion_no_configurada');\n\n// Comparacion en tiempo constante, sobre bytes del mismo largo.\nconst esperada = Buffer.from(crypto.createHmac('sha256', secreto).update(partes[1]).digest('hex'), 'hex');\nconst recibida = Buffer.from(partes[2].toLowerCase(), 'hex');\nif (esperada.length !== recibida.length || !crypto.timingSafeEqual(esperada, recibida)) {\n  return rechazar(401, 'token_invalido');\n}\n\nlet payload;\ntry {\n  payload = JSON.parse(Buffer.from(partes[1], 'base64url').toString('utf8'));\n} catch (e) {\n  return rechazar(401, 'token_invalido');\n}\n\nconst expMs = Number(payload.exp);\nif (!Number.isFinite(expMs) || expMs <= Date.now()) return rechazar(401, 'token_invalido');\nif (!UUID.test(String(payload.id || ''))) return rechazar(401, 'token_invalido');\nif (!NIVEL[payload.role]) return rechazar(401, 'token_invalido');\nif (NIVEL[payload.role] < NIVEL[rolMinimo]) return rechazar(403, 'rol_no_permitido');\n\nreturn [{\n  json: {\n    valido: true,\n    sin_token: false,\n    usuario_id: payload.id,\n    rol: payload.role,\n    exp: Math.floor(expMs / 1000),\n  },\n}];\n"
+      },
+      "id": "tok-descartar",
+      "name": "Validar token (descartar)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "tok-descartar-if",
+              "leftValue": "={{ $json.valido }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "if-tok-descartar",
+      "name": "Token valido? (descartar)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        416,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { error: $json.error } }}",
+        "options": {
+          "responseCode": "={{ $json.http_code }}"
+        }
+      },
+      "id": "resp-err-descartar",
+      "name": "Responder error (descartar)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1088,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Contrato C3 2.3: el cuerpo trae solo el id de la alerta. Un id que no es UUID\n// no puede existir, asi que recibe el mismo 404 que una alerta ajena: el\n// contrato pide no distinguir entre \"no existe\" y \"es de otro ciudadano\".\nconst UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nconst cuerpo = $('Webhook Descartar Alerta').first().json.body || {};\nconst id = String(cuerpo.id || '');\n\nif (!UUID.test(id)) {\n  return [{ json: { valido: false, http_code: 404, cuerpo: { error: 'alerta_no_encontrada' } } }];\n}\n\nreturn [{ json: { valido: true, alerta_id: id } }];\n"
+      },
+      "id": "code-descartar-validar",
+      "name": "Validar id de la alerta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "dat-descartar",
+              "leftValue": "={{ $json.valido }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "if-dat-descartar",
+      "name": "Id valido? (descartar)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        864,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.cuerpo) }}",
+        "options": {
+          "responseCode": "={{ $json.http_code }}"
+        }
+      },
+      "id": "resp-descartar-404id",
+      "name": "Responder: alerta no encontrada (id)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1088,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- HU-10 T03 - Marca la alerta como descartada (contrato C3, 2.3). El filtro\n-- lleva el usuario del token, de modo que la alerta de otro ciudadano no se\n-- actualiza y no se distingue de una que no existe (404 en ambos casos).\n-- COALESCE deja la fecha del primer descarte: descartar dos veces responde 200.\nUPDATE alertas_ciudadano\nSET descartada_en = COALESCE(descartada_en, now())\nWHERE id = $1::UUID\n  AND usuario_id = $2::UUID\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.alerta_id, $('Validar token (descartar)').first().json.usuario_id ] }}"
+        }
+      },
+      "id": "pg-descartar",
+      "name": "Descartar alerta",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        1088,
+        592
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "OG4PhmWgT8L86uMa",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Contrato C3 2.3: 200 { ok: true } si el UPDATE alcanzo la alerta del\n// ciudadano del token; 404 alerta_no_encontrada si no existe o es de otro.\nconst filas = $input.all()\n  .map((i) => i.json)\n  .filter((f) => f && f.id);\n\nif (filas.length === 0) {\n  return [{ json: { http_code: 404, cuerpo: { error: 'alerta_no_encontrada' } } }];\n}\n\nreturn [{ json: { http_code: 200, cuerpo: { ok: true } } }];\n"
+      },
+      "id": "code-descartar-respuesta",
+      "name": "Armar respuesta (descartar)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1312,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.cuerpo) }}",
+        "options": {
+          "responseCode": "={{ $json.http_code }}"
+        }
+      },
+      "id": "resp-descartar",
+      "name": "Responder: descarte",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1536,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "urbanpulse/ubicacion",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "https://equipo3-urban-pulse.vercel.app,https://equipo3-u-git-cc0c7a-sebastiannnnnnnnnnnnnnnnnnnnnnnns-projects.vercel.app,http://localhost:3000,http://localhost:3003,http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176,http://localhost:5177,http://localhost:5178,http://localhost:5181"
+        }
+      },
+      "id": "wh-ubicacion",
+      "name": "Webhook Guardar Ubicacion",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Copia EN LINEA del subworkflow «Validar token» (HT-36 T01): llamarlo con\n// Execute Workflow sumaba unos 5 s por peticion en la instancia de Lightsail\n// (docs/AUTH_TOKEN_CONTRACT.md, opcion A), y la app consulta sus alertas cada\n// vez que se abre. Solo cambia de donde sale la entrada; el resto debe ser\n// identico (lo comprueba ia-ops/workflows/tests/test_validar_token.py).\n// Sin permitir_sin_token: estos webhooks son nuevos y exigen el token.\n// HT-36 T01 - Valida el token de sesion (contrato C1).\n//\n// El token lo emite el login de Central (nodo \"Generar token\"):\n//   base64url(payload) + \".\" + HMAC-SHA256 en hex del primer tramo, con\n//   N8N_AUTH_SECRET; payload { sub, id, role, iat, exp } con exp en ms.\n// Salida: { valido: true, usuario_id, rol, exp (segundos) } o\n//         { valido: false, http_code: 401 | 403 | 500, error }.\n// Quien llama responde el error al cliente con ese codigo.\nconst crypto = require('crypto');\n\n// Transicion: mientras la app no envie el token (HT-36 T03, TE_ENVIAR_TOKEN),\n// los webhooks que ya existian (reports-list, reports-history, report-resolve)\n// llaman con permitir_sin_token=true: una peticion SIN cabecera sigue como\n// antes y el webhook usa el usuario que manda el cuerpo. Con cabecera se\n// valida siempre. Los webhooks nuevos no lo pasan y exigen el token.\n// Pasar EXIGIR_TOKEN a true cuando TE_ENVIAR_TOKEN este activo en produccion.\nconst EXIGIR_TOKEN = false;\n\nconst NIVEL = { ciudadano: 1, operador: 2 };\nconst UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nconst entrada = {\n  rol_minimo: 'ciudadano',\n  authorization: ($input.first().json.headers || {}).authorization || '',\n};\n// Un rol_minimo desconocido exige lo maximo: nunca abre una ruta por error.\nconst rolMinimo = NIVEL[entrada.rol_minimo] ? entrada.rol_minimo : 'operador';\nconst cabecera = String(entrada.authorization || '').trim();\nconst rechazar = (http_code, error) => [{ json: { valido: false, http_code, error } }];\n\nconst permitirSinToken = entrada.permitir_sin_token === true || entrada.permitir_sin_token === 'true';\n\nif (!cabecera) {\n  if (EXIGIR_TOKEN || !permitirSinToken) return rechazar(401, 'token_invalido');\n  return [{ json: { valido: true, sin_token: true, usuario_id: null, rol: null, exp: null } }];\n}\n\nconst partes = cabecera.match(/^Bearer\\s+([A-Za-z0-9_-]+)\\.([0-9a-f]{64})$/i);\nif (!partes) return rechazar(401, 'token_invalido');\n\nlet secreto = null;\ntry {\n  secreto = $env.N8N_AUTH_SECRET || null;\n} catch (e) {\n  secreto = null;\n}\nif (!secreto) return rechazar(500, 'autenticacion_no_configurada');\n\n// Comparacion en tiempo constante, sobre bytes del mismo largo.\nconst esperada = Buffer.from(crypto.createHmac('sha256', secreto).update(partes[1]).digest('hex'), 'hex');\nconst recibida = Buffer.from(partes[2].toLowerCase(), 'hex');\nif (esperada.length !== recibida.length || !crypto.timingSafeEqual(esperada, recibida)) {\n  return rechazar(401, 'token_invalido');\n}\n\nlet payload;\ntry {\n  payload = JSON.parse(Buffer.from(partes[1], 'base64url').toString('utf8'));\n} catch (e) {\n  return rechazar(401, 'token_invalido');\n}\n\nconst expMs = Number(payload.exp);\nif (!Number.isFinite(expMs) || expMs <= Date.now()) return rechazar(401, 'token_invalido');\nif (!UUID.test(String(payload.id || ''))) return rechazar(401, 'token_invalido');\nif (!NIVEL[payload.role]) return rechazar(401, 'token_invalido');\nif (NIVEL[payload.role] < NIVEL[rolMinimo]) return rechazar(403, 'rol_no_permitido');\n\nreturn [{\n  json: {\n    valido: true,\n    sin_token: false,\n    usuario_id: payload.id,\n    rol: payload.role,\n    exp: Math.floor(expMs / 1000),\n  },\n}];\n"
+      },
+      "id": "tok-ubicacion",
+      "name": "Validar token (ubicacion)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "tok-ubicacion-if",
+              "leftValue": "={{ $json.valido }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "if-tok-ubicacion",
+      "name": "Token valido? (ubicacion)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        416,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { error: $json.error } }}",
+        "options": {
+          "responseCode": "={{ $json.http_code }}"
+        }
+      },
+      "id": "resp-err-ubicacion",
+      "name": "Responder error (ubicacion)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1088,
+        788
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Contrato C3 2.1: 400 datos_invalidos si lat o lng no son numeros o quedan\n// fuera de rango. La app envia la ubicacion como maximo cada 5 minutos y solo\n// con el permiso de geolocalizacion concedido (ADR-017).\nconst cuerpo = $('Webhook Guardar Ubicacion').first().json.body || {};\nconst lat = Number(cuerpo.lat);\nconst lng = Number(cuerpo.lng);\nconst numero = (v) => typeof v === 'number' && Number.isFinite(v);\n\nif (\n  cuerpo.lat === undefined || cuerpo.lat === null || cuerpo.lat === ''\n  || cuerpo.lng === undefined || cuerpo.lng === null || cuerpo.lng === ''\n  || !numero(lat) || !numero(lng)\n  || lat < -90 || lat > 90\n  || lng < -180 || lng > 180\n) {\n  return [{ json: { valido: false, http_code: 400, cuerpo: { error: 'datos_invalidos' } } }];\n}\n\nreturn [{ json: { valido: true, lat, lng } }];\n"
+      },
+      "id": "code-ubicacion-validar",
+      "name": "Validar coordenadas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        996
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "dat-ubicacion",
+              "leftValue": "={{ $json.valido }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "if-dat-ubicacion",
+      "name": "Coordenadas validas?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        864,
+        996
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.cuerpo) }}",
+        "options": {
+          "responseCode": "={{ $json.http_code }}"
+        }
+      },
+      "id": "resp-ubicacion-400",
+      "name": "Responder: datos invalidos (ubicacion)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1088,
+        884
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- HU-10 T03 - Guarda la ultima ubicacion del ciudadano (contrato C3, 2.1).\n-- Se sobrescribe: solo se guarda la ultima, no hay historial de recorridos\n-- (ADR-017). La fecha es la que usa HU-10 T02 para la ventana de 24 h.\nUPDATE usuarios\nSET ultima_ubicacion = ST_SetSRID(\n        ST_MakePoint($2::FLOAT8, $3::FLOAT8), 4326\n    )::GEOGRAPHY,\n    ubicacion_actualizada_en = now()\nWHERE id = $1::UUID;",
+        "options": {
+          "queryReplacement": "={{ [ $('Validar token (ubicacion)').first().json.usuario_id, $json.lng, $json.lat ] }}"
+        }
+      },
+      "id": "pg-ubicacion",
+      "name": "Guardar ubicacion",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        1088,
+        1092
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "OG4PhmWgT8L86uMa",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "noData",
+        "options": {
+          "responseCode": 204
+        }
+      },
+      "id": "resp-ubicacion",
+      "name": "Responder: ubicacion guardada",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1312,
+        1092
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Listar Alertas": {
+      "main": [
+        [
+          {
+            "node": "Validar token (alertas)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar token (alertas)": {
+      "main": [
+        [
+          {
+            "node": "Token valido? (alertas)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Token valido? (alertas)": {
+      "main": [
+        [
+          {
+            "node": "Listar alertas pendientes",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder error (alertas)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Listar alertas pendientes": {
+      "main": [
+        [
+          {
+            "node": "Armar lista de alertas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar lista de alertas": {
+      "main": [
+        [
+          {
+            "node": "Responder: alertas pendientes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Descartar Alerta": {
+      "main": [
+        [
+          {
+            "node": "Validar token (descartar)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar token (descartar)": {
+      "main": [
+        [
+          {
+            "node": "Token valido? (descartar)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Token valido? (descartar)": {
+      "main": [
+        [
+          {
+            "node": "Validar id de la alerta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder error (descartar)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar id de la alerta": {
+      "main": [
+        [
+          {
+            "node": "Id valido? (descartar)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Id valido? (descartar)": {
+      "main": [
+        [
+          {
+            "node": "Descartar alerta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder: alerta no encontrada (id)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Descartar alerta": {
+      "main": [
+        [
+          {
+            "node": "Armar respuesta (descartar)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar respuesta (descartar)": {
+      "main": [
+        [
+          {
+            "node": "Responder: descarte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Guardar Ubicacion": {
+      "main": [
+        [
+          {
+            "node": "Validar token (ubicacion)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar token (ubicacion)": {
+      "main": [
+        [
+          {
+            "node": "Token valido? (ubicacion)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Token valido? (ubicacion)": {
+      "main": [
+        [
+          {
+            "node": "Validar coordenadas",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder error (ubicacion)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar coordenadas": {
+      "main": [
+        [
+          {
+            "node": "Coordenadas validas?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Coordenadas validas?": {
+      "main": [
+        [
+          {
+            "node": "Guardar ubicacion",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder: datos invalidos (ubicacion)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar ubicacion": {
+      "main": [
+        [
+          {
+            "node": "Responder: ubicacion guardada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "nodeGroups": [],
+  "tags": []
+}

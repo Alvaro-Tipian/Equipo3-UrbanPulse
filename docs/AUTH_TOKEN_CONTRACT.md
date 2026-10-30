@@ -78,6 +78,15 @@ Los cinco de *UrbanPulse - Operativos* (HU-09 T02) también, con `rol_minimo = o
 | `GET /urbanpulse/cuadrillas` | `Validar token (cuadrillas)` |
 | `POST /urbanpulse/operativos/asignar` | `Validar token (asignar)` |
 
+Los tres de *UrbanPulse - Alertas del Ciudadano* (HU-10 T03) usan la opción A con
+`rol_minimo = ciudadano` y **sin** `permitir_sin_token`.
+
+| Webhook | Nodo de la copia en línea |
+|---|---|
+| `GET /urbanpulse/alertas` | `Validar token (alertas)` |
+| `POST /urbanpulse/alertas/descartar` | `Validar token (descartar)` |
+| `POST /urbanpulse/ubicacion` | `Validar token (ubicacion)` |
+
 ## Modo de transición
 
 La app todavía no envía el token: lo activa Kiara en HT-36 T03 con `TE_ENVIAR_TOKEN=true`. Para no romper la app mientras tanto, los tres webhooks que ya existían validan con `permitir_sin_token: true`:

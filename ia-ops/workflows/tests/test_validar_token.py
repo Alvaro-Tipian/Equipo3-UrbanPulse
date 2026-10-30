@@ -175,6 +175,7 @@ def test_la_copia_de_produccion_es_identica():
 
 DASHBOARD = RAIZ / "src" / "n8n-workflows" / "production" / "UrbanPulse - Dashboard KPIs vr2.json"
 OPERATIVOS = RAIZ / "ia-ops" / "workflows" / "n8n_operativos.json"
+ALERTAS = RAIZ / "ia-ops" / "workflows" / "n8n_alertas.json"
 ENTRADA = "const entrada = $input.first().json;"
 
 # archivo, nodo, rol_minimo, en modo de transicion (permitir_sin_token)
@@ -188,6 +189,10 @@ COPIAS_EN_LINEA = [
     (OPERATIVOS, "Validar token (listar)", "operador", False),
     (OPERATIVOS, "Validar token (cuadrillas)", "operador", False),
     (OPERATIVOS, "Validar token (asignar)", "operador", False),
+    # HU-10 T03: webhooks de alertas del ciudadano.
+    (ALERTAS, "Validar token (alertas)", "ciudadano", False),
+    (ALERTAS, "Validar token (descartar)", "ciudadano", False),
+    (ALERTAS, "Validar token (ubicacion)", "ciudadano", False),
 ]
 NODOS_OPERATIVOS = [n for a, n, _, _ in COPIAS_EN_LINEA if a == OPERATIVOS]
 
