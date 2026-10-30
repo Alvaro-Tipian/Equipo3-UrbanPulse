@@ -32,6 +32,7 @@ Basta con los **hosts**: los microfrontends se cargan dentro del host con Module
 | Workflow | Webhooks | Producción |
 |---|---|---|
 | UrbanPulse - Dashboard KPIs | 9 (`chat-history-append`, `chat-history`, `dashboard-kpis`, `reports-list`, `reports-history`, `report-image`, `report-resolve`, `mapa-siniestros-onsv`, `mapa-siniestros-sutran`) | Aplicado y publicado (20/10) |
+| UrbanPulse - Dashboard KPIs (HU-11 T01) | `kpis-operativos` | **Pendiente:** se aplica al importar y publicar el workflow |
 | UrbanPulse - Riesgo Predictivo (HU-08 T04) | `riesgo-predictivo` | Aplicado y publicado (20/10). No tiene copia en el repositorio. |
 | UrbanPulse - Estado de la Plataforma (HU-13 T01) | `estado-plataforma` | Aplicado y publicado (20/10) |
 | UrbanPulse - Operativos (HU-09 T02) | 5 (`incidentes-por-zona`, `operativos` GET y POST, `cuadrillas`, `operativos/asignar`) | **Pendiente:** se aplica al importar y publicar el workflow |

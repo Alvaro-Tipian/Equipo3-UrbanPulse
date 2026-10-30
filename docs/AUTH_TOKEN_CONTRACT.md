@@ -87,6 +87,8 @@ Los tres de *UrbanPulse - Alertas del Ciudadano* (HU-10 T03) usan la opción A c
 | `POST /urbanpulse/alertas/descartar` | `Validar token (descartar)` |
 | `POST /urbanpulse/ubicacion` | `Validar token (ubicacion)` |
 
+`GET /urbanpulse/kpis-operativos` (HU-11 T01, *Dashboard KPIs*) usa la opción A con `Validar token (kpis operativos)`, `rol_minimo = operador` y **sin** `permitir_sin_token`.
+
 ## Modo de transición
 
 La app todavía no envía el token: lo activa Kiara en HT-36 T03 con `TE_ENVIAR_TOKEN=true`. Para no romper la app mientras tanto, los tres webhooks que ya existían validan con `permitir_sin_token: true`:

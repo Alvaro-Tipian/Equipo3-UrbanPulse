@@ -50,3 +50,5 @@ Una fila por ítem cerrado. "Verificado por" es quien comprobó la configuració
 | HT-36 T06 (rotación de claves) | producción | | | `verificar_rotacion.py`: todas RECHAZADA |
 | HU-09 T02 (webhooks de operativos) | staging | | | Ciclo crear → asignar → cerrar y 403 con token de ciudadano |
 | HU-09 T02 (webhooks de operativos) | producción | | | Ciclo crear → asignar → cerrar y 403 con token de ciudadano |
+| HU-11 T01 (webhook de KPIs de operativos) | staging | | | 200 en menos de 3 s con token de operador y 403 con token de ciudadano |
+| HU-11 T01 (webhook de KPIs de operativos) | producción | | | 200 en menos de 3 s con token de operador y 403 con token de ciudadano |
