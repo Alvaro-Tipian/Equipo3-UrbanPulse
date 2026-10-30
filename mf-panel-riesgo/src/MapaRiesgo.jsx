@@ -89,7 +89,8 @@ export default function MapaRiesgo({ zonas }) {
   const zonasRef = useRef(zonas);
   const [listo, setListo] = useState(false);
   const [tema, setTema] = useState(temaActual);
-  const key = import.meta.env.TE_TOMTOM_API_KEY;
+  // Igual que MapaUrbano.jsx: VITE_TOMTOM_API_KEY en Vercel, TE_TOMTOM_API_KEY como respaldo local.
+  const key = import.meta.env.VITE_TOMTOM_API_KEY || import.meta.env.TE_TOMTOM_API_KEY;
 
   // Guardar las zonas actuales para repintar al cambiar de tema (fuera del render)
   useEffect(() => {
@@ -156,7 +157,7 @@ export default function MapaRiesgo({ zonas }) {
         <div ref={contenedor} style={{ width: '100%', height: '100%' }} />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-[var(--color-text-secondary)]">
-          Falta la variable TE_TOMTOM_API_KEY en el .env de mf-panel-riesgo.
+          Falta la variable VITE_TOMTOM_API_KEY (o TE_TOMTOM_API_KEY) en el .env de mf-panel-riesgo.
         </div>
       )}
 
