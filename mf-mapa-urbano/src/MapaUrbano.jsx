@@ -256,7 +256,9 @@ const MapaUrbano = ({ lat, lon }) => {
 
   // 1. Inicializar mapa TomTom
   useEffect(() => {
-    const tomtomKey = import.meta.env.TE_TOMTOM_API_KEY;
+    // En Vercel la clave es VITE_TOMTOM_API_KEY (docs/VERCEL_PRODUCTION_KEYS_HARDENING.md);
+    // TE_TOMTOM_API_KEY queda como respaldo para .env locales. Sin clave el mapa no se dibuja.
+    const tomtomKey = import.meta.env.VITE_TOMTOM_API_KEY || import.meta.env.TE_TOMTOM_API_KEY;
     if (!tomtomKey || !mapContainer.current) return undefined;
 
     const estilo = ESTILOS_MAPA[temaActual()];
