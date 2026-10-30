@@ -11,6 +11,21 @@ import { config } from './config.js';
 const BASE_URL = config.n8nBaseUrl;
 const ENVIAR_TOKEN = config.enviarToken;
 
+// HU-09 T03: el error lleva el código HTTP y el cuerpo que respondió n8n
+// (p. ej. 409 { error: 'reporte_no_disponible', reportes: [...] }, contrato C2).
+// Los mensajes no cambian, así que los micro-frontends que ya los muestran siguen igual.
+async function errorHttp(response, mensaje) {
+  let body = null;
+  try {
+    const texto = await response.text();
+    body = texto ? JSON.parse(texto) : null;
+  } catch { /* cuerpo vacío o no JSON */ }
+  const error = new Error(mensaje);
+  error.status = response.status;
+  error.body = body;
+  return error;
+}
+
 export async function fetchN8n(endpoint, options = {}) {
   if (!BASE_URL) {
     throw new Error('TE_N8N_BASE_URL no está configurada');
@@ -35,14 +50,23 @@ export async function fetchN8n(endpoint, options = {}) {
   try {
     const response = await fetch(`${BASE_URL}${ruta}`, { ...options, method, headers });
 
-    if (response.status === 401 || response.status === 403) {
-      console.warn('[Shared HTTP] Sesión expirada o no autorizada.');
+    // 401 = token inválido o vencido (contrato C1): se cierra la sesión.
+    if (response.status === 401) {
+      console.warn('[Shared HTTP] Token inválido o vencido: se cierra la sesión.');
       clearSession();
-      throw new Error('Sesión expirada');
+      try {
+        sessionStorage.setItem('urbanpulse:motivo_salida', 'sesion_vencida');
+      } catch { /* sin acceso a sessionStorage */ }
+      throw await errorHttp(response, 'Tu sesión venció');
+    }
+
+    // 403 = rol_no_permitido: la sesión es válida, solo falta permiso.
+    if (response.status === 403) {
+      throw await errorHttp(response, 'No tienes permiso para esta acción');
     }
 
     if (!response.ok) {
-      throw new Error(`Error HTTP: ${response.status}`);
+      throw await errorHttp(response, `Error HTTP: ${response.status}`);
     }
 
     // Algunos webhooks responden sin cuerpo: no romper con response.json()

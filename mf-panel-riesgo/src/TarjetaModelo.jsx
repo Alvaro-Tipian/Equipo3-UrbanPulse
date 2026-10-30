@@ -1,8 +1,12 @@
 import { Cpu, Activity, CalendarDays, ShieldCheck, ShieldAlert, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
 // HU-08 / T03: tarjeta del modelo en producción.
-// Se alimenta del bloque `modelo` del webhook de riesgo predictivo (contrato 4.2):
-// { version, f1_macro, entrenado, sesgo_ok, monitoreo: { fecha, deriva } }
+// HU-11 / T04: la métrica se muestra como F1-macro (validación temporal), la misma que usa el
+// pipeline (ml/README.md y MLflow). Contrato C5:
+// modelo: { version, metrica, f1_macro, entrenado, sesgo_ok, monitoreo: { fecha, deriva } }
+// Si f1_macro llega null (MLflow no respondió) la tarjeta muestra «Pendiente», nunca otro valor.
+
+const METRICA_POR_DEFECTO = 'F1-macro (validación temporal)';
 
 function fecha(valor) {
   if (!valor) return '—';
@@ -10,6 +14,12 @@ function fecha(valor) {
   const [a, m, d] = String(valor).slice(0, 10).split('-').map(Number);
   const f = a && m && d ? new Date(a, m - 1, d) : new Date(valor);
   return Number.isNaN(f.getTime()) ? valor : f.toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+// Mismo formato que MLflow / ml/README.md (3 decimales, p. ej. 0.332)
+function formatearF1(valor) {
+  const n = typeof valor === 'string' ? Number(valor) : valor;
+  return typeof n === 'number' && Number.isFinite(n) ? n.toFixed(3) : null;
 }
 
 function Fila({ icono: Icono, titulo, children }) {
@@ -64,6 +74,8 @@ export default function TarjetaModelo({ modelo, error }) {
 
   // null = todavía no hay ningún monitoreo registrado (HT-49)
   const deriva = modelo.monitoreo ? modelo.monitoreo.deriva : null;
+  const metrica = modelo.metrica || METRICA_POR_DEFECTO;
+  const f1 = formatearF1(modelo.f1_macro);
 
   return (
     <section className={contenedor}>
@@ -74,8 +86,14 @@ export default function TarjetaModelo({ modelo, error }) {
         <span className="text-sm font-bold font-mono text-[var(--color-accent)]">{modelo.version || '—'}</span>
       </div>
 
-      <Fila icono={Activity} titulo="F1 (macro)">
-        <span className="font-semibold">{typeof modelo.f1_macro === 'number' ? modelo.f1_macro.toFixed(2) : '—'}</span>
+      <Fila icono={Activity} titulo={metrica}>
+        {f1 !== null ? (
+          <span className="font-semibold" data-testid="f1-macro">{f1}</span>
+        ) : (
+          <span data-testid="f1-macro">
+            <Insignia ok={null} textoPendiente="Pendiente" />
+          </span>
+        )}
       </Fila>
       <Fila icono={CalendarDays} titulo="Fecha de entrenamiento">{fecha(modelo.entrenado)}</Fila>
       <Fila icono={modelo.sesgo_ok === false ? ShieldAlert : ShieldCheck} titulo="Pruebas de sesgo">
