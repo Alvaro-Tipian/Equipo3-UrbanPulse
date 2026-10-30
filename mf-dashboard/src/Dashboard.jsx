@@ -9,9 +9,15 @@ import { fetchN8n } from '@urbanpulse/shared';
 
 // Colores para los gráficos (codificación de datos, no cromática de UI — no cambia con el tema)
 const COLORS = ['#A855F7', '#C084FC', '#6366f1', '#14b8a6'];
+// Una línea por tipo: colores bien distintos entre sí para leerlas juntas.
+const COLORES_TIPO = ['#A855F7', '#14b8a6', '#fb923c', '#EF4444'];
 
 // HT-39 / T02: sin URLs fijas; la base sale de TE_N8N_BASE_URL vía fetchN8n (@urbanpulse/shared)
 const RUTA_DASHBOARD_KPIS = '/urbanpulse/dashboard-kpis';
+// HU-11: contrato C4 (docs/KPIS_OPERATIVOS_CONTRACT.md)
+const RUTA_KPIS_OPERATIVOS = '/urbanpulse/kpis-operativos';
+
+const PESTANAS = [['general', 'General'], ['operativos', 'Operativos']];
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
@@ -56,7 +62,115 @@ function ChartPanel({ title, children }) {
   );
 }
 
+// Una fila por semana con una columna por tipo, que es lo que pide LineChart.
+function armarTiempoPorTipo(tiempoPorTipo) {
+  const tipos = [...new Set(tiempoPorTipo.map((t) => t.tipo))];
+  const semanas = new Map();
+  tiempoPorTipo.forEach(({ semana, tipo, horas_promedio: horas }) => {
+    semanas.set(semana, { ...semanas.get(semana), semana, [tipo]: horas });
+  });
+  return { tipos, filas: [...semanas.values()] };
+}
+
+function SeccionOperativos() {
+  const [status, setStatus] = useState('loading');
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let activo = true;
+
+    fetchN8n(RUTA_KPIS_OPERATIVOS)
+      .then((json) => {
+        if (!activo) return;
+        setData(json);
+        setStatus('success');
+      })
+      .catch((err) => {
+        if (!activo) return;
+        console.error('Error cargando KPIs de operativos:', err);
+        setError(err.message || 'No se pudo conectar con el servidor de métricas.');
+        setStatus('error');
+      });
+
+    return () => {
+      activo = false;
+    };
+  }, []);
+
+  if (status === 'loading' && !data) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-[var(--color-accent)]">
+        <Loader2 size={32} className="animate-spin mb-4" />
+        <p className="text-[var(--color-text-secondary)]">Cargando KPIs de operativos...</p>
+      </div>
+    );
+  }
+
+  if (status === 'error' && !data) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <AlertTriangle size={40} className="text-red-400 mb-4" />
+        <p className="text-[var(--color-text-primary)] font-medium mb-1">No se pudieron cargar los KPIs de operativos</p>
+        <p className="text-[var(--color-text-secondary)] text-sm max-w-md">{error}</p>
+      </div>
+    );
+  }
+
+  const operativos = data?.operativos ?? [];
+  if (operativos.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <BarChart3 size={40} className="text-[var(--color-text-secondary)] mb-4" />
+        <p className="text-[var(--color-text-primary)] font-medium">Aún no hay operativos cerrados</p>
+      </div>
+    );
+  }
+
+  const efectividad = operativos.map((o) => ({
+    name: `${o.zona} · ${o.tipo_principal}`,
+    value: Math.round(o.efectividad * 100),
+  }));
+  const { tipos, filas } = armarTiempoPorTipo(data.tiempo_por_tipo ?? []);
+
+  return (
+    <>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <ChartPanel title="Efectividad por operativo">
+          <BarChart data={efectividad} layout="vertical" margin={{ left: 24 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
+            <XAxis type="number" domain={[0, 100]} unit="%" stroke="var(--color-text-secondary)" tick={{ fill: 'var(--color-text-secondary)' }} axisLine={false} tickLine={false} />
+            <YAxis type="category" dataKey="name" stroke="var(--color-text-secondary)" tick={{ fill: 'var(--color-text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false} width={130} />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--color-border)', opacity: 0.4 }} />
+            <Bar dataKey="value" name="% resuelto" fill="var(--color-accent)" radius={[0, 6, 6, 0]} />
+          </BarChart>
+        </ChartPanel>
+
+        <ChartPanel title="Tiempo medio de atención por tipo (horas)">
+          <LineChart data={filas}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+            <XAxis dataKey="semana" stroke="var(--color-text-secondary)" tick={{ fill: 'var(--color-text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false} />
+            <YAxis stroke="var(--color-text-secondary)" tick={{ fill: 'var(--color-text-secondary)' }} axisLine={false} tickLine={false} />
+            <Tooltip content={<CustomTooltip />} />
+            <Legend wrapperStyle={{ fontSize: 12, color: 'var(--color-text-secondary)' }} />
+            {tipos.map((tipo, index) => (
+              <Line key={tipo} type="monotone" dataKey={tipo} name={tipo} stroke={COLORES_TIPO[index % COLORES_TIPO.length]} strokeWidth={2} connectNulls />
+            ))}
+          </LineChart>
+        </ChartPanel>
+      </div>
+
+      {data.actualizado && (
+        <p className="text-xs text-[var(--color-text-secondary)] text-right">
+          Última actualización: {new Date(data.actualizado).toLocaleString()}
+        </p>
+      )}
+    </>
+  );
+}
+
 export default function Dashboard() {
+  const [pestana, setPestana] = useState('general');
   const [status, setStatus] = useState('loading');
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -116,24 +230,44 @@ export default function Dashboard() {
           <Activity className="text-[var(--color-accent)]" size={22} />
           <h2 className="text-lg font-bold text-[var(--color-text-primary)]">Panel Analítico UrbanPulse</h2>
         </div>
-        <button
-          onClick={cargarKpis}
-          disabled={status === 'loading'}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--color-card)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-accent-light)] hover:border-[var(--color-border)]/50 transition-colors disabled:opacity-50"
-        >
-          <RefreshCw size={16} className={status === 'loading' ? 'animate-spin' : ''} />
-          <span className="text-sm font-medium">Actualizar</span>
-        </button>
+        {pestana === 'general' && (
+          <button
+            onClick={cargarKpis}
+            disabled={status === 'loading'}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--color-card)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-accent-light)] hover:border-[var(--color-border)]/50 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw size={16} className={status === 'loading' ? 'animate-spin' : ''} />
+            <span className="text-sm font-medium">Actualizar</span>
+          </button>
+        )}
       </div>
 
-      {status === 'loading' && !data && (
+      <div className="flex flex-wrap gap-2">
+        {PESTANAS.map(([clave, titulo]) => (
+          <button
+            key={clave}
+            type="button"
+            onClick={() => setPestana(clave)}
+            className={`px-4 py-2 rounded-xl text-sm font-bold border cursor-pointer transition-colors ${pestana === clave
+              ? 'bg-[var(--color-accent)] text-white border-[var(--color-accent)]'
+              : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-accent)]'}`}
+            data-testid={`pestana-${clave}`}
+          >
+            {titulo}
+          </button>
+        ))}
+      </div>
+
+      {pestana === 'operativos' && <SeccionOperativos />}
+
+      {pestana === 'general' && status === 'loading' && !data && (
         <div className="flex flex-col items-center justify-center py-24 text-[var(--color-accent)]">
           <Loader2 size={32} className="animate-spin mb-4" />
           <p className="text-[var(--color-text-secondary)]">Cargando métricas de la ciudad...</p>
         </div>
       )}
 
-      {status === 'error' && !data && (
+      {pestana === 'general' && status === 'error' && !data && (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <AlertTriangle size={40} className="text-red-400 mb-4" />
           <p className="text-[var(--color-text-primary)] font-medium mb-1">No se pudieron cargar los KPIs</p>
@@ -141,7 +275,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {kpis && (
+      {pestana === 'general' && kpis && (
         <>
           {/* TARJETAS DE KPIs */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
