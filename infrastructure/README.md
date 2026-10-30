@@ -10,6 +10,8 @@ Este directorio contiene la infraestructura como código (Terraform, en `terrafo
 
 También hay archivos de apoyo: `docker-compose.yml`, `postgres.Dockerfile` (entorno local) y `lightsail-containers.json.template` (despliegue de la imagen de n8n, que hace GitHub Actions con `deploy-lightsail-n8n.yml`).
 
+**Conexiones de n8n a su base (`DB_POSTGRESDB_POOL_SIZE = 10`).** Por defecto n8n abre solo 2 conexiones a su propia base de datos y espera 20 s por una libre. Con 2, el mapa (5 o 6 webhooks a la vez) dejaba peticiones en cola hasta agotar la espera: n8n respondía error sin cabeceras CORS y el navegador lo informaba como "falta Access-Control-Allow-Origin" (ejecución 8599, 30/10/2026). La base de n8n está en Neon `sa-east-1` y el contenedor en `us-east-1`, así que cada consulta interna suma la latencia entre regiones.
+
 **Qué NO cubre:** DagsHub/MLflow ni Neon (base de datos). Ambos se administran fuera de Terraform.
 
 ## 2. Proyectos de Vercel
